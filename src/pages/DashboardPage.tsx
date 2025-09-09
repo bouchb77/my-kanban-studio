@@ -9,8 +9,12 @@ import {
   Plus,
   MoreVertical
 } from "lucide-react";
+import { CreateTaskDialog } from "@/components/CreateTaskDialog";
+import { useState } from "react";
 
 const DashboardPage = () => {
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -19,7 +23,11 @@ const DashboardPage = () => {
           <h1 className="text-3xl font-bold text-foreground">Tableau de bord</h1>
           <p className="text-muted-foreground">Aperçu de vos tâches et projets</p>
         </div>
-        <Button style={{ background: "var(--gradient-primary)" }} className="border-0 text-primary-foreground">
+        <Button 
+          onClick={() => setIsCreateTaskOpen(true)}
+          style={{ background: "var(--gradient-primary)" }} 
+          className="border-0 text-primary-foreground"
+        >
           <Plus className="w-4 h-4 mr-2" />
           Nouvelle tâche
         </Button>
@@ -151,6 +159,11 @@ const DashboardPage = () => {
           </CardContent>
         </Card>
       </div>
+      
+      <CreateTaskDialog 
+        open={isCreateTaskOpen} 
+        onOpenChange={setIsCreateTaskOpen} 
+      />
     </div>
   );
 };

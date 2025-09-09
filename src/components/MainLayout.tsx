@@ -10,12 +10,16 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { CreateTaskDialog } from "./CreateTaskDialog";
+import { useState } from "react";
 
 interface MainLayoutProps {
   children: React.ReactNode;
 }
 
 export function MainLayout({ children }: MainLayoutProps) {
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
@@ -39,7 +43,11 @@ export function MainLayout({ children }: MainLayoutProps) {
 
             <div className="flex items-center gap-3">
               {/* Add task button */}
-              <Button style={{ background: "var(--gradient-primary)" }} className="border-0 text-primary-foreground">
+              <Button 
+                onClick={() => setIsCreateTaskOpen(true)}
+                style={{ background: "var(--gradient-primary)" }} 
+                className="border-0 text-primary-foreground"
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Nouvelle tâche
               </Button>
@@ -82,6 +90,11 @@ export function MainLayout({ children }: MainLayoutProps) {
           </main>
         </div>
       </div>
+      
+      <CreateTaskDialog 
+        open={isCreateTaskOpen} 
+        onOpenChange={setIsCreateTaskOpen} 
+      />
     </SidebarProvider>
   );
 }

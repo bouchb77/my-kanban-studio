@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, closestCenter } from "@dnd-kit/core";
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, closestCenter, useDroppable } from "@dnd-kit/core";
 import { SortableContext, arrayMove, rectSortingStrategy } from "@dnd-kit/sortable";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -139,6 +139,7 @@ function TaskCard({ task }: { task: Task }) {
 
 function KanbanColumn({ column, tasks }: { column: typeof columns[0], tasks: Task[] }) {
   const columnTasks = tasks.filter(task => task.status === column.status);
+  const { setNodeRef: setDroppableRef } = useDroppable({ id: column.status });
 
   return (
     <div className="flex-1 min-w-80">
@@ -155,7 +156,7 @@ function KanbanColumn({ column, tasks }: { column: typeof columns[0], tasks: Tas
       </div>
 
       <SortableContext items={columnTasks.map(t => t.id)} strategy={rectSortingStrategy}>
-        <div className="space-y-3 min-h-96">
+        <div ref={setDroppableRef} className="space-y-3 min-h-96">
           {columnTasks.map((task) => (
             <TaskCard key={task.id} task={task} />
           ))}
@@ -181,13 +182,26 @@ const KanbanPage = () => {
 
     if (!over) return;
 
-    const taskId = active.id as string;
-    const newStatus = over.id as Task['status'];
+    const taskId = String(active.id);
+    const overId = String(over.id);
+
+    let targetStatus: Task['status'] | null = null;
+
+    // If dropped over a column container
+    if (columns.some(c => c.status === overId)) {
+      targetStatus = overId as Task['status'];
+    } else {
+      // If dropped over another task, keep within that task's column
+      const overTask = tasks.find(t => t.id === overId);
+      if (overTask) targetStatus = overTask.status;
+    }
+
+    if (!targetStatus) return;
 
     setTasks(prevTasks =>
       prevTasks.map(task =>
         task.id === taskId
-          ? { ...task, status: newStatus, updatedAt: new Date() }
+          ? { ...task, status: targetStatus!, updatedAt: new Date() }
           : task
       )
     );

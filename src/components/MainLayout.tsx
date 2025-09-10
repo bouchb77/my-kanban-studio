@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Bell, Search, User, LogOut, Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { CreateTaskDialog } from "./CreateTaskDialog";
+import { useNavigate } from "react-router-dom";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -22,6 +23,7 @@ interface MainLayoutProps {
 export function MainLayout({ children }: MainLayoutProps) {
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const handleSignOut = async () => {
     await signOut();
@@ -60,7 +62,12 @@ export function MainLayout({ children }: MainLayoutProps) {
               </Button>
 
               {/* Notifications */}
-              <Button variant="ghost" size="sm" className="relative">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="relative" 
+                onClick={() => navigate('/notifications')}
+              >
                 <Bell className="w-5 h-5" />
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-destructive rounded-full"></span>
               </Button>

@@ -13,6 +13,7 @@ import TasksPage from "./pages/TasksPage";
 import SettingsPage from "./pages/SettingsPage";
 import ReportingPage from "./pages/ReportingPage";
 import { CalendarPage } from "./pages/CalendarPage";
+import NotificationsPage from "./pages/NotificationsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -72,6 +73,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <MainLayout><ReportingPage /></MainLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/notifications" 
+              element={
+                <ProtectedRoute>
+                  <MainLayout><NotificationsPage /></MainLayout>
                 </ProtectedRoute>
               } 
             />

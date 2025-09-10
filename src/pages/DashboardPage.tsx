@@ -28,8 +28,29 @@ const DashboardPage = () => {
   const recentTasks = getRecentTasks();
   const overdueTasks = getOverdueTasks();
 
+  const mapToViewTask = (t: any) => {
+    const parseDate = (d: any) => {
+      if (!d) return new Date();
+      const dt = new Date(d);
+      return isNaN(dt.getTime()) ? new Date() : dt;
+    };
+    return {
+      id: String(t.id),
+      title: t.title,
+      description: t.description || undefined,
+      status: t.status,
+      priority: t.priority,
+      assignee: t.assignee || undefined,
+      dueDate: t.due_date ? parseDate(t.due_date) : undefined,
+      tags: Array.isArray(t.tags) ? t.tags : [],
+      createdAt: parseDate(t.created_at),
+      updatedAt: parseDate(t.updated_at),
+      customFields: (t as any).custom_fields || {},
+    };
+  };
+
   const handleViewTask = (task: any) => {
-    setViewingTask(task);
+    setViewingTask(mapToViewTask(task));
     setIsViewTaskOpen(true);
   };
 

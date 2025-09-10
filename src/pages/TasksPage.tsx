@@ -213,7 +213,18 @@ const mapDbTask = (row: any): Task => ({
       }
       
       if (data) {
-        setTasks(data.map(mapDbTask));
+        // Tri par échéance croissante (les tâches sans échéance à la fin)
+        const sortedTasks = data.map(mapDbTask).sort((a, b) => {
+          // Si une tâche n'a pas de due date, elle va à la fin
+          if (!a.dueDate && !b.dueDate) return 0;
+          if (!a.dueDate) return 1;
+          if (!b.dueDate) return -1;
+          
+          // Tri par due date croissant
+          return a.dueDate.getTime() - b.dueDate.getTime();
+        });
+        
+        setTasks(sortedTasks);
       }
     } catch (error) {
       console.error('Error loading tasks:', error);

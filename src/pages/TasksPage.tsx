@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,7 @@ import {
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
+  DropdownMenuSeparator,
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { 
@@ -37,62 +38,21 @@ import {
   Trash2
 } from "lucide-react";
 import { Task } from "@/types/task";
-
-// Mock data
-const mockTasks: Task[] = [
-  {
-    id: "1",
-    title: "Implémenter l'authentification",
-    description: "Configurer Supabase auth avec email/password",
-    status: "todo",
-    priority: "high",
-    tags: ["auth", "backend"],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    assignee: "Alice Martin",
-  },
-  {
-    id: "2",
-    title: "Design système de notifications",
-    description: "Créer l'interface utilisateur pour les notifications",
-    status: "in-progress",
-    priority: "medium",
-    tags: ["ui", "design"],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    assignee: "Bob Dupont",
-  },
-  {
-    id: "3",
-    title: "Tests unitaires",
-    description: "Écrire les tests pour les composants principaux",
-    status: "review",
-    priority: "low",
-    tags: ["tests", "quality"],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-  },
-  {
-    id: "4",
-    title: "Optimisation des performances",
-    description: "Améliorer les temps de chargement de l'application",
-    status: "done",
-    priority: "medium",
-    tags: ["performance", "optimization"],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    assignee: "Charlie Moreau",
-  },
-];
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { CreateTaskDialog } from "@/components/CreateTaskDialog";
 
 const TasksPage = () => {
-  const [tasks, setTasks] = useState<Task[]>(mockTasks);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+  const { toast } = useToast();
+  const { user } = useAuth();
 
   const statusLabels = {
     todo: "À faire",
@@ -120,6 +80,85 @@ const TasksPage = () => {
     done: "bg-status-done text-success",
   };
 
+  // Map DB row to Task type (same as kanban)
+  const mapDbTask = (row: any): Task => ({
+    id: String(row.id),
+    title: row.title,
+    description: row.description || undefined,
+    status: (row.status as Task["status"]) ?? "todo",
+    priority: (["low", "medium", "high"].includes(row.priority)
+      ? row.priority
+      : "medium") as Task["priority"],
+    tags: row.tags ?? [],
+    assignee: row.assignee || undefined,
+    dueDate: row.due_date ? new Date(row.due_date) : undefined,
+    createdAt: row.created_at ? new Date(row.created_at) : new Date(),
+    updatedAt: row.updated_at ? new Date(row.updated_at) : new Date(),
+  });
+
+  // Load tasks from Supabase
+  const loadTasks = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("*")
+        .order("created_at", { ascending: false });
+      
+      if (error) {
+        console.error(error);
+        toast({ 
+          title: "Erreur", 
+          description: "Impossible de charger les tâches", 
+          variant: "destructive" 
+        });
+        return;
+      }
+      
+      if (data) {
+        setTasks(data.map(mapDbTask));
+      }
+    } catch (error) {
+      console.error('Error loading tasks:', error);
+      toast({ 
+        title: "Erreur", 
+        description: "Erreur lors du chargement", 
+        variant: "destructive" 
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTasks();
+  }, [user]);
+
+  // Set up real-time updates
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('tasks-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tasks'
+        },
+        () => {
+          loadTasks(); // Reload tasks on any change
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          task.description?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -145,6 +184,68 @@ const TasksPage = () => {
     );
   };
 
+  const handleDeleteTask = async (taskId: string) => {
+    const { error } = await supabase.from("tasks").delete().eq("id", taskId);
+    
+    if (error) {
+      toast({ 
+        title: "Erreur", 
+        description: "Impossible de supprimer la tâche", 
+        variant: "destructive" 
+      });
+    } else {
+      toast({ title: "Tâche supprimée" });
+      setSelectedTasks(prev => prev.filter(id => id !== taskId));
+    }
+  };
+
+  const handleBulkComplete = async () => {
+    const { error } = await supabase
+      .from("tasks")
+      .update({ status: "done" })
+      .in("id", selectedTasks);
+    
+    if (error) {
+      toast({ 
+        title: "Erreur", 
+        description: "Impossible de marquer les tâches comme terminées", 
+        variant: "destructive" 
+      });
+    } else {
+      toast({ title: `${selectedTasks.length} tâche(s) marquée(s) comme terminée(s)` });
+      setSelectedTasks([]);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const { error } = await supabase
+      .from("tasks")
+      .delete()
+      .in("id", selectedTasks);
+    
+    if (error) {
+      toast({ 
+        title: "Erreur", 
+        description: "Impossible de supprimer les tâches", 
+        variant: "destructive" 
+      });
+    } else {
+      toast({ title: `${selectedTasks.length} tâche(s) supprimée(s)` });
+      setSelectedTasks([]);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Chargement des tâches...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -153,7 +254,11 @@ const TasksPage = () => {
           <h1 className="text-3xl font-bold text-foreground">Liste des tâches</h1>
           <p className="text-muted-foreground">Gérez et filtrez vos tâches</p>
         </div>
-        <Button style={{ background: "var(--gradient-primary)" }} className="border-0 text-primary-foreground">
+        <Button 
+          onClick={() => setIsCreateTaskOpen(true)}
+          style={{ background: "var(--gradient-primary)" }} 
+          className="border-0 text-primary-foreground"
+        >
           <Plus className="w-4 h-4 mr-2" />
           Nouvelle tâche
         </Button>
@@ -222,7 +327,7 @@ const TasksPage = () => {
               <TableRow>
                 <TableHead className="w-12">
                   <Checkbox
-                    checked={selectedTasks.length === filteredTasks.length}
+                    checked={selectedTasks.length === filteredTasks.length && filteredTasks.length > 0}
                     onCheckedChange={toggleAllTasks}
                   />
                 </TableHead>
@@ -286,12 +391,12 @@ const TasksPage = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {task.tags.slice(0, 2).map((tag) => (
+                      {task.tags?.slice(0, 2).map((tag) => (
                         <Badge key={tag} variant="secondary" className="text-xs">
                           {tag}
                         </Badge>
                       ))}
-                      {task.tags.length > 2 && (
+                      {task.tags && task.tags.length > 2 && (
                         <Badge variant="secondary" className="text-xs">
                           +{task.tags.length - 2}
                         </Badge>
@@ -310,7 +415,11 @@ const TasksPage = () => {
                           <Edit className="w-4 h-4 mr-2" />
                           Modifier
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          className="text-destructive"
+                          onSelect={() => handleDeleteTask(task.id)}
+                        >
                           <Trash2 className="w-4 h-4 mr-2" />
                           Supprimer
                         </DropdownMenuItem>
@@ -319,6 +428,13 @@ const TasksPage = () => {
                   </TableCell>
                 </TableRow>
               ))}
+              {filteredTasks.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
+                    Aucune tâche trouvée
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -326,22 +442,35 @@ const TasksPage = () => {
 
       {/* Bulk actions */}
       {selectedTasks.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-primary text-primary-foreground px-6 py-3 rounded-lg shadow-dropdown">
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-primary text-primary-foreground px-6 py-3 rounded-lg shadow-dropdown z-50">
           <div className="flex items-center gap-4">
             <span className="font-medium">
               {selectedTasks.length} tâche(s) sélectionnée(s)
             </span>
             <div className="flex gap-2">
-              <Button variant="secondary" size="sm">
+              <Button 
+                variant="secondary" 
+                size="sm"
+                onClick={handleBulkComplete}
+              >
                 Marquer comme terminé
               </Button>
-              <Button variant="secondary" size="sm">
+              <Button 
+                variant="secondary" 
+                size="sm"
+                onClick={handleBulkDelete}
+              >
                 Supprimer
               </Button>
             </div>
           </div>
         </div>
       )}
+
+      <CreateTaskDialog 
+        open={isCreateTaskOpen} 
+        onOpenChange={setIsCreateTaskOpen} 
+      />
     </div>
   );
 };

@@ -12,9 +12,16 @@ import {
 } from "lucide-react";
 import { CreateTaskDialog } from "@/components/CreateTaskDialog";
 import { useState } from "react";
+import { useTasks } from "@/hooks/useTasks";
+import { formatDistanceToNow } from "date-fns";
+import { fr } from "date-fns/locale";
 
 const DashboardPage = () => {
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+  const { getTaskStats, getRecentTasks, loading } = useTasks();
+  
+  const stats = getTaskStats();
+  const recentTasks = getRecentTasks();
 
   return (
     <div className="p-6 space-y-6">
@@ -42,9 +49,9 @@ const DashboardPage = () => {
             <CheckSquare className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">24</div>
+            <div className="text-2xl font-bold">{stats.completed}</div>
             <p className="text-xs text-muted-foreground">
-              +12% par rapport au mois dernier
+              {stats.completionRate}% de taux de completion
             </p>
           </CardContent>
         </Card>
@@ -55,9 +62,9 @@ const DashboardPage = () => {
             <Clock className="h-4 w-4 text-warning" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">8</div>
+            <div className="text-2xl font-bold">{stats.inProgress}</div>
             <p className="text-xs text-muted-foreground">
-              3 à terminer cette semaine
+              {stats.inReview} en révision
             </p>
           </CardContent>
         </Card>
@@ -68,7 +75,7 @@ const DashboardPage = () => {
             <AlertTriangle className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">3</div>
+            <div className="text-2xl font-bold">{stats.overdue}</div>
             <p className="text-xs text-muted-foreground">
               À traiter en priorité
             </p>
@@ -81,9 +88,9 @@ const DashboardPage = () => {
             <TrendingUp className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">87%</div>
+            <div className="text-2xl font-bold">{stats.completionRate}%</div>
             <p className="text-xs text-muted-foreground">
-              +5% cette semaine
+              {stats.total} tâches au total
             </p>
           </CardContent>
         </Card>
@@ -130,26 +137,30 @@ const DashboardPage = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {[
-                { title: "Implémenter système d'auth", status: "Terminé", time: "Il y a 2h" },
-                { title: "Corriger bug panier", status: "En cours", time: "Il y a 4h" },
-                { title: "Révision design homepage", status: "En révision", time: "Il y a 1j" },
-                { title: "Tests utilisateur", status: "Planifié", time: "Il y a 2j" },
-              ].map((task, index) => (
-                <div key={index} className="flex items-center justify-between py-2">
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{task.title}</p>
-                    <p className="text-xs text-muted-foreground">{task.time}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      task.status === 'Terminé' ? 'bg-status-done text-success' :
-                      task.status === 'En cours' ? 'bg-status-progress text-primary' :
-                      task.status === 'En révision' ? 'bg-status-review text-warning' :
-                      'bg-status-todo text-muted-foreground'
-                    }`}>
-                      {task.status}
-                    </span>
+              {loading ? (
+                <div className="text-center text-muted-foreground">Chargement...</div>
+              ) : recentTasks.length === 0 ? (
+                <div className="text-center text-muted-foreground">Aucune tâche récente</div>
+              ) : (
+                recentTasks.map((task, index) => (
+                  <div key={task.id} className="flex items-center justify-between py-2">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{task.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(task.updated_at), { addSuffix: true, locale: fr })}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        task.status === 'done' ? 'bg-status-done text-success' :
+                        task.status === 'in-progress' ? 'bg-status-progress text-primary' :
+                        task.status === 'review' ? 'bg-status-review text-warning' :
+                        'bg-status-todo text-muted-foreground'
+                      }`}>
+                        {task.status === 'done' ? 'Terminé' :
+                         task.status === 'in-progress' ? 'En cours' :
+                         task.status === 'review' ? 'En révision' : 'À faire'}
+                      </span>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button 
@@ -167,9 +178,10 @@ const DashboardPage = () => {
                         <DropdownMenuItem className="text-destructive" onClick={() => console.log('Supprimer:', task.title)}>Supprimer</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>

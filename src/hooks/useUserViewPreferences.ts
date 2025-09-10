@@ -58,6 +58,8 @@ export const useUserViewPreferences = (viewType: 'table' | 'kanban' = 'table') =
           user_id: user.id,
           view_type: viewType,
           ...updates,
+        }, {
+          onConflict: 'user_id,view_type'
         })
         .select()
         .single();

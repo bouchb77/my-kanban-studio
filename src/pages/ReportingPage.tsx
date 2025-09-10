@@ -33,6 +33,8 @@ import {
   LineChart,
   Line,
 } from "recharts";
+import { useTasks } from "@/hooks/useTasks";
+import { useMemo } from "react";
 
 // Mock data
 const weeklyData = [
@@ -60,6 +62,51 @@ const productivityData = [
 ];
 
 const ReportingPage = () => {
+  const { tasks, getTaskStats, loading } = useTasks();
+  const stats = getTaskStats();
+
+  const statusData = useMemo(() => [
+    { name: "À faire", value: stats.todo, color: "hsl(var(--muted-foreground))" },
+    { name: "En cours", value: stats.inProgress, color: "hsl(var(--primary))" },
+    { name: "En révision", value: stats.inReview, color: "hsl(var(--warning))" },
+    { name: "Terminé", value: stats.completed, color: "hsl(var(--success))" },
+  ], [stats]);
+
+  const weeklyData = useMemo(() => {
+    // Generate data for the last 7 days
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date();
+      date.setDate(date.getDate() - (6 - i));
+      return date;
+    });
+
+    return last7Days.map(date => {
+      const dayTasks = tasks.filter(task => {
+        const taskDate = new Date(task.created_at);
+        return taskDate.toDateString() === date.toDateString();
+      });
+      
+      const completedTasks = tasks.filter(task => {
+        const taskDate = new Date(task.updated_at);
+        return taskDate.toDateString() === date.toDateString() && task.status === 'done';
+      });
+
+      return {
+        name: date.toLocaleDateString('fr-FR', { weekday: 'short' }),
+        created: dayTasks.length,
+        completed: completedTasks.length
+      };
+    });
+  }, [tasks]);
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <div className="text-muted-foreground">Chargement des données...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -100,10 +147,10 @@ const ReportingPage = () => {
             <CheckSquare className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">37</div>
-            <div className="flex items-center text-xs text-success mt-1">
-              <TrendingUp className="w-3 h-3 mr-1" />
-              +12% vs semaine précédente
+            <div className="text-2xl font-bold">{stats.total}</div>
+            <div className="flex items-center text-xs text-muted-foreground mt-1">
+              <CheckSquare className="w-3 h-3 mr-1" />
+              {stats.completed} terminées
             </div>
           </CardContent>
         </Card>
@@ -114,10 +161,10 @@ const ReportingPage = () => {
             <TrendingUp className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">87%</div>
+            <div className="text-2xl font-bold">{stats.completionRate}%</div>
             <div className="flex items-center text-xs text-success mt-1">
               <TrendingUp className="w-3 h-3 mr-1" />
-              +5% vs mois dernier
+              Taux de réussite
             </div>
           </CardContent>
         </Card>
@@ -142,10 +189,10 @@ const ReportingPage = () => {
             <AlertTriangle className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">3</div>
-            <div className="flex items-center text-xs text-success mt-1">
-              <TrendingDown className="w-3 h-3 mr-1" />
-              -2 vs semaine précédente
+            <div className="text-2xl font-bold">{stats.overdue}</div>
+            <div className="flex items-center text-xs text-destructive mt-1">
+              <AlertTriangle className="w-3 h-3 mr-1" />
+              À traiter en priorité
             </div>
           </CardContent>
         </Card>

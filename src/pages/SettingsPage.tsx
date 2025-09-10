@@ -59,6 +59,15 @@ const SettingsPage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
+  // Default system fields that should always be displayed (read-only)
+  const systemFields = [
+    { id: 'title', name: 'Titre', type: 'text', required: true, system: true },
+    { id: 'description', name: 'Description', type: 'textarea', required: false, system: true },
+    { id: 'status', name: 'Statut', type: 'select', required: true, system: true },
+    { id: 'priority', name: 'Priorité', type: 'select', required: true, system: true },
+    { id: 'due_date', name: 'Date d\'échéance', type: 'date', required: false, system: true }
+  ];
+  
   const [columns, setColumns] = useState<UserColumn[]>([]);
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
   const [notifications, setNotifications] = useState<NotificationSettings>({
@@ -428,66 +437,102 @@ const SettingsPage = () => {
         <TabsContent value="fields">
           <Card className="shadow-card border-0">
             <CardHeader>
-              <CardTitle>Champs personnalisés</CardTitle>
+              <CardTitle>Champs de formulaire</CardTitle>
               <CardDescription>
-                Définissez des champs supplémentaires pour vos tâches
+                Champs système et personnalisés pour vos formulaires de tâches
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {customFields.map((field) => (
-                <div key={field.id} className="flex items-center gap-4 p-4 bg-surface-variant rounded-lg">
-                  <div className="flex-1 grid grid-cols-3 gap-4">
-                    <div>
-                      <Label className="text-sm">Nom du champ</Label>
-                      <Input 
-                        value={field.name} 
-                        className="mt-1"
-                        onChange={(e) => updateCustomField(field.id, { name: e.target.value })}
-                      />
+            <CardContent className="space-y-6">
+              {/* System Fields */}
+              <div>
+                <h4 className="text-sm font-medium text-muted-foreground mb-3">Champs système</h4>
+                <div className="space-y-3">
+                  {systemFields.map((field) => (
+                    <div key={field.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/20">
+                      <div className="flex items-center gap-3">
+                        <div className="w-2 h-2 rounded-full bg-muted-foreground" />
+                        <div>
+                          <p className="font-medium">{field.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Type: {field.type} {field.required && '• Requis'} • Non modifiable
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                        Système
+                      </div>
                     </div>
-                    
-                    <div>
-                      <Label className="text-sm">Type</Label>
-                      <Select 
-                        value={field.type}
-                        onValueChange={(value: any) => updateCustomField(field.id, { type: value })}
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="text">Texte</SelectItem>
-                          <SelectItem value="number">Nombre</SelectItem>
-                          <SelectItem value="select">Liste déroulante</SelectItem>
-                          <SelectItem value="date">Date</SelectItem>
-                          <SelectItem value="checkbox">Case à cocher</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2 mt-6">
-                      <Switch 
-                        id={`required-${field.id}`}
-                        checked={field.required}
-                        onCheckedChange={(checked) => updateCustomField(field.id, { required: checked })}
-                      />
-                      <Label htmlFor={`required-${field.id}`} className="text-sm">
-                        Obligatoire
-                      </Label>
-                    </div>
-                  </div>
-                  
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="text-destructive"
-                    onClick={() => deleteCustomField(field.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  ))}
                 </div>
-              ))}
+              </div>
+
+              {/* Custom Fields */}
+              <div>
+                <h4 className="text-sm font-medium text-muted-foreground mb-3">Champs personnalisés</h4>
+                <div className="space-y-3">
+                  {customFields.length === 0 ? (
+                    <div className="text-center py-6 text-muted-foreground">
+                      <p>Aucun champ personnalisé configuré</p>
+                    </div>
+                  ) : (
+                    customFields.map((field) => (
+                      <div key={field.id} className="flex items-center gap-4 p-4 bg-surface-variant rounded-lg">
+                        <div className="flex-1 grid grid-cols-3 gap-4">
+                          <div>
+                            <Label className="text-sm">Nom du champ</Label>
+                            <Input 
+                              value={field.name} 
+                              className="mt-1"
+                              onChange={(e) => updateCustomField(field.id, { name: e.target.value })}
+                            />
+                          </div>
+                          
+                          <div>
+                            <Label className="text-sm">Type</Label>
+                            <Select 
+                              value={field.type}
+                              onValueChange={(value: any) => updateCustomField(field.id, { type: value })}
+                            >
+                              <SelectTrigger className="mt-1">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="text">Texte</SelectItem>
+                                <SelectItem value="number">Nombre</SelectItem>
+                                <SelectItem value="select">Liste déroulante</SelectItem>
+                                <SelectItem value="date">Date</SelectItem>
+                                <SelectItem value="checkbox">Case à cocher</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          
+                          <div className="flex items-center space-x-2 mt-6">
+                            <Switch 
+                              id={`required-${field.id}`}
+                              checked={field.required}
+                              onCheckedChange={(checked) => updateCustomField(field.id, { required: checked })}
+                            />
+                            <Label htmlFor={`required-${field.id}`} className="text-sm">
+                              Obligatoire
+                            </Label>
+                          </div>
+                        </div>
+                        
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-destructive"
+                          onClick={() => deleteCustomField(field.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
               
+              {/* Add new custom field */}
               <div className="grid grid-cols-12 gap-2">
                 <Input 
                   className="col-span-4"

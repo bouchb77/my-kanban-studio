@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserColumns, useUserCustomFields } from "@/hooks/useUserSettings";
+import { getCompanyBySipi, validateSipiFormat } from "@/services/sipiService";
 
 interface CreateTaskDialogProps {
   open: boolean;
@@ -33,6 +34,9 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
   const [status, setStatus] = useState("todo");
   const [dueDate, setDueDate] = useState<Date | undefined>();
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({});
+  const [sipiNumber, setSipiNumber] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [isLoadingSipi, setIsLoadingSipi] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -45,6 +49,41 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
   ];
 
   const availableColumns = columns.length > 0 ? columns : defaultColumns;
+
+  const handleSipiChange = async (value: string) => {
+    setSipiNumber(value);
+    
+    if (value && validateSipiFormat(value)) {
+      setIsLoadingSipi(true);
+      try {
+        const company = await getCompanyBySipi(value);
+        if (company) {
+          setCompanyName(company.name);
+          toast({
+            title: "Entreprise trouvée",
+            description: `${company.name} (SIPI: ${company.sipi})`,
+          });
+        } else {
+          setCompanyName("");
+          toast({
+            title: "Entreprise non trouvée",
+            description: "Aucune entreprise trouvée pour ce numéro SIPI",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        toast({
+          title: "Erreur",
+          description: "Erreur lors de la recherche de l'entreprise",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingSipi(false);
+      }
+    } else {
+      setCompanyName("");
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,7 +109,9 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
             status,
             due_date: dueDate?.toISOString() || null,
             tags: [],
-            user_id: user.id
+            user_id: user.id,
+            sipi_number: sipiNumber || null,
+            company_name: companyName || null
           }
         ]);
 
@@ -96,6 +137,8 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
       setStatus("todo");
       setDueDate(undefined);
       setCustomFieldValues({});
+      setSipiNumber("");
+      setCompanyName("");
       
       // Close dialog
       onOpenChange(false);
@@ -195,6 +238,28 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
                 />
               </PopoverContent>
             </Popover>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Numéro SIPI</Label>
+              <Input
+                value={sipiNumber}
+                onChange={(e) => handleSipiChange(e.target.value)}
+                placeholder="12345678"
+                disabled={isLoadingSipi}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Société</Label>
+              <Input
+                value={companyName}
+                placeholder="Nom de l'entreprise"
+                disabled={true}
+                className="bg-muted"
+              />
+            </div>
           </div>
 
           {/* Custom Fields */}

@@ -44,12 +44,14 @@ export type Database = {
       tasks: {
         Row: {
           assignee: string | null
+          company_name: string | null
           created_at: string
           custom_fields: Json
           description: string | null
           due_date: string | null
           id: string
           priority: string
+          sipi_number: string | null
           status: string
           tags: string[]
           title: string
@@ -58,12 +60,14 @@ export type Database = {
         }
         Insert: {
           assignee?: string | null
+          company_name?: string | null
           created_at?: string
           custom_fields?: Json
           description?: string | null
           due_date?: string | null
           id?: string
           priority?: string
+          sipi_number?: string | null
           status?: string
           tags?: string[]
           title: string
@@ -72,12 +76,14 @@ export type Database = {
         }
         Update: {
           assignee?: string | null
+          company_name?: string | null
           created_at?: string
           custom_fields?: Json
           description?: string | null
           due_date?: string | null
           id?: string
           priority?: string
+          sipi_number?: string | null
           status?: string
           tags?: string[]
           title?: string

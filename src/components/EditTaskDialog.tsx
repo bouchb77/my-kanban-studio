@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserColumns, useUserCustomFields } from "@/hooks/useUserSettings";
 import { Task } from "@/types/task";
 import { Switch } from "@/components/ui/switch";
+import { getCompanyBySipi, validateSipiFormat } from "@/services/sipiService";
 
 interface EditTaskDialogProps {
   open: boolean;
@@ -36,6 +37,9 @@ export function EditTaskDialog({ open, onOpenChange, task, onTaskUpdated }: Edit
   const [status, setStatus] = useState("");
   const [dueDate, setDueDate] = useState<Date | undefined>();
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({});
+  const [sipiNumber, setSipiNumber] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [isLoadingSipi, setIsLoadingSipi] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -49,6 +53,41 @@ export function EditTaskDialog({ open, onOpenChange, task, onTaskUpdated }: Edit
 
   const availableColumns = columns.length > 0 ? columns : defaultColumns;
 
+  const handleSipiChange = async (value: string) => {
+    setSipiNumber(value);
+    
+    if (value && validateSipiFormat(value)) {
+      setIsLoadingSipi(true);
+      try {
+        const company = await getCompanyBySipi(value);
+        if (company) {
+          setCompanyName(company.name);
+          toast({
+            title: "Entreprise trouvée",
+            description: `${company.name} (SIPI: ${company.sipi})`,
+          });
+        } else {
+          setCompanyName("");
+          toast({
+            title: "Entreprise non trouvée",
+            description: "Aucune entreprise trouvée pour ce numéro SIPI",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        toast({
+          title: "Erreur",
+          description: "Erreur lors de la recherche de l'entreprise",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingSipi(false);
+      }
+    } else {
+      setCompanyName("");
+    }
+  };
+
   // Load task data when dialog opens
   useEffect(() => {
     if (open && task) {
@@ -57,6 +96,8 @@ export function EditTaskDialog({ open, onOpenChange, task, onTaskUpdated }: Edit
       setPriority(task.priority);
       setStatus(task.status);
       setDueDate(task.dueDate);
+      setSipiNumber((task as any).sipiNumber || "");
+      setCompanyName((task as any).companyName || "");
       // Load existing custom field values
       setCustomFieldValues(task.customFields || {});
     }
@@ -78,6 +119,8 @@ export function EditTaskDialog({ open, onOpenChange, task, onTaskUpdated }: Edit
           status,
           due_date: dueDate?.toISOString() || null,
           custom_fields: customFieldValues,
+          sipi_number: sipiNumber || null,
+          company_name: companyName || null,
         })
         .eq('id', task.id);
 
@@ -201,6 +244,28 @@ export function EditTaskDialog({ open, onOpenChange, task, onTaskUpdated }: Edit
                 />
               </PopoverContent>
             </Popover>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Numéro SIPI</Label>
+              <Input
+                value={sipiNumber}
+                onChange={(e) => handleSipiChange(e.target.value)}
+                placeholder="12345678"
+                disabled={isLoadingSipi}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Société</Label>
+              <Input
+                value={companyName}
+                placeholder="Nom de l'entreprise"
+                disabled={true}
+                className="bg-muted"
+              />
+            </div>
           </div>
 
           {/* Custom Fields */}

@@ -13,6 +13,8 @@ export interface Task {
   created_at: string;
   updated_at: string;
   user_id: string;
+  sipi_number?: string;
+  company_name?: string;
 }
 
 export const useTasks = () => {

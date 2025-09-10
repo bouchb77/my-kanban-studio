@@ -10,6 +10,8 @@ export interface Task {
   createdAt: Date;
   updatedAt: Date;
   customFields?: Record<string, any>;
+  sipiNumber?: string;
+  companyName?: string;
 }
 
 export interface Column {

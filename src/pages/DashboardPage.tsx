@@ -22,7 +22,7 @@ const DashboardPage = () => {
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [isViewTaskOpen, setIsViewTaskOpen] = useState(false);
   const [viewingTask, setViewingTask] = useState<any>(null);
-  const { getTaskStats, getRecentTasks, getOverdueTasks, loading } = useTasks();
+  const { getTaskStats, getRecentTasks, getOverdueTasks, tasks, loading } = useTasks();
   
   const stats = getTaskStats();
   const recentTasks = getRecentTasks();
@@ -46,6 +46,8 @@ const DashboardPage = () => {
       createdAt: parseDate(t.created_at),
       updatedAt: parseDate(t.updated_at),
       customFields: (t as any).custom_fields || {},
+      sipiNumber: t.sipi_number,
+      companyName: t.company_name,
     };
   };
 
@@ -182,33 +184,126 @@ const DashboardPage = () => {
           </CardContent>
         </Card>
 
-        {/* Progress par projet */}
+        {/* Planning des tâches sur 30 jours */}
         <Card className="shadow-card border-0">
           <CardHeader>
-            <CardTitle>Progression des projets</CardTitle>
-            <CardDescription>Avancement de vos projets actifs</CardDescription>
+            <CardTitle>Planning des 30 prochains jours</CardTitle>
+            <CardDescription>Échéances et planification des tâches</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Site Web E-commerce</span>
-                <span className="text-sm text-muted-foreground">75%</span>
+          <CardContent>
+            <div className="space-y-4">
+              {(() => {
+                // Générer les 30 prochains jours
+                const days = [];
+                const today = new Date();
+                
+                for (let i = 0; i < 30; i++) {
+                  const date = new Date(today);
+                  date.setDate(today.getDate() + i);
+                  
+                  // Trouver les tâches pour ce jour
+                  const dayTasks = tasks.filter(task => {
+                    if (!task.due_date) return false;
+                    const taskDate = new Date(task.due_date);
+                    if (isNaN(taskDate.getTime())) return false;
+                    
+                    return taskDate.toDateString() === date.toDateString();
+                  });
+                  
+                  days.push({ date, tasks: dayTasks });
+                }
+                
+                return (
+                  <div className="grid grid-cols-7 gap-1 text-xs">
+                    {/* Headers des jours */}
+                    {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'].map((day) => (
+                      <div key={day} className="p-2 text-center font-medium text-muted-foreground bg-muted/30 rounded">
+                        {day}
+                      </div>
+                    ))}
+                    
+                    {/* Remplir les cases vides au début si nécessaire */}
+                    {(() => {
+                      const firstDate = days[0]?.date;
+                      if (!firstDate) return null;
+                      
+                      const startDay = firstDate.getDay();
+                      const emptyCells = [];
+                      
+                      for (let i = 0; i < startDay; i++) {
+                        emptyCells.push(
+                          <div key={`empty-${i}`} className="p-1 h-16 border border-transparent">
+                          </div>
+                        );
+                      }
+                      return emptyCells;
+                    })()}
+                    
+                    {/* Jours avec tâches */}
+                    {days.map(({ date, tasks }) => {
+                      const isToday = date.toDateString() === today.toDateString();
+                      
+                      return (
+                        <div 
+                          key={date.toISOString()} 
+                          className={`p-1 h-16 border border-border/20 rounded relative overflow-hidden ${
+                            isToday ? 'bg-primary/10 border-primary/30' : 'hover:bg-muted/20'
+                          }`}
+                        >
+                          <div className={`font-medium ${isToday ? 'text-primary' : 'text-foreground'}`}>
+                            {date.getDate()}
+                          </div>
+                          
+                          {tasks.length > 0 && (
+                            <div className="absolute bottom-0 left-0 right-0 space-y-0.5">
+                              {tasks.slice(0, 2).map((task) => {
+                                const taskDate = new Date(task.due_date);
+                                const isOverdue = taskDate < today && task.status !== 'done';
+                                
+                                return (
+                                  <div 
+                                    key={task.id}
+                                    className={`text-xs p-0.5 rounded cursor-pointer truncate ${
+                                      isOverdue 
+                                        ? 'bg-destructive/20 text-destructive hover:bg-destructive/30' 
+                                        : 'bg-primary/20 text-primary hover:bg-primary/30'
+                                    }`}
+                                    onClick={() => handleViewTask(task)}
+                                    title={task.title}
+                                  >
+                                    {task.title}
+                                  </div>
+                                );
+                              })}
+                              
+                              {tasks.length > 2 && (
+                                <div className="text-xs text-muted-foreground text-center">
+                                  +{tasks.length - 2} autre{tasks.length - 2 > 1 ? 's' : ''}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+              
+              <div className="flex items-center justify-center gap-4 pt-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 bg-primary/20 rounded"></div>
+                  <span>Tâches planifiées</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 bg-destructive/20 rounded"></div>
+                  <span>Tâches en retard</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 bg-primary/10 border border-primary/30 rounded"></div>
+                  <span>Aujourd'hui</span>
+                </div>
               </div>
-              <Progress value={75} className="h-2" />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Application Mobile</span>
-                <span className="text-sm text-muted-foreground">45%</span>
-              </div>
-              <Progress value={45} className="h-2" />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Refonte Design</span>
-                <span className="text-sm text-muted-foreground">90%</span>
-              </div>
-              <Progress value={90} className="h-2" />
             </div>
           </CardContent>
         </Card>

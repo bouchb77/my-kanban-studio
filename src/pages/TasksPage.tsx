@@ -470,6 +470,7 @@ const TasksPage = () => {
       <CreateTaskDialog 
         open={isCreateTaskOpen} 
         onOpenChange={setIsCreateTaskOpen} 
+        onTaskCreated={loadTasks}
       />
     </div>
   );

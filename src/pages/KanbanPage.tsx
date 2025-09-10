@@ -225,9 +225,8 @@ const KanbanPage = () => {
   });
 
   // Load tasks from Supabase (only user's tasks)
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
+  const loadTasks = async () => {
+    try {
       const { data, error } = await supabase
         .from("tasks")
         .select("*")
@@ -237,10 +236,35 @@ const KanbanPage = () => {
         toast({ title: "Erreur", description: "Chargement des tâches échoué", variant: "destructive" });
         return;
       }
-      if (mounted && data) setTasks(data.map(mapDbTask));
-    })();
+      if (data) setTasks(data.map(mapDbTask));
+    } catch (error) {
+      console.error('Error loading tasks:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadTasks();
+  }, []);
+
+  // Set up real-time updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('kanban-tasks')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tasks'
+        },
+        () => {
+          loadTasks(); // Reload tasks on any change
+        }
+      )
+      .subscribe();
+
     return () => {
-      mounted = false;
+      supabase.removeChannel(channel);
     };
   }, []);
 

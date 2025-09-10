@@ -17,9 +17,10 @@ import { useAuth } from "@/contexts/AuthContext";
 interface CreateTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onTaskCreated?: () => void;
 }
 
-export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) {
+export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTaskDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const [title, setTitle] = useState("");
@@ -82,6 +83,9 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
       
       // Close dialog
       onOpenChange(false);
+
+      // Notify parent components
+      onTaskCreated?.();
     } catch (error) {
       console.error('Error creating task:', error);
       toast({

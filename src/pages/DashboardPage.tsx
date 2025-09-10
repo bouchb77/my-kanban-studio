@@ -208,6 +208,10 @@ const DashboardPage = () => {
                     const taskDate = new Date(task.due_date);
                     if (isNaN(taskDate.getTime())) return false;
                     
+                    // Exclure les tâches terminées si elles sont en retard
+                    const isOverdue = taskDate < today;
+                    if (isOverdue && task.status === 'done') return false;
+                    
                     return taskDate.toDateString() === date.toDateString();
                   });
                   

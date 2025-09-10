@@ -49,6 +49,7 @@ import { InlineEditField } from "@/components/InlineEditField";
 import { ColumnManager } from "@/components/ColumnManager";
 import { useUserColumns, useUserCustomFields } from "@/hooks/useUserSettings";
 import { useUserViewPreferences } from "@/hooks/useUserViewPreferences";
+import { PriorityFlag } from "@/components/PriorityFlag";
 
 const TasksPage = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -328,17 +329,22 @@ const TasksPage = () => {
       case 'title':
         return (
           <TableCell key="title">
-            <InlineEditField
-              value={task.title}
-              onSave={(value) => handleInlineEdit(task.id, "title", value)}
-              type="text"
-              placeholder="Titre de la tâche"
-            />
-            {task.description && (
-              <div className="text-sm text-muted-foreground line-clamp-1 mt-1">
-                {task.description}
+            <div className="flex items-center gap-2">
+              <PriorityFlag priority={task.priority} size="sm" />
+              <div className="flex-1">
+                <InlineEditField
+                  value={task.title}
+                  onSave={(value) => handleInlineEdit(task.id, "title", value)}
+                  type="text"
+                  placeholder="Titre de la tâche"
+                />
+                {task.description && (
+                  <div className="text-sm text-muted-foreground line-clamp-1 mt-1">
+                    {task.description}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </TableCell>
         );
       

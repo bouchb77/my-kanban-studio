@@ -32,6 +32,7 @@ import { useUserColumns, useUserCustomFields } from "@/hooks/useUserSettings";
 import { EditTaskDialog } from "@/components/EditTaskDialog";
 import { ViewTaskDialog } from "@/components/ViewTaskDialog";
 import { useUserViewPreferences } from "@/hooks/useUserViewPreferences";
+import { PriorityFlag } from "@/components/PriorityFlag";
 
 // Default columns as fallback
 const defaultColumns = [
@@ -88,7 +89,10 @@ function TaskCard({
               {...listeners}
               className="flex-1 cursor-grab active:cursor-grabbing"
             >
-              <h3 className="font-medium text-sm line-clamp-2">{task.title}</h3>
+              <div className="flex items-start gap-2">
+                <PriorityFlag priority={task.priority} size="sm" />
+                <h3 className="font-medium text-sm line-clamp-2">{task.title}</h3>
+              </div>
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

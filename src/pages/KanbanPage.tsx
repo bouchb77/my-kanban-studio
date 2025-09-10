@@ -30,6 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserColumns } from "@/hooks/useUserSettings";
 import { EditTaskDialog } from "@/components/EditTaskDialog";
+import { ViewTaskDialog } from "@/components/ViewTaskDialog";
 
 // Default columns as fallback
 const defaultColumns = [
@@ -231,7 +232,9 @@ const KanbanPage = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [isEditTaskOpen, setIsEditTaskOpen] = useState(false);
+  const [isViewTaskOpen, setIsViewTaskOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const { toast } = useToast();
   const { columns: userColumns, loading: columnsLoading } = useUserColumns();
 
@@ -298,12 +301,19 @@ const KanbanPage = () => {
     };
   }, []);
 
-const handleOpenTask = (task: Task) => {
+  const handleOpenTask = (task: Task) => {
+    setViewingTask(task);
+    setIsViewTaskOpen(true);
+  };
+
+  const handleEditTask = (task: Task) => {
     setEditingTask(task);
     setIsEditTaskOpen(true);
   };
 
-  const handleEditTask = (task: Task) => {
+  const handleEditFromView = (task: Task) => {
+    setViewingTask(null);
+    setIsViewTaskOpen(false);
     setEditingTask(task);
     setIsEditTaskOpen(true);
   };
@@ -399,6 +409,13 @@ const handleOpenTask = (task: Task) => {
           />
         ) : null}</DragOverlay>
       </DndContext>
+
+      <ViewTaskDialog
+        open={isViewTaskOpen}
+        onOpenChange={setIsViewTaskOpen}
+        task={viewingTask}
+        onEdit={handleEditFromView}
+      />
 
       <EditTaskDialog
         open={isEditTaskOpen}

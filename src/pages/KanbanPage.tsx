@@ -86,7 +86,15 @@ function TaskCard({ task }: { task: Task }) {
         <div className="space-y-3">
           <div className="flex items-start justify-between">
             <h3 className="font-medium text-sm line-clamp-2">{task.title}</h3>
-            <Button variant="ghost" size="sm" className="p-1 h-auto">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="p-1 h-auto"
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('Options pour:', task.title);
+              }}
+            >
               <MoreVertical className="w-3 h-3" />
             </Button>
           </div>

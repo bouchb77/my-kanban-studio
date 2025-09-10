@@ -149,7 +149,11 @@ const DashboardPage = () => {
                     }`}>
                       {task.status}
                     </span>
-                    <Button variant="ghost" size="sm">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => console.log('Options pour:', task.title)}
+                    >
                       <MoreVertical className="w-4 h-4" />
                     </Button>
                   </div>

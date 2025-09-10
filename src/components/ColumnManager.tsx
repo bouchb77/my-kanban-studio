@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -6,13 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Settings2, Eye, EyeOff } from "lucide-react";
 import { DragDropList } from "./DragDropList";
-import { useUserColumns, useUserCustomFields } from "@/hooks/useUserSettings";
+import { useUserCustomFields } from "@/hooks/useUserSettings";
 import { useUserViewPreferences } from "@/hooks/useUserViewPreferences";
 
 export interface ColumnDefinition {
   id: string;
   label: string;
-  type: 'system' | 'user_column' | 'custom_field';
+  type: 'system' | 'custom_field';
   required?: boolean;
   order: number;
 }
@@ -35,19 +35,12 @@ interface ColumnManagerProps {
 
 export function ColumnManager({ onColumnOrderChange, onVisibleColumnsChange }: ColumnManagerProps) {
   const [open, setOpen] = useState(false);
-  const { columns: userColumns } = useUserColumns();
   const { customFields } = useUserCustomFields();
   const { preferences, toggleColumnVisibility, reorderColumns } = useUserViewPreferences('table');
 
-  // Build complete column definitions
+  // Build complete column definitions (NO Kanban columns here)
   const allColumns: ColumnDefinition[] = [
     ...SYSTEM_COLUMNS,
-    ...userColumns.map(col => ({
-      id: `user_column_${col.id}`,
-      label: col.status, // Juste le statut au lieu du titre
-      type: 'user_column' as const,
-      order: 10 + col.order,
-    })),
     ...customFields.map(field => ({
       id: `custom_field_${field.id}`,
       label: field.name,
@@ -56,37 +49,32 @@ export function ColumnManager({ onColumnOrderChange, onVisibleColumnsChange }: C
     })),
   ];
 
-  // Get current visible columns with defaults
-  const getVisibleColumns = () => {
-    if (preferences?.visible_columns && preferences.visible_columns.length > 0) {
-      return preferences.visible_columns;
-    }
-    // Default visible columns
-    return allColumns
+  // Local state to make UI responsive immediately
+  const [localVisible, setLocalVisible] = useState<string[]>([]);
+  const [localOrder, setLocalOrder] = useState<string[]>([]);
+
+  useEffect(() => {
+    const defaults = allColumns
       .filter(col => col.required || ['title', 'status', 'priority', 'dueDate'].includes(col.id))
       .map(col => col.id);
-  };
 
-  // Get current column order with defaults
-  const getColumnOrder = () => {
-    if (preferences?.column_order && preferences.column_order.length > 0) {
-      return preferences.column_order;
-    }
-    // Default order
-    return allColumns
-      .sort((a, b) => a.order - b.order)
-      .map(col => col.id);
-  };
+    const visible = preferences?.visible_columns?.length
+      ? preferences.visible_columns.filter(id => allColumns.find(c => c.id === id))
+      : defaults;
 
-  const visibleColumns = getVisibleColumns();
-  const columnOrder = getColumnOrder();
+    const order = preferences?.column_order?.length
+      ? preferences.column_order.filter(id => allColumns.find(c => c.id === id))
+      : allColumns.sort((a, b) => a.order - b.order).map(c => c.id);
 
-  // Get only visible columns for reordering
+    setLocalVisible(visible);
+    setLocalOrder(order);
+  }, [preferences?.visible_columns, preferences?.column_order, customFields.length]);
+
   const visibleColumnObjects = allColumns
-    .filter(col => visibleColumns.includes(col.id))
+    .filter(col => localVisible.includes(col.id))
     .sort((a, b) => {
-      const aIndex = columnOrder.indexOf(a.id);
-      const bIndex = columnOrder.indexOf(b.id);
+      const aIndex = localOrder.indexOf(a.id);
+      const bIndex = localOrder.indexOf(b.id);
       if (aIndex === -1 && bIndex === -1) return a.order - b.order;
       if (aIndex === -1) return 1;
       if (bIndex === -1) return -1;
@@ -95,35 +83,27 @@ export function ColumnManager({ onColumnOrderChange, onVisibleColumnsChange }: C
 
   const handleToggleColumn = async (columnId: string) => {
     try {
+      const next = localVisible.includes(columnId)
+        ? localVisible.filter(id => id !== columnId)
+        : [...localVisible, columnId];
+      setLocalVisible(next);
+      onVisibleColumnsChange?.(next);
       await toggleColumnVisibility(columnId);
-      const newVisible = visibleColumns.includes(columnId)
-        ? visibleColumns.filter(id => id !== columnId)
-        : [...visibleColumns, columnId];
-      onVisibleColumnsChange?.(newVisible);
     } catch (error) {
-      console.error('Error toggling column visibility:', error);
+      // ignore
     }
   };
 
   const handleReorderColumns = async (reorderedItems: ColumnDefinition[]) => {
     try {
-      // Keep the order of non-visible columns and only update visible ones
       const newVisibleOrder = reorderedItems.map(item => item.id);
-      const nonVisibleColumns = columnOrder.filter(id => !visibleColumns.includes(id));
-      
-      // Insert visible columns in their new order, keeping non-visible in original positions
-      const newOrder = [...columnOrder];
-      
-      // Remove all visible columns from current order
-      const filteredOrder = newOrder.filter(id => !visibleColumns.includes(id));
-      
-      // Insert visible columns at the beginning (or maintain some logic for positioning)
-      const finalOrder = [...newVisibleOrder, ...filteredOrder];
-      
-      await reorderColumns(finalOrder);
+      const nonVisible = localOrder.filter(id => !localVisible.includes(id));
+      const finalOrder = [...newVisibleOrder, ...nonVisible];
+      setLocalOrder(finalOrder);
       onColumnOrderChange?.(finalOrder);
+      await reorderColumns(finalOrder);
     } catch (error) {
-      console.error('Error reordering columns:', error);
+      // ignore
     }
   };
 
@@ -139,28 +119,27 @@ export function ColumnManager({ onColumnOrderChange, onVisibleColumnsChange }: C
         <SheetHeader>
           <SheetTitle>Gestion des colonnes</SheetTitle>
           <SheetDescription>
-            Personnalisez l'affichage et l'ordre des colonnes
+            Choisissez les colonnes visibles et réorganisez l'ordre (seulement les colonnes sélectionnées)
           </SheetDescription>
         </SheetHeader>
 
         <div className="mt-6 space-y-6">
           {/* Column Visibility */}
           <div>
-            <h4 className="text-sm font-medium mb-4">Colonnes disponibles</h4>
-            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+            <h4 className="text-sm font-medium mb-3">Colonnes visibles</h4>
+            <div className="space-y-1 max-h-[260px] overflow-y-auto">
               {allColumns.map((column) => (
                 <div key={column.id} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded">
                   <div className="flex items-center space-x-3">
                     <Checkbox
-                      checked={visibleColumns.includes(column.id)}
+                      checked={localVisible.includes(column.id)}
                       onCheckedChange={() => handleToggleColumn(column.id)}
                       disabled={column.required}
                     />
                     <div className="flex items-center gap-2">
                       <span className="text-sm">{column.label}</span>
                       <Badge variant="outline" className="text-xs">
-                        {column.type === 'system' ? 'Système' : 
-                         column.type === 'user_column' ? 'Kanban' : 'Champ'}
+                        {column.type === 'system' ? 'Système' : 'Champ'}
                       </Badge>
                       {column.required && (
                         <Badge variant="secondary" className="text-xs">
@@ -169,7 +148,7 @@ export function ColumnManager({ onColumnOrderChange, onVisibleColumnsChange }: C
                       )}
                     </div>
                   </div>
-                  {visibleColumns.includes(column.id) ? (
+                  {localVisible.includes(column.id) ? (
                     <Eye className="w-4 h-4 text-success" />
                   ) : (
                     <EyeOff className="w-4 h-4 text-muted-foreground" />
@@ -183,7 +162,7 @@ export function ColumnManager({ onColumnOrderChange, onVisibleColumnsChange }: C
 
           {/* Column Order - Only visible columns */}
           <div>
-            <h4 className="text-sm font-medium mb-4">
+            <h4 className="text-sm font-medium mb-3">
               Ordre des colonnes visibles ({visibleColumnObjects.length})
             </h4>
             {visibleColumnObjects.length === 0 ? (
@@ -191,7 +170,7 @@ export function ColumnManager({ onColumnOrderChange, onVisibleColumnsChange }: C
                 Aucune colonne visible sélectionnée
               </p>
             ) : (
-              <div className="max-h-[250px] overflow-y-auto">
+              <div className="max-h-[240px] overflow-y-auto">
                 <DragDropList
                   items={visibleColumnObjects.map((col, index) => ({ ...col, order: index }))}
                   onReorder={handleReorderColumns}
@@ -200,8 +179,7 @@ export function ColumnManager({ onColumnOrderChange, onVisibleColumnsChange }: C
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">{column.label}</span>
                         <Badge variant="outline" className="text-xs">
-                          {column.type === 'system' ? 'Système' : 
-                           column.type === 'user_column' ? 'Kanban' : 'Champ'}
+                          {column.type === 'system' ? 'Système' : 'Champ'}
                         </Badge>
                       </div>
                       <Eye className="w-4 h-4 text-success" />

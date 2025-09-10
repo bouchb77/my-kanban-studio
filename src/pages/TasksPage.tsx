@@ -45,7 +45,8 @@ import { CreateTaskDialog } from "@/components/CreateTaskDialog";
 import { EditTaskDialog } from "@/components/EditTaskDialog";
 import { InlineEditField } from "@/components/InlineEditField";
 import { ColumnManager } from "@/components/ColumnManager";
-import { useUserColumns } from "@/hooks/useUserSettings";
+import { useUserColumns, useUserCustomFields } from "@/hooks/useUserSettings";
+import { useUserViewPreferences } from "@/hooks/useUserViewPreferences";
 
 const TasksPage = () => {
   const [tasks, setTasks] = useState<Task[]>([]);

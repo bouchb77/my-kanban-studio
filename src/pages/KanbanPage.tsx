@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Plus, MoreVertical, Calendar, User } from "lucide-react";
 import { Task } from "@/types/task";
+import { useToast } from "@/hooks/use-toast";
 
 // Mock data
 const initialTasks: Task[] = [
@@ -53,7 +54,7 @@ const columns = [
   { id: "done", title: "Terminé", status: "done" as const },
 ];
 
-function TaskCard({ task }: { task: Task }) {
+function TaskCard({ task, onOpen, onEdit, onMove, onDelete }: { task: Task; onOpen: (task: Task) => void; onEdit: (task: Task) => void; onMove: (task: Task, status: Task['status']) => void; onDelete: (task: Task) => void; }) {
   const {
     attributes,
     listeners,
@@ -99,19 +100,19 @@ function TaskCard({ task }: { task: Task }) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-40">
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); console.log('Ouvrir:', task.title); }}>Ouvrir</DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); console.log('Modifier:', task.title); }}>Modifier</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onOpen(task)}>Ouvrir</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onEdit(task)}>Modifier</DropdownMenuItem>
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>Déplacer vers</DropdownMenuSubTrigger>
                   <DropdownMenuSubContent>
-                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); console.log('Déplacer vers: À faire'); }}>À faire</DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); console.log('Déplacer vers: En cours'); }}>En cours</DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); console.log('Déplacer vers: En révision'); }}>En révision</DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); console.log('Déplacer vers: Terminé'); }}>Terminé</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => onMove(task, 'todo')}>À faire</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => onMove(task, 'in-progress')}>En cours</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => onMove(task, 'review')}>En révision</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => onMove(task, 'done')}>Terminé</DropdownMenuItem>
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); console.log('Supprimer:', task.title); }}>Supprimer</DropdownMenuItem>
+                <DropdownMenuItem className="text-destructive" onSelect={() => onDelete(task)}>Supprimer</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -162,7 +163,7 @@ function TaskCard({ task }: { task: Task }) {
   );
 }
 
-function KanbanColumn({ column, tasks }: { column: typeof columns[0], tasks: Task[] }) {
+function KanbanColumn({ column, tasks, onOpen, onEdit, onMove, onDelete }: { column: typeof columns[0], tasks: Task[]; onOpen: (task: Task) => void; onEdit: (task: Task) => void; onMove: (task: Task, status: Task['status']) => void; onDelete: (task: Task) => void; }) {
   const columnTasks = tasks.filter(task => task.status === column.status);
   const { setNodeRef: setDroppableRef } = useDroppable({ id: column.status });
 
@@ -183,7 +184,7 @@ function KanbanColumn({ column, tasks }: { column: typeof columns[0], tasks: Tas
       <SortableContext items={columnTasks.map(t => t.id)} strategy={rectSortingStrategy}>
         <div ref={setDroppableRef} className="space-y-3 min-h-96">
           {columnTasks.map((task) => (
-            <TaskCard key={task.id} task={task} />
+            <TaskCard key={task.id} task={task} onOpen={onOpen} onEdit={onEdit} onMove={onMove} onDelete={onDelete} />
           ))}
         </div>
       </SortableContext>
@@ -194,6 +195,25 @@ function KanbanColumn({ column, tasks }: { column: typeof columns[0], tasks: Tas
 const KanbanPage = () => {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const { toast } = useToast();
+
+  const handleOpenTask = (task: Task) => {
+    toast({ title: 'Ouvrir la tâche', description: task.title });
+  };
+
+  const handleEditTask = (task: Task) => {
+    toast({ title: 'Éditer la tâche', description: `${task.title} — bientôt disponible` });
+  };
+
+  const handleMoveTask = (task: Task, status: Task['status']) => {
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status, updatedAt: new Date() } : t));
+    toast({ title: 'Tâche déplacée', description: `${task.title} → ${status}` });
+  };
+
+  const handleDeleteTask = (task: Task) => {
+    setTasks(prev => prev.filter(t => t.id !== task.id));
+    toast({ title: 'Tâche supprimée', description: task.title });
+  };
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
@@ -250,12 +270,16 @@ const KanbanPage = () => {
               key={column.id}
               column={column}
               tasks={tasks}
+              onOpen={handleOpenTask}
+              onEdit={handleEditTask}
+              onMove={handleMoveTask}
+              onDelete={handleDeleteTask}
             />
           ))}
         </div>
 
         <DragOverlay>
-          {activeTask ? <TaskCard task={activeTask} /> : null}
+          {activeTask ? <TaskCard task={activeTask} onOpen={() => {}} onEdit={() => {}} onMove={() => {}} onDelete={() => {}} /> : null}
         </DragOverlay>
       </DndContext>
     </div>

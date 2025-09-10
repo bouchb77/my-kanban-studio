@@ -247,10 +247,10 @@ const DashboardPage = () => {
                         <div 
                           key={date.toISOString()} 
                           className={`p-1 h-16 border border-border/20 rounded relative overflow-hidden ${
-                            isToday ? 'bg-primary/10 border-primary/30' : 'hover:bg-muted/20'
+                            isToday ? 'bg-orange-100 border-orange-300 dark:bg-orange-900/20 dark:border-orange-700' : 'hover:bg-muted/20'
                           }`}
                         >
-                          <div className={`font-medium ${isToday ? 'text-primary' : 'text-foreground'}`}>
+                          <div className={`font-medium ${isToday ? 'text-orange-600 dark:text-orange-400' : 'text-foreground'}`}>
                             {date.getDate()}
                           </div>
                           
@@ -300,7 +300,7 @@ const DashboardPage = () => {
                   <span>Tâches en retard</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 bg-primary/10 border border-primary/30 rounded"></div>
+                  <div className="w-3 h-3 bg-orange-100 border border-orange-300 dark:bg-orange-900/20 dark:border-orange-700 rounded"></div>
                   <span>Aujourd'hui</span>
                 </div>
               </div>

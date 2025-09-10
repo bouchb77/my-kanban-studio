@@ -229,7 +229,13 @@ function KanbanColumn({
   visibleFields: string[];
   customFields: any[];
 }) {
-  const columnTasks = tasks.filter((task) => task.status === column.status);
+  const columnTasks = tasks
+    .filter((task) => task.status === column.status)
+    .sort((a, b) => {
+      const dateA = a.dueDate || a.createdAt;
+      const dateB = b.dueDate || b.createdAt;
+      return dateA.getTime() - dateB.getTime();
+    });
   const { setNodeRef: setDroppableRef } = useDroppable({ id: column.status });
 
   return (

@@ -58,11 +58,20 @@ const TasksPage = () => {
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [isEditTaskOpen, setIsEditTaskOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [localVisibleColumns, setLocalVisibleColumns] = useState<string[] | null>(null);
+  const [localColumnOrder, setLocalColumnOrder] = useState<string[] | null>(null);
+  const [dueFilter, setDueFilter] = useState<'all' | 'overdue' | 'today' | 'this_week' | 'no_due'>('all');
   const { toast } = useToast();
   const { user } = useAuth();
   const { columns } = useUserColumns();
   const { customFields } = useUserCustomFields();
   const { preferences } = useUserViewPreferences('table');
+
+  useEffect(() => {
+    // When server preferences change, clear local overrides to reflect saved state
+    setLocalVisibleColumns(null);
+    setLocalColumnOrder(null);
+  }, [preferences?.visible_columns, preferences?.column_order]);
 
   // Available columns for dynamic table rendering  
   const systemColumns = [
@@ -87,6 +96,7 @@ const TasksPage = () => {
 
   // Get visible columns with defaults
   const getVisibleColumns = () => {
+    if (localVisibleColumns) return localVisibleColumns;
     if (preferences?.visible_columns && preferences.visible_columns.length > 0) {
       return preferences.visible_columns.filter(id => 
         allAvailableColumns.find(col => col.id === id)
@@ -99,6 +109,7 @@ const TasksPage = () => {
 
   // Get column order with defaults
   const getColumnOrder = () => {
+    if (localColumnOrder) return localColumnOrder;
     if (preferences?.column_order && preferences.column_order.length > 0) {
       return preferences.column_order.filter(id => 
         allAvailableColumns.find(col => col.id === id)
@@ -242,8 +253,25 @@ const TasksPage = () => {
                          task.description?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || task.status === statusFilter;
     const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter;
+
+    const now = new Date();
+    const startOfToday = new Date(now); startOfToday.setHours(0,0,0,0);
+    const endOfToday = new Date(now); endOfToday.setHours(23,59,59,999);
+    const endOfWeek = new Date(startOfToday); endOfWeek.setDate(endOfWeek.getDate() + 7);
+
+    let matchesDue = true;
+    const due = task.dueDate ? new Date(task.dueDate) : null;
+    if (dueFilter === 'overdue') {
+      matchesDue = !!due && due < startOfToday && task.status !== 'done';
+    } else if (dueFilter === 'today') {
+      matchesDue = !!due && due >= startOfToday && due <= endOfToday;
+    } else if (dueFilter === 'this_week') {
+      matchesDue = !!due && due >= startOfToday && due <= endOfWeek;
+    } else if (dueFilter === 'no_due') {
+      matchesDue = !due;
+    }
     
-    return matchesSearch && matchesStatus && matchesPriority;
+    return matchesSearch && matchesStatus && matchesPriority && matchesDue;
   });
 
   const toggleTaskSelection = (taskId: string) => {
@@ -550,7 +578,10 @@ const TasksPage = () => {
             <Plus className="w-4 h-4 mr-2" />
             Nouvelle tâche
           </Button>
-          <ColumnManager />
+          <ColumnManager 
+            onVisibleColumnsChange={setLocalVisibleColumns}
+            onColumnOrderChange={setLocalColumnOrder}
+          />
         </div>
       </div>
 
@@ -599,10 +630,31 @@ const TasksPage = () => {
               </SelectContent>
             </Select>
 
-            <Button variant="outline">
-              <Filter className="w-4 h-4 mr-2" />
-              Plus de filtres
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Filter className="w-4 h-4 mr-2" />
+                  Plus de filtres
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="z-50 bg-popover text-popover-foreground shadow-dropdown w-56">
+                <DropdownMenuItem onSelect={() => setDueFilter('all')} className={dueFilter==='all' ? 'font-medium' : ''}>
+                  Toutes échéances
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setDueFilter('overdue')} className={dueFilter==='overdue' ? 'font-medium' : ''}>
+                  En retard
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setDueFilter('today')} className={dueFilter==='today' ? 'font-medium' : ''}>
+                  Aujourd'hui
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setDueFilter('this_week')} className={dueFilter==='this_week' ? 'font-medium' : ''}>
+                  Cette semaine
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setDueFilter('no_due')} className={dueFilter==='no_due' ? 'font-medium' : ''}>
+                  Sans échéance
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </CardContent>
       </Card>

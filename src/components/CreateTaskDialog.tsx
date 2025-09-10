@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserColumns, useUserCustomFields } from "@/hooks/useUserSettings";
 import { getCompanyBySipi, validateSipiFormat } from "@/services/sipiService";
+import { useUserCategories } from "@/hooks/useUserCategories";
 
 interface CreateTaskDialogProps {
   open: boolean;
@@ -27,11 +28,13 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
   const { user } = useAuth();
   const { columns } = useUserColumns();
   const { customFields } = useUserCustomFields();
+  const { categories } = useUserCategories();
   
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("");
   const [status, setStatus] = useState("todo");
+  const [category, setCategory] = useState("general");
   const [dueDate, setDueDate] = useState<Date | undefined>();
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({});
   const [sipiNumber, setSipiNumber] = useState("");
@@ -92,6 +95,7 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
             description: description || null,
             priority: priority || 'medium',
             status,
+            category: category || 'general',
             due_date: dueDate?.toISOString() || null,
             tags: [],
             user_id: user.id,
@@ -120,6 +124,7 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
       setDescription("");
       setPriority("");
       setStatus("todo");
+      setCategory("general");
       setDueDate(undefined);
       setCustomFieldValues({});
       setSipiNumber("");
@@ -203,6 +208,32 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Catégorie</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner une catégorie" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.length > 0 ? (
+                  categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.name}>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-2 h-2 rounded-full" 
+                          style={{ backgroundColor: cat.color }}
+                        />
+                        {cat.name}
+                      </div>
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="general">Général</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

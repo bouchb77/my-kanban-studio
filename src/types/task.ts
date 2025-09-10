@@ -12,6 +12,7 @@ export interface Task {
   customFields?: Record<string, any>;
   sipiNumber?: string;
   companyName?: string;
+  category?: string;
 }
 
 export interface Column {

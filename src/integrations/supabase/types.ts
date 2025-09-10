@@ -71,6 +71,7 @@ export type Database = {
       tasks: {
         Row: {
           assignee: string | null
+          category: string | null
           company_name: string | null
           created_at: string
           custom_fields: Json
@@ -87,6 +88,7 @@ export type Database = {
         }
         Insert: {
           assignee?: string | null
+          category?: string | null
           company_name?: string | null
           created_at?: string
           custom_fields?: Json
@@ -103,6 +105,7 @@ export type Database = {
         }
         Update: {
           assignee?: string | null
+          category?: string | null
           company_name?: string | null
           created_at?: string
           custom_fields?: Json
@@ -116,6 +119,36 @@ export type Database = {
           title?: string
           updated_at?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_categories: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          name: string
+          order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          order?: number
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

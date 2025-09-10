@@ -33,6 +33,7 @@ import { EditTaskDialog } from "@/components/EditTaskDialog";
 import { ViewTaskDialog } from "@/components/ViewTaskDialog";
 import { useUserViewPreferences } from "@/hooks/useUserViewPreferences";
 import { PriorityFlag } from "@/components/PriorityFlag";
+import { useUserCategories } from "@/hooks/useUserCategories";
 
 // Default columns as fallback
 const defaultColumns = [
@@ -222,8 +223,9 @@ function TaskCard({
   );
 }
 
-function KanbanColumn({
+function KanbanCell({
   column,
+  category,
   tasks,
   onOpen,
   onEdit,
@@ -234,6 +236,7 @@ function KanbanColumn({
   customFields
 }: {
   column: any;
+  category: any;
   tasks: Task[];
   onOpen: (task: Task) => void;
   onEdit: (task: Task) => void;
@@ -243,36 +246,20 @@ function KanbanColumn({
   visibleFields: string[];
   customFields: any[];
 }) {
-  const columnTasks = tasks
-    .filter((task) => task.status === column.status)
+  const cellTasks = tasks
+    .filter((task) => task.status === column.status && task.category === category.name)
     .sort((a, b) => {
       const dateA = a.dueDate || a.createdAt;
       const dateB = b.dueDate || b.createdAt;
       return dateA.getTime() - dateB.getTime();
     });
-  const { setNodeRef: setDroppableRef } = useDroppable({ id: column.status });
+  const { setNodeRef: setDroppableRef } = useDroppable({ id: `${column.status}-${category.name}` });
 
   return (
-    <div className="flex-1 min-w-80">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div 
-            className="w-3 h-3 rounded-full mr-1" 
-            style={{ backgroundColor: column.color }}
-          />
-          <h2 className="font-semibold text-foreground">{column.title}</h2>
-          <Badge variant="secondary" className="text-xs">
-            {columnTasks.length}
-          </Badge>
-        </div>
-        <Button variant="ghost" size="sm">
-          <Plus className="w-4 h-4" />
-        </Button>
-      </div>
-
-      <SortableContext items={columnTasks.map((t) => t.id)} strategy={rectSortingStrategy}>
-        <div ref={setDroppableRef} className="space-y-3 min-h-96">
-          {columnTasks.map((task) => (
+    <div className="border border-border/50 rounded-lg p-3 min-h-[200px] bg-card/50">
+      <SortableContext items={cellTasks.map((t) => t.id)} strategy={rectSortingStrategy}>
+        <div ref={setDroppableRef} className="space-y-2">
+          {cellTasks.map((task) => (
             <TaskCard
               key={task.id}
               task={task}
@@ -302,9 +289,13 @@ const KanbanPage = () => {
   const { columns: userColumns, loading: columnsLoading } = useUserColumns();
   const { customFields } = useUserCustomFields();
   const { preferences: kanbanPreferences } = useUserViewPreferences('kanban');
+  const { categories: userCategories } = useUserCategories();
 
   // Use user columns or fall back to defaults
   const columns = userColumns.length > 0 ? userColumns : defaultColumns;
+  
+  // Use user categories or fall back to default
+  const categories = userCategories.length > 0 ? userCategories : [{ id: '1', name: 'Général', color: '#64748b', order: 0 }];
 
   // Get visible fields for cards (default to showing all if not set)
   const visibleFields = kanbanPreferences?.visible_columns || ['title', 'description', 'tags', 'priority', 'dueDate', 'assignee'];
@@ -326,6 +317,7 @@ const mapDbTask = (row: any): Task => ({
   customFields: row.custom_fields || {},
   sipiNumber: row.sipi_number || undefined,
   companyName: row.company_name || undefined,
+  category: row.category || 'general',
 });
 
   // Load tasks from Supabase (only user's tasks)
@@ -424,22 +416,36 @@ const mapDbTask = (row: any): Task => ({
     const overId = String(over.id);
 
     let targetStatus: Task["status"] | null = null;
+    let targetCategory: string | null = null;
 
-    if (columns.some((c) => c.status === overId)) {
+    // Handle drop on cell (status-category combination)
+    if (overId.includes('-')) {
+      const [status, category] = overId.split('-');
+      if (columns.some((c) => c.status === status)) {
+        targetStatus = status as Task["status"];
+        targetCategory = category;
+      }
+    } else if (columns.some((c) => c.status === overId)) {
       targetStatus = overId as Task["status"];
     } else {
       const overTask = tasks.find((t) => t.id === overId);
-      if (overTask) targetStatus = overTask.status;
+      if (overTask) {
+        targetStatus = overTask.status;
+        targetCategory = overTask.category;
+      }
     }
 
     if (!targetStatus) return;
 
     const snapshot = tasks;
+    const updates: any = { status: targetStatus };
+    if (targetCategory) updates.category = targetCategory;
+    
     setTasks((prev) =>
-      prev.map((task) => (task.id === taskId ? { ...task, status: targetStatus!, updatedAt: new Date() } : task))
+      prev.map((task) => (task.id === taskId ? { ...task, ...updates, updatedAt: new Date() } : task))
     );
 
-    const { error } = await supabase.from("tasks").update({ status: targetStatus }).eq("id", taskId);
+    const { error } = await supabase.from("tasks").update(updates).eq("id", taskId);
     if (error) {
       setTasks(snapshot);
       toast({ title: "Erreur", description: "Déplacement non sauvegardé", variant: "destructive" });
@@ -454,20 +460,58 @@ const mapDbTask = (row: any): Task => ({
       </div>
 
       <DndContext collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="flex gap-6 overflow-x-auto pb-6">
-          {columns.map((column) => (
-            <KanbanColumn
-              key={column.id || column.status}
-              column={column}
-              tasks={tasks}
-              onOpen={handleOpenTask}
-              onEdit={handleEditTask}
-              onMove={handleMoveTask}
-              onDelete={handleDeleteTask}
-              userColumns={columns}
-              visibleFields={visibleFields}
-              customFields={customFields}
-            />
+        <div className="space-y-4 overflow-x-auto pb-6">
+          {/* Column headers */}
+          <div className="grid gap-2" style={{ gridTemplateColumns: `200px repeat(${columns.length}, 1fr)` }}>
+            <div></div> {/* Empty cell for category column */}
+            {columns.map((column) => (
+              <div key={column.id || column.status} className="text-center p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center justify-center gap-2">
+                  <div 
+                    className="w-3 h-3 rounded-full" 
+                    style={{ backgroundColor: column.color }}
+                  />
+                  <h2 className="font-semibold text-foreground">{column.title}</h2>
+                  <Badge variant="secondary" className="text-xs">
+                    {tasks.filter(t => t.status === column.status).length}
+                  </Badge>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Category rows with task cells */}
+          {categories.map((category) => (
+            <div key={category.id} className="grid gap-2" style={{ gridTemplateColumns: `200px repeat(${columns.length}, 1fr)` }}>
+              {/* Category header */}
+              <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg border-l-4" style={{ borderColor: category.color }}>
+                <div 
+                  className="w-3 h-3 rounded-full" 
+                  style={{ backgroundColor: category.color }}
+                />
+                <h3 className="font-medium text-foreground">{category.name}</h3>
+                <Badge variant="outline" className="text-xs">
+                  {tasks.filter(t => t.category === category.name).length}
+                </Badge>
+              </div>
+
+              {/* Task cells for each status in this category */}
+              {columns.map((column) => (
+                <KanbanCell
+                  key={`${category.id}-${column.id || column.status}`}
+                  column={column}
+                  category={category}
+                  tasks={tasks}
+                  onOpen={handleOpenTask}
+                  onEdit={handleEditTask}
+                  onMove={handleMoveTask}
+                  onDelete={handleDeleteTask}
+                  userColumns={columns}
+                  visibleFields={visibleFields}
+                  customFields={customFields}
+                />
+              ))}
+            </div>
           ))}
         </div>
 

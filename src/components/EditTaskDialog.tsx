@@ -17,6 +17,7 @@ import { useUserColumns, useUserCustomFields } from "@/hooks/useUserSettings";
 import { Task } from "@/types/task";
 import { Switch } from "@/components/ui/switch";
 import { getCompanyBySipi, validateSipiFormat } from "@/services/sipiService";
+import { useUserCategories } from "@/hooks/useUserCategories";
 
 interface EditTaskDialogProps {
   open: boolean;
@@ -30,11 +31,13 @@ export function EditTaskDialog({ open, onOpenChange, task, onTaskUpdated }: Edit
   const { user } = useAuth();
   const { columns } = useUserColumns();
   const { customFields } = useUserCustomFields();
+  const { categories } = useUserCategories();
   
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("");
   const [status, setStatus] = useState("");
+  const [category, setCategory] = useState("");
   const [dueDate, setDueDate] = useState<Date | undefined>();
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({});
   const [sipiNumber, setSipiNumber] = useState("");
@@ -80,6 +83,7 @@ export function EditTaskDialog({ open, onOpenChange, task, onTaskUpdated }: Edit
       setDescription(task.description || "");
       setPriority(task.priority);
       setStatus(task.status);
+      setCategory(task.category || "general");
       setDueDate(task.dueDate);
       // Support both camelCase and snake_case coming from different hooks
       const sipi = (task as any).sipiNumber ?? (task as any).sipi_number ?? "";
@@ -105,6 +109,7 @@ export function EditTaskDialog({ open, onOpenChange, task, onTaskUpdated }: Edit
           description: description || null,
           priority: priority || 'medium',
           status,
+          category: category || 'general',
           due_date: dueDate?.toISOString() || null,
           custom_fields: customFieldValues,
           sipi_number: sipiNumber || null,
@@ -212,6 +217,32 @@ export function EditTaskDialog({ open, onOpenChange, task, onTaskUpdated }: Edit
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Catégorie</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner une catégorie" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.length > 0 ? (
+                  categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.name}>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-2 h-2 rounded-full" 
+                          style={{ backgroundColor: cat.color }}
+                        />
+                        {cat.name}
+                      </div>
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="general">Général</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

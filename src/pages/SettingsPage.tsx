@@ -31,6 +31,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useUserViewPreferences } from "@/hooks/useUserViewPreferences";
+import { useUserCategories } from "@/hooks/useUserCategories";
 
 interface UserColumn {
   id: string;
@@ -71,10 +72,15 @@ const SettingsPage = () => {
     { id: 'description', name: 'Description', type: 'textarea', required: false, system: true },
     { id: 'status', name: 'Statut', type: 'select', required: true, system: true },
     { id: 'priority', name: 'Priorité', type: 'select', required: true, system: true },
+    { id: 'category', name: 'Catégorie', type: 'select', required: false, system: true },
     { id: 'due_date', name: 'Date d\'échéance', type: 'date', required: false, system: true },
     { id: 'sipi_number', name: 'Numéro SIPI', type: 'text', required: false, system: true },
     { id: 'company_name', name: 'Société', type: 'text', required: false, system: true }
   ];
+  
+  // Categories management
+  const { categories: userCategories, saveCategory, updateCategory, deleteCategory, reorderCategories } = useUserCategories();
+  const [newCategoryName, setNewCategoryName] = useState("");
   
   const [columns, setColumns] = useState<UserColumn[]>([]);
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
@@ -525,6 +531,99 @@ const SettingsPage = () => {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+
+              {/* Category Management */}
+              <div>
+                <h4 className="text-sm font-medium text-muted-foreground mb-3">Catégories</h4>
+                <div className="space-y-4">
+                  <div className="p-3 border rounded-lg bg-blue-50/50 dark:bg-blue-950/20">
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-blue-600" />
+                      <div className="flex-1">
+                        <p className="font-medium">Catégorie</p>
+                        <p className="text-sm text-muted-foreground">
+                          Type: select • Système • Vous pouvez modifier les options
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-4 space-y-2">
+                      <Label className="text-sm">Options disponibles</Label>
+                      
+                      {/* Existing categories */}
+                      {userCategories.length > 0 && (
+                        <DragDropList
+                          items={userCategories}
+                          onReorder={reorderCategories}
+                          renderItem={(category) => (
+                            <div className="flex items-center gap-2">
+                              <Input 
+                                value={category.name} 
+                                className="flex-1"
+                                onChange={(e) => updateCategory(category.id, { name: e.target.value })}
+                              />
+                              <div 
+                                className="w-8 h-8 rounded border"
+                                style={{ backgroundColor: category.color }}
+                              />
+                              <Input 
+                                type="color" 
+                                value={category.color} 
+                                className="w-12 h-8 p-0 border-0"
+                                onChange={(e) => updateCategory(category.id, { color: e.target.value })}
+                              />
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="text-destructive"
+                                onClick={() => deleteCategory(category.id)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          )}
+                          itemClassName="p-2 bg-background rounded border"
+                        />
+                      )}
+                      
+                      {/* Add new category */}
+                      <div className="flex gap-2">
+                        <Input 
+                          placeholder="Nouvelle catégorie"
+                          value={newCategoryName}
+                          onChange={(e) => setNewCategoryName(e.target.value)}
+                        />
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={async () => {
+                            if (newCategoryName.trim()) {
+                              try {
+                                await saveCategory({
+                                  name: newCategoryName.trim(),
+                                  color: '#64748b',
+                                  order: userCategories.length + 1
+                                });
+                                setNewCategoryName("");
+                                toast({ title: "Catégorie ajoutée" });
+                              } catch (error) {
+                                toast({
+                                  title: "Erreur",
+                                  description: "Impossible d'ajouter la catégorie",
+                                  variant: "destructive",
+                                });
+                              }
+                            }
+                          }}
+                        >
+                          <Plus className="w-4 h-4 mr-1" />
+                          Ajouter
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 

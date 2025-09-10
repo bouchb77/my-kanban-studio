@@ -100,7 +100,8 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
             tags: [],
             user_id: user.id,
             sipi_number: sipiNumber || null,
-            company_name: companyName || null
+            company_name: companyName || null,
+            custom_fields: customFieldValues
           }
         ]);
 

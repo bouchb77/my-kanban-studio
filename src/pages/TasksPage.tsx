@@ -42,6 +42,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { CreateTaskDialog } from "@/components/CreateTaskDialog";
+import { EditTaskDialog } from "@/components/EditTaskDialog";
 import { useUserColumns } from "@/hooks/useUserSettings";
 
 const TasksPage = () => {
@@ -52,6 +53,8 @@ const TasksPage = () => {
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+  const [isEditTaskOpen, setIsEditTaskOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
   const { columns } = useUserColumns();
@@ -208,6 +211,11 @@ const TasksPage = () => {
       toast({ title: "Tâche supprimée" });
       setSelectedTasks(prev => prev.filter(id => id !== taskId));
     }
+  };
+
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task);
+    setIsEditTaskOpen(true);
   };
 
   const handleBulkComplete = async () => {
@@ -423,7 +431,7 @@ const TasksPage = () => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => handleEditTask(task)}>
                           <Edit className="w-4 h-4 mr-2" />
                           Modifier
                         </DropdownMenuItem>
@@ -483,6 +491,13 @@ const TasksPage = () => {
         open={isCreateTaskOpen} 
         onOpenChange={setIsCreateTaskOpen} 
         onTaskCreated={loadTasks}
+      />
+
+      <EditTaskDialog 
+        open={isEditTaskOpen} 
+        onOpenChange={setIsEditTaskOpen} 
+        task={editingTask}
+        onTaskUpdated={loadTasks}
       />
     </div>
   );

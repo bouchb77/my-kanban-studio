@@ -28,11 +28,10 @@ import { Plus, MoreVertical, Calendar } from "lucide-react";
 import { Task } from "@/types/task";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useUserColumns } from "@/hooks/useUserSettings";
+import { useUserColumns, useUserCustomFields } from "@/hooks/useUserSettings";
 import { EditTaskDialog } from "@/components/EditTaskDialog";
 import { ViewTaskDialog } from "@/components/ViewTaskDialog";
 import { useUserViewPreferences } from "@/hooks/useUserViewPreferences";
-import { useUserCustomFields } from "@/hooks/useUserSettings";
 
 // Default columns as fallback
 const defaultColumns = [

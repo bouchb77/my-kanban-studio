@@ -104,11 +104,24 @@ export const useTasks = () => {
       .slice(0, limit);
   };
 
+  const getOverdueTasks = (limit: number = 5) => {
+    const now = new Date();
+    return tasks
+      .filter(task => 
+        task.due_date && 
+        new Date(task.due_date) < now && 
+        task.status !== 'done'
+      )
+      .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
+      .slice(0, limit);
+  };
+
   return { 
     tasks, 
     loading, 
     refetch: loadTasks,
     getTaskStats,
-    getRecentTasks
+    getRecentTasks,
+    getOverdueTasks
   };
 };

@@ -8,9 +8,11 @@ import {
   AlertTriangle, 
   TrendingUp,
   Plus,
-  MoreVertical
+  MoreVertical,
+  CalendarX
 } from "lucide-react";
 import { CreateTaskDialog } from "@/components/CreateTaskDialog";
+import { ViewTaskDialog } from "@/components/ViewTaskDialog";
 import { useState } from "react";
 import { useTasks } from "@/hooks/useTasks";
 import { formatDistanceToNow } from "date-fns";
@@ -18,10 +20,18 @@ import { fr } from "date-fns/locale";
 
 const DashboardPage = () => {
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
-  const { getTaskStats, getRecentTasks, loading } = useTasks();
+  const [isViewTaskOpen, setIsViewTaskOpen] = useState(false);
+  const [viewingTask, setViewingTask] = useState<any>(null);
+  const { getTaskStats, getRecentTasks, getOverdueTasks, loading } = useTasks();
   
   const stats = getTaskStats();
   const recentTasks = getRecentTasks();
+  const overdueTasks = getOverdueTasks();
+
+  const handleViewTask = (task: any) => {
+    setViewingTask(task);
+    setIsViewTaskOpen(true);
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -97,7 +107,49 @@ const DashboardPage = () => {
       </div>
 
       {/* Main content grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Tâches en retard */}
+        <Card className="shadow-card border-0 border-l-4 border-l-destructive">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-destructive">
+              <CalendarX className="w-4 h-4" />
+              Tâches en retard
+            </CardTitle>
+            <CardDescription>Échéances dépassées à traiter</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {loading ? (
+                <div className="text-center text-muted-foreground">Chargement...</div>
+              ) : overdueTasks.length === 0 ? (
+                <div className="text-center text-muted-foreground py-4">
+                  <CheckSquare className="w-8 h-8 mx-auto mb-2 text-success" />
+                  <p className="text-sm">Aucune tâche en retard !</p>
+                </div>
+              ) : (
+                overdueTasks.map((task) => (
+                  <div 
+                    key={task.id} 
+                    className="flex flex-col gap-2 p-3 bg-destructive/5 rounded-lg border border-destructive/10 cursor-pointer hover:bg-destructive/10 transition-colors"
+                    onClick={() => handleViewTask(task)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <p className="text-sm font-medium line-clamp-2 flex-1">{task.title}</p>
+                      <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0 ml-2" />
+                    </div>
+                    <div className="text-xs text-muted-foreground flex items-center justify-between">
+                      <span>Échéance: {new Date(task.due_date).toLocaleDateString('fr-FR')}</span>
+                      <span className="text-destructive font-medium">
+                        {formatDistanceToNow(new Date(task.due_date), { addSuffix: true, locale: fr })}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Progress par projet */}
         <Card className="shadow-card border-0">
           <CardHeader>
@@ -172,7 +224,7 @@ const DashboardPage = () => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="min-w-40">
-                        <DropdownMenuItem onClick={() => console.log('Ouvrir:', task.title)}>Ouvrir</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleViewTask(task)}>Ouvrir</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => console.log('Modifier:', task.title)}>Modifier</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-destructive" onClick={() => console.log('Supprimer:', task.title)}>Supprimer</DropdownMenuItem>
@@ -190,6 +242,12 @@ const DashboardPage = () => {
       <CreateTaskDialog 
         open={isCreateTaskOpen} 
         onOpenChange={setIsCreateTaskOpen} 
+      />
+      
+      <ViewTaskDialog 
+        open={isViewTaskOpen} 
+        onOpenChange={setIsViewTaskOpen} 
+        task={viewingTask}
       />
     </div>
   );

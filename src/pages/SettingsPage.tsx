@@ -71,7 +71,9 @@ const SettingsPage = () => {
     { id: 'description', name: 'Description', type: 'textarea', required: false, system: true },
     { id: 'status', name: 'Statut', type: 'select', required: true, system: true },
     { id: 'priority', name: 'Priorité', type: 'select', required: true, system: true },
-    { id: 'due_date', name: 'Date d\'échéance', type: 'date', required: false, system: true }
+    { id: 'due_date', name: 'Date d\'échéance', type: 'date', required: false, system: true },
+    { id: 'sipi_number', name: 'Numéro SIPI', type: 'text', required: false, system: true },
+    { id: 'company_name', name: 'Société', type: 'text', required: false, system: true }
   ];
   
   const [columns, setColumns] = useState<UserColumn[]>([]);

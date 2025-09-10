@@ -241,7 +241,6 @@ export function EditTaskDialog({ open, onOpenChange, task, onTaskUpdated }: Edit
                 value={sipiNumber}
                 onChange={(e) => handleSipiChange(e.target.value)}
                 placeholder="12345678"
-                disabled={isLoadingSipi}
               />
             </div>
 

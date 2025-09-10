@@ -232,7 +232,6 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
                 value={sipiNumber}
                 onChange={(e) => handleSipiChange(e.target.value)}
                 placeholder="12345678"
-                disabled={isLoadingSipi}
               />
             </div>
 

@@ -166,11 +166,26 @@ const systemColumns = [
     high: "bg-destructive/20 text-destructive-foreground",
   };
 
-  const statusColors = {
-    todo: "bg-status-todo text-muted-foreground",
-    "in-progress": "bg-status-progress text-primary",
-    review: "bg-status-review text-warning",
-    done: "bg-status-done text-success",
+  // Fonction pour obtenir la couleur d'un statut depuis les colonnes utilisateur
+  const getStatusColor = (status: string) => {
+    const column = availableColumns.find(col => col.status === status);
+    if (column && (column as any).color) {
+      // Convertir la couleur hex en style inline avec opacité pour le background
+      const color = (column as any).color;
+      return {
+        backgroundColor: `${color}20`, // 20 en hex = ~12% opacité
+        borderColor: `${color}40`,
+        color: color
+      };
+    }
+    // Fallback vers les couleurs par défaut
+    const defaultColors = {
+      todo: { backgroundColor: '#64748b20', borderColor: '#64748b40', color: '#64748b' },
+      "in-progress": { backgroundColor: '#3b82f620', borderColor: '#3b82f640', color: '#3b82f6' },
+      review: { backgroundColor: '#f59e0b20', borderColor: '#f59e0b40', color: '#f59e0b' },
+      done: { backgroundColor: '#10b98120', borderColor: '#10b98140', color: '#10b981' },
+    };
+    return defaultColors[status as keyof typeof defaultColors] || defaultColors.todo;
   };
 
 // Map DB row to Task type (same as kanban)
@@ -367,7 +382,10 @@ const mapDbTask = (row: any): Task => ({
         return (
           <TableCell key="status">
             <div className="flex items-center gap-2">
-              <Badge className={`${statusColors[task.status as keyof typeof statusColors] || statusColors.todo} border-none`}>
+              <Badge 
+                className="border-none"
+                style={getStatusColor(task.status)}
+              >
                 {statusLabels[task.status]}
               </Badge>
               <InlineEditField

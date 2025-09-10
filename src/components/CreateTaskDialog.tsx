@@ -10,6 +10,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface CreateTaskDialogProps {
   open: boolean;
@@ -17,26 +19,67 @@ interface CreateTaskDialogProps {
 }
 
 export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) {
+  const { toast } = useToast();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("");
   const [status, setStatus] = useState("todo");
   const [dueDate, setDueDate] = useState<Date | undefined>();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement task creation logic with Supabase
-    console.log("Creating task:", { title, description, priority, status, dueDate });
-    
-    // Reset form
-    setTitle("");
-    setDescription("");
-    setPriority("");
-    setStatus("todo");
-    setDueDate(undefined);
-    
-    // Close dialog
-    onOpenChange(false);
+    setIsLoading(true);
+
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .insert([
+          {
+            title,
+            description: description || null,
+            priority: priority || 'medium',
+            status,
+            due_date: dueDate?.toISOString() || null,
+            tags: []
+          }
+        ]);
+
+      if (error) {
+        console.error('Error creating task:', error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de créer la tâche",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Tâche créée",
+        description: "La tâche a été créée avec succès",
+      });
+
+      // Reset form
+      setTitle("");
+      setDescription("");
+      setPriority("");
+      setStatus("todo");
+      setDueDate(undefined);
+      
+      // Close dialog
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error creating task:', error);
+      toast({
+        title: "Erreur",
+        description: "Une erreur inattendue s'est produite",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -78,7 +121,7 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todo">À faire</SelectItem>
-                  <SelectItem value="progress">En cours</SelectItem>
+                  <SelectItem value="in-progress">En cours</SelectItem>
                   <SelectItem value="review">En révision</SelectItem>
                   <SelectItem value="done">Terminé</SelectItem>
                 </SelectContent>
@@ -129,9 +172,9 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
               type="submit" 
               className="flex-1"
               style={{ background: "var(--gradient-primary)" }}
-              disabled={!title.trim()}
+              disabled={!title.trim() || isLoading}
             >
-              Créer la tâche
+              {isLoading ? "Création..." : "Créer la tâche"}
             </Button>
           </div>
         </form>

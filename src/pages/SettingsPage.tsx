@@ -135,7 +135,11 @@ const SettingsPage = () => {
                 </div>
               ))}
               
-              <Button variant="outline" className="w-full">
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => console.log('Ajouter une colonne')}
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Ajouter une colonne
               </Button>
@@ -207,7 +211,11 @@ const SettingsPage = () => {
                 </div>
               ))}
               
-              <Button variant="outline" className="w-full">
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => console.log('Ajouter un champ')}
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Ajouter un champ
               </Button>

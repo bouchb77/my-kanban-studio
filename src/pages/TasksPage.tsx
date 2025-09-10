@@ -42,6 +42,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { CreateTaskDialog } from "@/components/CreateTaskDialog";
+import { useUserColumns } from "@/hooks/useUserSettings";
 
 const TasksPage = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -53,13 +54,23 @@ const TasksPage = () => {
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const { columns } = useUserColumns();
 
-  const statusLabels = {
-    todo: "À faire",
-    "in-progress": "En cours",
-    review: "En révision",
-    done: "Terminé",
-  };
+  // Default columns as fallback
+  const defaultColumns = [
+    { status: "todo", title: "À faire" },
+    { status: "in-progress", title: "En cours" },
+    { status: "review", title: "En révision" },
+    { status: "done", title: "Terminé" },
+  ];
+
+  const availableColumns = columns.length > 0 ? columns : defaultColumns;
+  
+  // Create dynamic status labels from user columns
+  const statusLabels = availableColumns.reduce((acc, col) => {
+    acc[col.status] = col.title;
+    return acc;
+  }, {} as Record<string, string>);
 
   const priorityLabels = {
     low: "Faible",
@@ -289,10 +300,11 @@ const TasksPage = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les statuts</SelectItem>
-                <SelectItem value="todo">À faire</SelectItem>
-                <SelectItem value="in-progress">En cours</SelectItem>
-                <SelectItem value="review">En révision</SelectItem>
-                <SelectItem value="done">Terminé</SelectItem>
+                {availableColumns.map((column) => (
+                  <SelectItem key={column.status} value={column.status}>
+                    {column.title}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 

@@ -13,6 +13,7 @@ import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserColumns, useUserCustomFields } from "@/hooks/useUserSettings";
 
 interface CreateTaskDialogProps {
   open: boolean;
@@ -23,13 +24,27 @@ interface CreateTaskDialogProps {
 export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTaskDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { columns } = useUserColumns();
+  const { customFields } = useUserCustomFields();
+  
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("");
   const [status, setStatus] = useState("todo");
   const [dueDate, setDueDate] = useState<Date | undefined>();
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({});
 
   const [isLoading, setIsLoading] = useState(false);
+
+  // Default columns as fallback
+  const defaultColumns = [
+    { status: "todo", title: "À faire" },
+    { status: "in-progress", title: "En cours" },
+    { status: "review", title: "En révision" },
+    { status: "done", title: "Terminé" },
+  ];
+
+  const availableColumns = columns.length > 0 ? columns : defaultColumns;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,6 +95,7 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
       setPriority("");
       setStatus("todo");
       setDueDate(undefined);
+      setCustomFieldValues({});
       
       // Close dialog
       onOpenChange(false);
@@ -136,10 +152,11 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="todo">À faire</SelectItem>
-                  <SelectItem value="in-progress">En cours</SelectItem>
-                  <SelectItem value="review">En révision</SelectItem>
-                  <SelectItem value="done">Terminé</SelectItem>
+                  {availableColumns.map((column) => (
+                    <SelectItem key={column.status} value={column.status}>
+                      {column.title}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -179,6 +196,73 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
               </PopoverContent>
             </Popover>
           </div>
+
+          {/* Custom Fields */}
+          {customFields.map((field) => (
+            <div key={field.id} className="space-y-2">
+              <Label htmlFor={field.id}>
+                {field.name} {field.required && "*"}
+              </Label>
+              {field.type === "text" && (
+                <Input
+                  id={field.id}
+                  value={customFieldValues[field.id] || ""}
+                  onChange={(e) => setCustomFieldValues(prev => ({
+                    ...prev,
+                    [field.id]: e.target.value
+                  }))}
+                  placeholder={`Entrez ${field.name.toLowerCase()}`}
+                  required={field.required}
+                />
+              )}
+              {field.type === "textarea" && (
+                <Textarea
+                  id={field.id}
+                  value={customFieldValues[field.id] || ""}
+                  onChange={(e) => setCustomFieldValues(prev => ({
+                    ...prev,
+                    [field.id]: e.target.value
+                  }))}
+                  placeholder={`Entrez ${field.name.toLowerCase()}`}
+                  required={field.required}
+                  rows={3}
+                />
+              )}
+              {field.type === "select" && field.options && (
+                <Select 
+                  value={customFieldValues[field.id] || ""} 
+                  onValueChange={(value) => setCustomFieldValues(prev => ({
+                    ...prev,
+                    [field.id]: value
+                  }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={`Sélectionner ${field.name.toLowerCase()}`} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {field.options.map((option: string) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {field.type === "number" && (
+                <Input
+                  id={field.id}
+                  type="number"
+                  value={customFieldValues[field.id] || ""}
+                  onChange={(e) => setCustomFieldValues(prev => ({
+                    ...prev,
+                    [field.id]: Number(e.target.value)
+                  }))}
+                  placeholder={`Entrez ${field.name.toLowerCase()}`}
+                  required={field.required}
+                />
+              )}
+            </div>
+          ))}
 
           <div className="flex gap-2 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">

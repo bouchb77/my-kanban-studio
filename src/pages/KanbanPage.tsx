@@ -28,13 +28,14 @@ import { Plus, MoreVertical, Calendar } from "lucide-react";
 import { Task } from "@/types/task";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserColumns } from "@/hooks/useUserSettings";
 
-// Columns definition (ids used as droppable areas)
-const columns = [
-  { id: "todo", title: "À faire", status: "todo" as const },
-  { id: "in-progress", title: "En cours", status: "in-progress" as const },
-  { id: "review", title: "En révision", status: "review" as const },
-  { id: "done", title: "Terminé", status: "done" as const },
+// Default columns as fallback
+const defaultColumns = [
+  { id: "todo", title: "À faire", status: "todo" as const, color: "#64748b", order: 0 },
+  { id: "in-progress", title: "En cours", status: "in-progress" as const, color: "#3b82f6", order: 1 },
+  { id: "review", title: "En révision", status: "review" as const, color: "#f59e0b", order: 2 },
+  { id: "done", title: "Terminé", status: "done" as const, color: "#10b981", order: 3 },
 ];
 
 function TaskCard({
@@ -43,12 +44,14 @@ function TaskCard({
   onEdit,
   onMove,
   onDelete,
+  userColumns
 }: {
   task: Task;
   onOpen: (task: Task) => void;
   onEdit: (task: Task) => void;
   onMove: (task: Task, status: Task["status"]) => void;
   onDelete: (task: Task) => void;
+  userColumns: any[];
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
 
@@ -90,15 +93,22 @@ function TaskCard({
               <DropdownMenuContent align="end" className="min-w-40 z-50">
                 <DropdownMenuItem onSelect={() => onOpen(task)}>Ouvrir</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => onEdit(task)}>Modifier</DropdownMenuItem>
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>Déplacer vers</DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent>
-                    <DropdownMenuItem onSelect={() => onMove(task, "todo")}>À faire</DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => onMove(task, "in-progress")}>En cours</DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => onMove(task, "review")}>En révision</DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => onMove(task, "done")}>Terminé</DropdownMenuItem>
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>Déplacer vers</DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      {userColumns.map((col) => (
+                        <DropdownMenuItem key={col.status} onSelect={() => onMove(task, col.status)}>
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-2 h-2 rounded-full" 
+                              style={{ backgroundColor: col.color }}
+                            />
+                            {col.title}
+                          </div>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-destructive" onSelect={() => onDelete(task)}>
                   Supprimer
@@ -160,13 +170,15 @@ function KanbanColumn({
   onEdit,
   onMove,
   onDelete,
+  userColumns
 }: {
-  column: typeof columns[0];
+  column: any;
   tasks: Task[];
   onOpen: (task: Task) => void;
   onEdit: (task: Task) => void;
   onMove: (task: Task, status: Task["status"]) => void;
   onDelete: (task: Task) => void;
+  userColumns: any[];
 }) {
   const columnTasks = tasks.filter((task) => task.status === column.status);
   const { setNodeRef: setDroppableRef } = useDroppable({ id: column.status });
@@ -175,6 +187,10 @@ function KanbanColumn({
     <div className="flex-1 min-w-80">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
+          <div 
+            className="w-3 h-3 rounded-full mr-1" 
+            style={{ backgroundColor: column.color }}
+          />
           <h2 className="font-semibold text-foreground">{column.title}</h2>
           <Badge variant="secondary" className="text-xs">
             {columnTasks.length}
@@ -195,6 +211,7 @@ function KanbanColumn({
               onEdit={onEdit}
               onMove={onMove}
               onDelete={onDelete}
+              userColumns={userColumns}
             />
           ))}
         </div>
@@ -207,6 +224,10 @@ const KanbanPage = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const { toast } = useToast();
+  const { columns: userColumns, loading: columnsLoading } = useUserColumns();
+
+  // Use user columns or fall back to defaults
+  const columns = userColumns.length > 0 ? userColumns : defaultColumns;
 
   // Map DB row to Task type
   const mapDbTask = (row: any): Task => ({
@@ -344,19 +365,27 @@ const KanbanPage = () => {
         <div className="flex gap-6 overflow-x-auto pb-6">
           {columns.map((column) => (
             <KanbanColumn
-              key={column.id}
+              key={column.id || column.status}
               column={column}
               tasks={tasks}
               onOpen={handleOpenTask}
               onEdit={handleEditTask}
               onMove={handleMoveTask}
               onDelete={handleDeleteTask}
+              userColumns={columns}
             />
           ))}
         </div>
 
         <DragOverlay>{activeTask ? (
-          <TaskCard task={activeTask} onOpen={() => {}} onEdit={() => {}} onMove={() => {}} onDelete={() => {}} />
+          <TaskCard 
+            task={activeTask} 
+            onOpen={() => {}} 
+            onEdit={() => {}} 
+            onMove={() => {}} 
+            onDelete={() => {}} 
+            userColumns={columns}
+          />
         ) : null}</DragOverlay>
       </DndContext>
     </div>

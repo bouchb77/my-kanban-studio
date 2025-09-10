@@ -43,5 +43,5 @@ export const getCompanyBySipi = async (sipi: string): Promise<CompanyInfo | null
  */
 export const validateSipiFormat = (sipi: string): boolean => {
   const cleanSipi = sipi.replace(/\D/g, '');
-  return cleanSipi.length === 8; // SIPI suisse fait 8 chiffres
+  return cleanSipi.length >= 6 && cleanSipi.length <= 12;
 };

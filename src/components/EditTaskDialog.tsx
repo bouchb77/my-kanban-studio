@@ -96,8 +96,11 @@ export function EditTaskDialog({ open, onOpenChange, task, onTaskUpdated }: Edit
       setPriority(task.priority);
       setStatus(task.status);
       setDueDate(task.dueDate);
-      setSipiNumber((task as any).sipiNumber || "");
-      setCompanyName((task as any).companyName || "");
+      // Support both camelCase and snake_case coming from different hooks
+      const sipi = (task as any).sipiNumber ?? (task as any).sipi_number ?? "";
+      const company = (task as any).companyName ?? (task as any).company_name ?? "";
+      setSipiNumber(sipi);
+      setCompanyName(company);
       // Load existing custom field values
       setCustomFieldValues(task.customFields || {});
     }

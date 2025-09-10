@@ -44,6 +44,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { CreateTaskDialog } from "@/components/CreateTaskDialog";
 import { EditTaskDialog } from "@/components/EditTaskDialog";
 import { InlineEditField } from "@/components/InlineEditField";
+import { ColumnManager } from "@/components/ColumnManager";
 import { useUserColumns } from "@/hooks/useUserSettings";
 
 const TasksPage = () => {
@@ -316,14 +317,17 @@ const TasksPage = () => {
           <h1 className="text-3xl font-bold text-foreground">Liste des tâches</h1>
           <p className="text-muted-foreground">Gérez et filtrez vos tâches</p>
         </div>
-        <Button 
-          onClick={() => setIsCreateTaskOpen(true)}
-          style={{ background: "var(--gradient-primary)" }} 
-          className="border-0 text-primary-foreground"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Nouvelle tâche
-        </Button>
+        <div className="flex items-center gap-4">
+          <Button 
+            onClick={() => setIsCreateTaskOpen(true)}
+            style={{ background: "var(--gradient-primary)" }} 
+            className="border-0 text-primary-foreground"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Nouvelle tâche
+          </Button>
+          <ColumnManager />
+        </div>
       </div>
 
       {/* Filters */}

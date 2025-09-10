@@ -22,9 +22,9 @@ import {
   Plus, 
   Trash2,
   Edit,
-  GripVertical,
   Save
 } from "lucide-react";
+import { DragDropList } from "@/components/DragDropList";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -170,6 +170,29 @@ const SettingsPage = () => {
     }
   };
 
+  const updateColumnOrder = async (reorderedColumns: UserColumn[]) => {
+    try {
+      // Update each column's order in the database
+      const updates = reorderedColumns.map((column, index) => 
+        supabase
+          .from('user_columns')
+          .update({ order: index + 1 })
+          .eq('id', column.id)
+      );
+      
+      await Promise.all(updates);
+      
+      setColumns(reorderedColumns.map((col, index) => ({ ...col, order: index + 1 })));
+      toast({ title: "Ordre des colonnes mis à jour" });
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de modifier l'ordre des colonnes",
+        variant: "destructive",
+      });
+    }
+  };
+
   const addColumn = async () => {
     if (!newColumnTitle.trim() || !user) return;
     
@@ -216,6 +239,29 @@ const SettingsPage = () => {
     } else {
       setColumns(prev => prev.filter(col => col.id !== columnId));
       toast({ title: "Colonne supprimée" });
+    }
+  };
+
+  const updateCustomFieldOrder = async (reorderedFields: CustomField[]) => {
+    try {
+      // Update each field's order in the database
+      const updates = reorderedFields.map((field, index) => 
+        supabase
+          .from('user_custom_fields')
+          .update({ order: index + 1 })
+          .eq('id', field.id)
+      );
+      
+      await Promise.all(updates);
+      
+      setCustomFields(reorderedFields.map((field, index) => ({ ...field, order: index + 1 })));
+      toast({ title: "Ordre des champs mis à jour" });
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de modifier l'ordre des champs",
+        variant: "destructive",
+      });
     }
   };
 
@@ -372,14 +418,14 @@ const SettingsPage = () => {
             <CardHeader>
               <CardTitle>Configuration des colonnes Kanban</CardTitle>
               <CardDescription>
-                Personnalisez les colonnes de votre tableau Kanban
+                Personnalisez les colonnes de votre tableau Kanban. Glissez-déposez pour réorganiser l'ordre.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {columns.map((column) => (
-                <div key={column.id} className="flex items-center gap-4 p-4 bg-surface-variant rounded-lg">
-                  <GripVertical className="w-5 h-5 text-muted-foreground cursor-grab" />
-                  
+              <DragDropList
+                items={columns}
+                onReorder={updateColumnOrder}
+                renderItem={(column) => (
                   <div className="flex-1 grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-sm">Nom de la colonne</Label>
@@ -403,20 +449,20 @@ const SettingsPage = () => {
                           className="w-16 h-8 p-0 border-0"
                           onChange={(e) => updateColumn(column.id, { color: e.target.value })}
                         />
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-destructive ml-auto"
+                          onClick={() => deleteColumn(column.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
                   </div>
-                  
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="text-destructive"
-                    onClick={() => deleteColumn(column.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              ))}
+                )}
+                itemClassName="p-4 bg-surface-variant rounded-lg"
+              />
               
               <div className="flex gap-2">
                 <Input 
@@ -439,7 +485,7 @@ const SettingsPage = () => {
             <CardHeader>
               <CardTitle>Champs de formulaire</CardTitle>
               <CardDescription>
-                Champs système et personnalisés pour vos formulaires de tâches
+                Champs système et personnalisés pour vos formulaires de tâches. Glissez-déposez pour réorganiser l'ordre.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -469,108 +515,99 @@ const SettingsPage = () => {
               {/* Custom Fields */}
               <div>
                 <h4 className="text-sm font-medium text-muted-foreground mb-3">Champs personnalisés</h4>
-                <div className="space-y-3">
-                  {customFields.length === 0 ? (
-                    <div className="text-center py-6 text-muted-foreground">
-                      <p>Aucun champ personnalisé configuré</p>
-                    </div>
-                  ) : (
-                    customFields.map((field) => (
-                      <div key={field.id} className="flex items-center gap-4 p-4 bg-surface-variant rounded-lg">
-                        <div className="flex-1 grid grid-cols-3 gap-4">
-                          <div>
-                            <Label className="text-sm">Nom du champ</Label>
-                            <Input 
-                              value={field.name} 
-                              className="mt-1"
-                              onChange={(e) => updateCustomField(field.id, { name: e.target.value })}
-                            />
-                          </div>
-                          
-                          <div>
-                            <Label className="text-sm">Type</Label>
-                            <Select 
-                              value={field.type}
-                              onValueChange={(value: any) => updateCustomField(field.id, { type: value })}
-                            >
-                              <SelectTrigger className="mt-1">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="text">Texte</SelectItem>
-                                <SelectItem value="number">Nombre</SelectItem>
-                                <SelectItem value="select">Liste déroulante</SelectItem>
-                                <SelectItem value="date">Date</SelectItem>
-                                <SelectItem value="checkbox">Case à cocher</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          
-                          <div className="flex items-center space-x-2 mt-6">
-                            <Switch 
-                              id={`required-${field.id}`}
-                              checked={field.required}
-                              onCheckedChange={(checked) => updateCustomField(field.id, { required: checked })}
-                            />
-                            <Label htmlFor={`required-${field.id}`} className="text-sm">
-                              Obligatoire
-                            </Label>
-                          </div>
+                {customFields.length === 0 ? (
+                  <div className="text-center py-6 text-muted-foreground">
+                    <p>Aucun champ personnalisé configuré</p>
+                  </div>
+                ) : (
+                  <DragDropList
+                    items={customFields}
+                    onReorder={updateCustomFieldOrder}
+                    renderItem={(field) => (
+                      <div className="flex-1 grid grid-cols-3 gap-4">
+                        <div>
+                          <Label className="text-sm">Nom du champ</Label>
+                          <Input 
+                            value={field.name} 
+                            className="mt-1"
+                            onChange={(e) => updateCustomField(field.id, { name: e.target.value })}
+                          />
                         </div>
                         
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-destructive"
-                          onClick={() => deleteCustomField(field.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <div>
+                          <Label className="text-sm">Type</Label>
+                          <Select 
+                            value={field.type}
+                            onValueChange={(value: any) => updateCustomField(field.id, { type: value })}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="text">Texte</SelectItem>
+                              <SelectItem value="number">Nombre</SelectItem>
+                              <SelectItem value="select">Liste déroulante</SelectItem>
+                              <SelectItem value="date">Date</SelectItem>
+                              <SelectItem value="checkbox">Case à cocher</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2 mt-6">
+                          <Switch 
+                            id={`required-${field.id}`}
+                            checked={field.required}
+                            onCheckedChange={(checked) => updateCustomField(field.id, { required: checked })}
+                          />
+                          <Label htmlFor={`required-${field.id}`} className="text-sm">
+                            Obligatoire
+                          </Label>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-destructive ml-auto"
+                            onClick={() => deleteCustomField(field.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
-                    ))
-                  )}
-                </div>
-              </div>
-              
-              {/* Add new custom field */}
-              <div className="grid grid-cols-12 gap-2">
-                <Input 
-                  className="col-span-4"
-                  placeholder="Nom du champ"
-                  value={newFieldName}
-                  onChange={(e) => setNewFieldName(e.target.value)}
-                />
-                <Select 
-                  value={newFieldType}
-                  onValueChange={(value) => setNewFieldType(value as 'text' | 'number' | 'select' | 'date' | 'checkbox')}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="text">Texte</SelectItem>
-                    <SelectItem value="number">Nombre</SelectItem>
-                    <SelectItem value="select">Liste</SelectItem>
-                    <SelectItem value="date">Date</SelectItem>
-                    <SelectItem value="checkbox">Case</SelectItem>
-                  </SelectContent>
-                </Select>
-                {newFieldType === 'select' && (
-                  <Input 
-                    className="col-span-3"
-                    placeholder="Options (séparées par virgules)"
-                    value={newFieldOptions}
-                    onChange={(e) => setNewFieldOptions(e.target.value)}
+                    )}
+                    itemClassName="p-4 bg-surface-variant rounded-lg"
                   />
                 )}
-                <Button 
-                  variant="outline" 
-                  className={newFieldType === 'select' ? "col-span-2" : "col-span-5"}
-                  onClick={addCustomField}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Ajouter
-                </Button>
+
+                {/* Add new field */}
+                <div className="grid grid-cols-4 gap-2 pt-4">
+                  <Input 
+                    placeholder="Nom du champ"
+                    value={newFieldName}
+                    onChange={(e) => setNewFieldName(e.target.value)}
+                  />
+                  <Select value={newFieldType} onValueChange={(value: any) => setNewFieldType(value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="text">Texte</SelectItem>
+                      <SelectItem value="number">Nombre</SelectItem>
+                      <SelectItem value="select">Liste déroulante</SelectItem>
+                      <SelectItem value="date">Date</SelectItem>
+                      <SelectItem value="checkbox">Case à cocher</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {newFieldType === 'select' && (
+                    <Input 
+                      placeholder="Options (séparées par ,)"
+                      value={newFieldOptions}
+                      onChange={(e) => setNewFieldOptions(e.target.value)}
+                    />
+                  )}
+                  <Button variant="outline" onClick={addCustomField}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Ajouter
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -582,94 +619,73 @@ const SettingsPage = () => {
             <CardHeader>
               <CardTitle>Préférences de notification</CardTitle>
               <CardDescription>
-                Configurez comment vous souhaitez être notifié
+                Gérez vos notifications et rappels
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-base">Notifications par email</Label>
+                  <div className="space-y-0.5">
+                    <Label>Notifications par email</Label>
                     <p className="text-sm text-muted-foreground">
-                      Recevoir les notifications importantes par email
+                      Recevez des notifications par email pour les tâches importantes
                     </p>
                   </div>
                   <Switch 
                     checked={notifications.email}
-                    onCheckedChange={(checked) => 
-                      setNotifications(prev => ({ ...prev, email: checked }))
-                    }
+                    onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, email: checked }))}
                   />
                 </div>
 
-                <Separator />
-
                 <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-base">Notifications push</Label>
+                  <div className="space-y-0.5">
+                    <Label>Notifications push</Label>
                     <p className="text-sm text-muted-foreground">
-                      Recevoir des notifications dans le navigateur
+                      Recevez des notifications push dans votre navigateur
                     </p>
                   </div>
                   <Switch 
                     checked={notifications.push}
-                    onCheckedChange={(checked) => 
-                      setNotifications(prev => ({ ...prev, push: checked }))
-                    }
+                    onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, push: checked }))}
                   />
                 </div>
 
-                <Separator />
-
-                <div className="space-y-2">
-                  <Label>Rappel avant échéance</Label>
-                  <Select 
-                    value={notifications.daysBeforeDue.toString()}
-                    onValueChange={(value) => 
-                      setNotifications(prev => ({ ...prev, daysBeforeDue: parseInt(value) }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">1 jour avant</SelectItem>
-                      <SelectItem value="2">2 jours avant</SelectItem>
-                      <SelectItem value="3">3 jours avant</SelectItem>
-                      <SelectItem value="7">1 semaine avant</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <Separator />
-
                 <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-base">Résumé quotidien</Label>
+                  <div className="space-y-0.5">
+                    <Label>Résumé quotidien</Label>
                     <p className="text-sm text-muted-foreground">
-                      Recevoir un résumé de vos tâches chaque matin
+                      Recevez un résumé quotidien de vos tâches
                     </p>
                   </div>
                   <Switch 
                     checked={notifications.dailyDigest}
-                    onCheckedChange={(checked) => 
-                      setNotifications(prev => ({ ...prev, dailyDigest: checked }))
-                    }
+                    onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, dailyDigest: checked }))}
                   />
                 </div>
+
+                <div className="space-y-2">
+                  <Label>Rappel avant échéance (jours)</Label>
+                  <Select 
+                    value={String(notifications.daysBeforeDue)}
+                    onValueChange={(value) => setNotifications(prev => ({ ...prev, daysBeforeDue: parseInt(value) }))}
+                  >
+                    <SelectTrigger className="w-48">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1 jour</SelectItem>
+                      <SelectItem value="2">2 jours</SelectItem>
+                      <SelectItem value="3">3 jours</SelectItem>
+                      <SelectItem value="7">1 semaine</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              
-              <div className="pt-4">
-                <Button 
-                  onClick={saveNotifications}
-                  disabled={saving}
-                  style={{ background: "var(--gradient-primary)" }} 
-                  className="border-0 text-primary-foreground"
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  {saving ? "Sauvegarde..." : "Sauvegarder"}
-                </Button>
-              </div>
+
+              <Button onClick={saveNotifications} disabled={saving}>
+                <Save className="w-4 h-4 mr-2" />
+                {saving ? "Sauvegarde..." : "Sauvegarder"}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -684,42 +700,20 @@ const SettingsPage = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Email</Label>
-                  <Input value={user?.email || ""} disabled className="mt-1" />
-                </div>
-                <div>
-                  <Label>Nom complet</Label>
-                  <Input placeholder="Votre nom complet" className="mt-1" />
-                </div>
-              </div>
-              
-              <div>
-                <Label>Fuseau horaire</Label>
-                <Select>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Sélectionner un fuseau horaire" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="europe/paris">Europe/Paris (UTC+1)</SelectItem>
-                    <SelectItem value="europe/london">Europe/London (UTC+0)</SelectItem>
-                    <SelectItem value="america/new_york">America/New_York (UTC-5)</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input value={user?.email || ""} disabled />
               </div>
 
-              <Separator />
-
-              <div className="pt-4">
-                <Button 
-                  style={{ background: "var(--gradient-primary)" }} 
-                  className="border-0 text-primary-foreground"
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  Sauvegarder les modifications
-                </Button>
+              <div className="space-y-2">
+                <Label>Nom complet</Label>
+                <Input placeholder="Votre nom complet" />
               </div>
+
+              <Button>
+                <Save className="w-4 h-4 mr-2" />
+                Sauvegarder le profil
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>

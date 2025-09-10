@@ -176,6 +176,39 @@ export type Database = {
         }
         Relationships: []
       }
+      user_view_preferences: {
+        Row: {
+          column_order: Json
+          column_widths: Json
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+          view_type: string
+          visible_columns: Json
+        }
+        Insert: {
+          column_order?: Json
+          column_widths?: Json
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          view_type?: string
+          visible_columns?: Json
+        }
+        Update: {
+          column_order?: Json
+          column_widths?: Json
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          view_type?: string
+          visible_columns?: Json
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

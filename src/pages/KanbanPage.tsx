@@ -29,6 +29,7 @@ import { Task } from "@/types/task";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserColumns } from "@/hooks/useUserSettings";
+import { EditTaskDialog } from "@/components/EditTaskDialog";
 
 // Default columns as fallback
 const defaultColumns = [
@@ -229,6 +230,8 @@ function KanbanColumn({
 const KanbanPage = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [isEditTaskOpen, setIsEditTaskOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const { toast } = useToast();
   const { columns: userColumns, loading: columnsLoading } = useUserColumns();
 
@@ -295,12 +298,14 @@ const KanbanPage = () => {
     };
   }, []);
 
-  const handleOpenTask = (task: Task) => {
-    toast({ title: "Ouvrir la tâche", description: task.title });
+const handleOpenTask = (task: Task) => {
+    setEditingTask(task);
+    setIsEditTaskOpen(true);
   };
 
   const handleEditTask = (task: Task) => {
-    toast({ title: "Éditer la tâche", description: `${task.title} — bientôt disponible` });
+    setEditingTask(task);
+    setIsEditTaskOpen(true);
   };
 
   const handleMoveTask = async (task: Task, status: Task["status"]) => {
@@ -394,6 +399,13 @@ const KanbanPage = () => {
           />
         ) : null}</DragOverlay>
       </DndContext>
+
+      <EditTaskDialog
+        open={isEditTaskOpen}
+        onOpenChange={setIsEditTaskOpen}
+        task={editingTask}
+        onTaskUpdated={loadTasks}
+      />
     </div>
   );
 };

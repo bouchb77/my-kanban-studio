@@ -43,6 +43,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { CreateTaskDialog } from "@/components/CreateTaskDialog";
 import { EditTaskDialog } from "@/components/EditTaskDialog";
+import { InlineEditField } from "@/components/InlineEditField";
 import { useUserColumns } from "@/hooks/useUserSettings";
 
 const TasksPage = () => {
@@ -218,6 +219,48 @@ const TasksPage = () => {
     setIsEditTaskOpen(true);
   };
 
+  const handleInlineEdit = async (taskId: string, field: string, value: any) => {
+    try {
+      const updateData: any = {};
+      
+      if (field === "title") {
+        updateData.title = value;
+      } else if (field === "status") {
+        updateData.status = value;
+      } else if (field === "priority") {
+        updateData.priority = value;
+      } else if (field === "assignee") {
+        updateData.assignee = value || null;
+      } else if (field === "dueDate") {
+        updateData.due_date = value ? value.toISOString() : null;
+      } else if (field === "tags") {
+        updateData.tags = Array.isArray(value) ? value : [];
+      }
+
+      const { error } = await supabase
+        .from("tasks")
+        .update(updateData)
+        .eq("id", taskId);
+
+      if (error) {
+        console.error("Error updating task:", error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de modifier la tâche",
+          variant: "destructive",
+        });
+        throw error;
+      }
+
+      toast({
+        title: "Tâche modifiée",
+        description: "La modification a été sauvegardée",
+      });
+    } catch (error) {
+      throw error;
+    }
+  };
+
   const handleBulkComplete = async () => {
     const { error } = await supabase
       .from("tasks")
@@ -375,53 +418,75 @@ const TasksPage = () => {
                     />
                   </TableCell>
                   <TableCell>
-                    <div>
-                      <div className="font-medium">{task.title}</div>
-                      {task.description && (
-                        <div className="text-sm text-muted-foreground line-clamp-1">
-                          {task.description}
-                        </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={statusColors[task.status]}>
-                      {statusLabels[task.status]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={priorityColors[task.priority]}>
-                      {priorityLabels[task.priority]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {task.assignee || (
-                      <span className="text-muted-foreground">Non assigné</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {task.dueDate ? (
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4 text-muted-foreground" />
-                        {task.dueDate.toLocaleDateString('fr-FR')}
+                    <InlineEditField
+                      value={task.title}
+                      onSave={(value) => handleInlineEdit(task.id, "title", value)}
+                      type="text"
+                      placeholder="Titre de la tâche"
+                    />
+                    {task.description && (
+                      <div className="text-sm text-muted-foreground line-clamp-1 mt-1">
+                        {task.description}
                       </div>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
                     )}
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {task.tags?.slice(0, 2).map((tag) => (
-                        <Badge key={tag} variant="secondary" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                      {task.tags && task.tags.length > 2 && (
-                        <Badge variant="secondary" className="text-xs">
-                          +{task.tags.length - 2}
-                        </Badge>
-                      )}
-                    </div>
+                    <InlineEditField
+                      value={task.status}
+                      onSave={(value) => handleInlineEdit(task.id, "status", value)}
+                      type="select"
+                      options={availableColumns.map(col => ({
+                        value: col.status,
+                        label: col.title,
+                        color: (col as any).color
+                      }))}
+                      displayValue={statusLabels[task.status]}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <InlineEditField
+                      value={task.priority}
+                      onSave={(value) => handleInlineEdit(task.id, "priority", value)}
+                      type="select"
+                      options={[
+                        { value: "low", label: "Faible" },
+                        { value: "medium", label: "Moyenne" },
+                        { value: "high", label: "Élevée" },
+                      ]}
+                      displayValue={priorityLabels[task.priority]}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <InlineEditField
+                      value={task.assignee || ""}
+                      onSave={(value) => handleInlineEdit(task.id, "assignee", value)}
+                      type="text"
+                      placeholder="Non assigné"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <InlineEditField
+                      value={task.dueDate}
+                      onSave={(value) => handleInlineEdit(task.id, "dueDate", value)}
+                      type="date"
+                      placeholder="Aucune date"
+                      displayValue={
+                        task.dueDate ? task.dueDate.toLocaleDateString('fr-FR') : "-"
+                      }
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <InlineEditField
+                      value={task.tags || []}
+                      onSave={(value) => handleInlineEdit(task.id, "tags", value)}
+                      type="tags"
+                      placeholder="Aucun tag"
+                      displayValue={
+                        task.tags && task.tags.length > 0 
+                          ? task.tags.slice(0, 2).join(", ") + (task.tags.length > 2 ? `... (+${task.tags.length - 2})` : "")
+                          : "Aucun tag"
+                      }
+                    />
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>

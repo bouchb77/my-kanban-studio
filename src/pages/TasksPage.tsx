@@ -366,17 +366,23 @@ const mapDbTask = (row: any): Task => ({
       case 'status':
         return (
           <TableCell key="status">
-            <InlineEditField
-              value={task.status}
-              onSave={(value) => handleInlineEdit(task.id, "status", value)}
-              type="select"
-              options={availableColumns.map(col => ({
-                value: col.status,
-                label: col.title,
-                color: (col as any).color
-              }))}
-              displayValue={statusLabels[task.status]}
-            />
+            <div className="flex items-center gap-2">
+              <Badge className={`${statusColors[task.status as keyof typeof statusColors] || statusColors.todo} border-none`}>
+                {statusLabels[task.status]}
+              </Badge>
+              <InlineEditField
+                value={task.status}
+                onSave={(value) => handleInlineEdit(task.id, "status", value)}
+                type="select"
+                options={availableColumns.map(col => ({
+                  value: col.status,
+                  label: col.title,
+                  color: (col as any).color
+                }))}
+                displayValue=""
+                className="opacity-0 hover:opacity-100 transition-opacity"
+              />
+            </div>
           </TableCell>
         );
       

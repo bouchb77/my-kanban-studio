@@ -1,23 +1,95 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CheckSquare, Mail, Lock, User } from "lucide-react";
+import { CheckSquare, Mail, Lock, User, AlertCircle } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [loginData, setLoginData] = useState({ email: "", password: "" });
+  const [registerData, setRegisterData] = useState({ email: "", password: "", fullName: "" });
+  const [error, setError] = useState("");
+  
+  const { signIn, signUp, user } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
+
+  // Redirect authenticated users
+  useEffect(() => {
+    if (user) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Simulate login - will be replaced with Supabase auth
-    setTimeout(() => {
+    setError("");
+
+    if (!loginData.email || !loginData.password) {
+      setError("Veuillez remplir tous les champs");
       setIsLoading(false);
-      // Redirect to main app - will be handled by auth context
-      window.location.href = "/dashboard";
-    }, 1000);
+      return;
+    }
+
+    const { error } = await signIn(loginData.email, loginData.password);
+    
+    if (error) {
+      if (error.message.includes("Invalid login credentials")) {
+        setError("Email ou mot de passe incorrect");
+      } else if (error.message.includes("Email not confirmed")) {
+        setError("Veuillez confirmer votre email avant de vous connecter");
+      } else {
+        setError("Erreur de connexion. Veuillez réessayer.");
+      }
+      setIsLoading(false);
+    } else {
+      // Success handled by AuthContext
+      navigate("/dashboard", { replace: true });
+    }
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+
+    if (!registerData.email || !registerData.password || !registerData.fullName) {
+      setError("Veuillez remplir tous les champs");
+      setIsLoading(false);
+      return;
+    }
+
+    if (registerData.password.length < 6) {
+      setError("Le mot de passe doit contenir au moins 6 caractères");
+      setIsLoading(false);
+      return;
+    }
+
+    const { error } = await signUp(registerData.email, registerData.password, registerData.fullName);
+    
+    if (error) {
+      if (error.message.includes("User already registered")) {
+        setError("Un compte avec cet email existe déjà");
+      } else if (error.message.includes("Password should be")) {
+        setError("Le mot de passe doit contenir au moins 6 caractères");
+      } else {
+        setError("Erreur lors de l'inscription. Veuillez réessayer.");
+      }
+      setIsLoading(false);
+    } else {
+      toast({
+        title: "Compte créé !",
+        description: "Vérifiez votre email pour confirmer votre compte, puis connectez-vous.",
+      });
+      setRegisterData({ email: "", password: "", fullName: "" });
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -33,12 +105,19 @@ const LoginPage = () => {
 
         <Card className="shadow-card border-0">
           <CardHeader>
-            <CardTitle>Connexion</CardTitle>
+            <CardTitle>Authentification</CardTitle>
             <CardDescription>
-              Connectez-vous pour accéder à votre espace de travail
+              Connectez-vous ou créez un compte pour commencer
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {error && (
+              <div className="flex items-center gap-2 p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md mb-4">
+                <AlertCircle className="w-4 h-4" />
+                {error}
+              </div>
+            )}
+            
             <Tabs defaultValue="login" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login">Connexion</TabsTrigger>
@@ -56,6 +135,8 @@ const LoginPage = () => {
                         type="email"
                         placeholder="votre@email.com"
                         className="pl-10"
+                        value={loginData.email}
+                        onChange={(e) => setLoginData(prev => ({ ...prev, email: e.target.value }))}
                         required
                       />
                     </div>
@@ -69,27 +150,36 @@ const LoginPage = () => {
                         type="password"
                         placeholder="••••••••"
                         className="pl-10"
+                        value={loginData.password}
+                        onChange={(e) => setLoginData(prev => ({ ...prev, password: e.target.value }))}
                         required
                       />
                     </div>
                   </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <Button 
+                    type="submit" 
+                    className="w-full"
+                    style={{ background: "var(--gradient-primary)" }}
+                    disabled={isLoading}
+                  >
                     {isLoading ? "Connexion..." : "Se connecter"}
                   </Button>
                 </form>
               </TabsContent>
               
               <TabsContent value="register">
-                <form onSubmit={handleLogin} className="space-y-4">
+                <form onSubmit={handleRegister} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Nom complet</Label>
+                    <Label htmlFor="fullName">Nom complet</Label>
                     <div className="relative">
                       <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                       <Input
-                        id="name"
+                        id="fullName"
                         type="text"
-                        placeholder="Votre nom"
+                        placeholder="Votre nom complet"
                         className="pl-10"
+                        value={registerData.fullName}
+                        onChange={(e) => setRegisterData(prev => ({ ...prev, fullName: e.target.value }))}
                         required
                       />
                     </div>
@@ -103,6 +193,8 @@ const LoginPage = () => {
                         type="email"
                         placeholder="votre@email.com"
                         className="pl-10"
+                        value={registerData.email}
+                        onChange={(e) => setRegisterData(prev => ({ ...prev, email: e.target.value }))}
                         required
                       />
                     </div>
@@ -116,11 +208,20 @@ const LoginPage = () => {
                         type="password"
                         placeholder="••••••••"
                         className="pl-10"
+                        value={registerData.password}
+                        onChange={(e) => setRegisterData(prev => ({ ...prev, password: e.target.value }))}
                         required
+                        minLength={6}
                       />
                     </div>
+                    <p className="text-xs text-muted-foreground">Au moins 6 caractères</p>
                   </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <Button 
+                    type="submit" 
+                    className="w-full"
+                    style={{ background: "var(--gradient-primary)" }}
+                    disabled={isLoading}
+                  >
                     {isLoading ? "Création..." : "Créer un compte"}
                   </Button>
                 </form>

@@ -3,6 +3,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./contexts/AuthContext";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import { MainLayout } from "./components/MainLayout";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
@@ -16,23 +18,59 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<LoginPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/dashboard" element={<MainLayout><DashboardPage /></MainLayout>} />
-          <Route path="/kanban" element={<MainLayout><KanbanPage /></MainLayout>} />
-          <Route path="/tasks" element={<MainLayout><TasksPage /></MainLayout>} />
-          <Route path="/settings" element={<MainLayout><SettingsPage /></MainLayout>} />
-          <Route path="/reporting" element={<MainLayout><ReportingPage /></MainLayout>} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/" element={<LoginPage />} />
+            <Route 
+              path="/dashboard" 
+              element={
+                <ProtectedRoute>
+                  <MainLayout><DashboardPage /></MainLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/kanban" 
+              element={
+                <ProtectedRoute>
+                  <MainLayout><KanbanPage /></MainLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/tasks" 
+              element={
+                <ProtectedRoute>
+                  <MainLayout><TasksPage /></MainLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/settings" 
+              element={
+                <ProtectedRoute>
+                  <MainLayout><SettingsPage /></MainLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/reporting" 
+              element={
+                <ProtectedRoute>
+                  <MainLayout><ReportingPage /></MainLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

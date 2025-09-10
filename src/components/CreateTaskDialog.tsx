@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface CreateTaskDialogProps {
   open: boolean;
@@ -20,6 +21,7 @@ interface CreateTaskDialogProps {
 
 export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("");
@@ -33,6 +35,15 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
     setIsLoading(true);
 
     try {
+      if (!user) {
+        toast({
+          title: "Erreur",
+          description: "Vous devez être connecté pour créer une tâche",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('tasks')
         .insert([
@@ -42,7 +53,8 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
             priority: priority || 'medium',
             status,
             due_date: dueDate?.toISOString() || null,
-            tags: []
+            tags: [],
+            user_id: user.id
           }
         ]);
 

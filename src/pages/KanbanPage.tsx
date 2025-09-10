@@ -224,7 +224,7 @@ const KanbanPage = () => {
     updatedAt: row.updated_at ? new Date(row.updated_at) : new Date(),
   });
 
-  // Load tasks from Supabase
+  // Load tasks from Supabase (only user's tasks)
   useEffect(() => {
     let mounted = true;
     (async () => {

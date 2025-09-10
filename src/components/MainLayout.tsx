@@ -1,17 +1,13 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
-import { Bell, Plus, Search, User } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Bell, Search, User, LogOut, Plus } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { CreateTaskDialog } from "./CreateTaskDialog";
-import { useState } from "react";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -19,6 +15,11 @@ interface MainLayoutProps {
 
 export function MainLayout({ children }: MainLayoutProps) {
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   return (
     <SidebarProvider>
@@ -58,25 +59,29 @@ export function MainLayout({ children }: MainLayoutProps) {
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-destructive rounded-full"></span>
               </Button>
 
-              {/* User menu */}
+              {/* User Menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="p-2">
-                    <Avatar className="w-8 h-8">
-                      <AvatarFallback className="bg-primary text-primary-foreground">U</AvatarFallback>
+                  <Button variant="ghost" size="sm" className="relative">
+                    <Avatar className="w-7 h-7">
+                      <AvatarFallback>
+                        {user?.email?.charAt(0).toUpperCase() || 'U'}
+                      </AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 bg-popover border shadow-dropdown">
+                <DropdownMenuContent align="end" className="min-w-48">
+                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                    {user?.email}
+                  </div>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem>
                     <User className="w-4 h-4 mr-2" />
-                    Mon profil
+                    Profil
                   </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Bell className="w-4 h-4 mr-2" />
-                    Notifications
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="text-destructive">
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    <LogOut className="w-4 h-4 mr-2" />
                     Se déconnecter
                   </DropdownMenuItem>
                 </DropdownMenuContent>

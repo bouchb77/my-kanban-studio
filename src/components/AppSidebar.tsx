@@ -9,8 +9,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
-  useSidebar,
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboard,
@@ -36,10 +34,8 @@ const settingsItems = [
 ];
 
 export function AppSidebar() {
-  const { state } = useSidebar();
   const location = useLocation();
   const currentPath = location.pathname;
-  const collapsed = state === "collapsed";
 
   const isActive = (path: string) => currentPath === path;
   
@@ -49,7 +45,7 @@ export function AppSidebar() {
       : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors";
 
   return (
-    <Sidebar className={collapsed ? "w-14" : "w-64"}>
+    <Sidebar collapsible="none" className="w-64">
       <SidebarContent className="bg-sidebar-background border-r border-sidebar-border text-sidebar-foreground">
         {/* Header with logo */}
         <div className="p-4 border-b border-sidebar-border">
@@ -57,12 +53,10 @@ export function AppSidebar() {
             <div className="flex-shrink-0 w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
               <CheckSquare className="w-5 h-5 text-primary-foreground" />
             </div>
-            {!collapsed && (
-              <div>
-                <h2 className="font-semibold text-sidebar-foreground">TaskFlow</h2>
-                <p className="text-xs text-sidebar-foreground/70">Gestion de tâches</p>
-              </div>
-            )}
+            <div>
+              <h2 className="font-semibold text-sidebar-foreground">TaskFlow</h2>
+              <p className="text-xs text-sidebar-foreground/70">Gestion de tâches</p>
+            </div>
           </div>
         </div>
 
@@ -79,7 +73,7 @@ export function AppSidebar() {
                       className={getNavClass}
                     >
                       <item.icon className="w-4 h-4 flex-shrink-0" />
-                      {!collapsed && <span>{item.title}</span>}
+                      <span>{item.title}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -101,7 +95,7 @@ export function AppSidebar() {
                       className={getNavClass}
                     >
                       <item.icon className="w-4 h-4 flex-shrink-0" />
-                      {!collapsed && <span>{item.title}</span>}
+                      <span>{item.title}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

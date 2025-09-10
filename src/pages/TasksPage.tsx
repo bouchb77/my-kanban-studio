@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { 
   Select, 
   SelectContent, 
@@ -35,7 +36,8 @@ import {
   Calendar, 
   ArrowUpDown,
   Edit,
-  Trash2
+  Trash2,
+  Check
 } from "lucide-react";
 import { Task } from "@/types/task";
 import { supabase } from "@/integrations/supabase/client";
@@ -448,15 +450,56 @@ const TasksPage = () => {
       default:
         // Custom field
         if (column.id.startsWith('custom_field_') && column.field) {
-          const fieldValue = task.customFields?.[column.field.id] || '';
+          const field = column.field;
+          const fieldValue = task.customFields?.[field.id];
+
+          if (field.type === 'checkbox') {
+            return (
+              <TableCell key={column.id}>
+                <Switch
+                  checked={Boolean(fieldValue)}
+                  onCheckedChange={(checked) => handleInlineEdit(task.id, `custom_${field.id}`, checked)}
+                />
+              </TableCell>
+            );
+          }
+
+          if (field.type === 'select') {
+            return (
+              <TableCell key={column.id}>
+                <InlineEditField
+                  value={fieldValue || ""}
+                  onSave={(value) => handleInlineEdit(task.id, `custom_${field.id}`, value)}
+                  type="select"
+                  options={field.options?.map((opt: string) => ({ value: opt, label: opt })) || []}
+                  placeholder={`Aucun ${field.name.toLowerCase()}`}
+                />
+              </TableCell>
+            );
+          }
+
+          if (field.type === 'date') {
+            return (
+              <TableCell key={column.id}>
+                <InlineEditField
+                  value={fieldValue || null}
+                  onSave={(value) => handleInlineEdit(task.id, `custom_${field.id}`, value)}
+                  type="date"
+                  placeholder={`Aucune date`}
+                  displayValue={fieldValue ? new Date(fieldValue).toLocaleDateString('fr-FR') : "-"}
+                />
+              </TableCell>
+            );
+          }
+
+          // text or number fallback as text
           return (
             <TableCell key={column.id}>
               <InlineEditField
-                value={fieldValue}
-                onSave={(value) => handleInlineEdit(task.id, `custom_${column.field.id}`, value)}
-                type={column.field.type === 'select' ? 'select' : 'text'}
-                options={column.field.options?.map((opt: string) => ({ value: opt, label: opt })) || []}
-                placeholder={`Aucun ${column.field.name.toLowerCase()}`}
+                value={fieldValue ?? ""}
+                onSave={(value) => handleInlineEdit(task.id, `custom_${field.id}`, value)}
+                type="text"
+                placeholder={`Aucun ${field.name.toLowerCase()}`}
               />
             </TableCell>
           );
@@ -489,7 +532,7 @@ const TasksPage = () => {
         
         updateData.custom_fields = {
           ...currentCustomFields,
-          [fieldId]: value
+          [fieldId]: value instanceof Date ? value.toISOString() : value
         };
       }
 

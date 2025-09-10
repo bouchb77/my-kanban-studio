@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserColumns, useUserCustomFields } from "@/hooks/useUserSettings";
 import { Task } from "@/types/task";
+import { Switch } from "@/components/ui/switch";
 
 interface EditTaskDialogProps {
   open: boolean;
@@ -220,17 +221,17 @@ export function EditTaskDialog({ open, onOpenChange, task, onTaskUpdated }: Edit
                   required={field.required}
                 />
               )}
-              {field.type === "textarea" && (
-                <Textarea
+              {field.type === "number" && (
+                <Input
                   id={field.id}
-                  value={customFieldValues[field.id] || ""}
+                  type="number"
+                  value={customFieldValues[field.id] ?? ""}
                   onChange={(e) => setCustomFieldValues(prev => ({
                     ...prev,
-                    [field.id]: e.target.value
+                    [field.id]: e.target.value === "" ? "" : Number(e.target.value)
                   }))}
                   placeholder={`Entrez ${field.name.toLowerCase()}`}
                   required={field.required}
-                  rows={3}
                 />
               )}
               {field.type === "select" && field.options && (
@@ -253,18 +254,40 @@ export function EditTaskDialog({ open, onOpenChange, task, onTaskUpdated }: Edit
                   </SelectContent>
                 </Select>
               )}
-              {field.type === "number" && (
-                <Input
-                  id={field.id}
-                  type="number"
-                  value={customFieldValues[field.id] || ""}
-                  onChange={(e) => setCustomFieldValues(prev => ({
-                    ...prev,
-                    [field.id]: Number(e.target.value)
-                  }))}
-                  placeholder={`Entrez ${field.name.toLowerCase()}`}
-                  required={field.required}
-                />
+              {field.type === "date" && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customFieldValues[field.id] 
+                        ? format(new Date(customFieldValues[field.id]), "PPP", { locale: fr }) 
+                        : `Sélectionner ${field.name.toLowerCase()}`}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={customFieldValues[field.id] ? new Date(customFieldValues[field.id]) : undefined}
+                      onSelect={(date) => setCustomFieldValues(prev => ({
+                        ...prev,
+                        [field.id]: date ? date.toISOString() : null
+                      }))}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              )}
+              {field.type === "checkbox" && (
+                <div className="flex items-center gap-2">
+                  <Switch 
+                    checked={Boolean(customFieldValues[field.id])}
+                    onCheckedChange={(checked) => setCustomFieldValues(prev => ({
+                      ...prev,
+                      [field.id]: checked
+                    }))}
+                  />
+                </div>
               )}
             </div>
           ))}

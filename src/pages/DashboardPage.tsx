@@ -184,20 +184,21 @@ const DashboardPage = () => {
           </CardContent>
         </Card>
 
-        {/* Planning des tâches sur 30 jours */}
+        {/* Planning des tâches sur 50 jours */}
         <Card className="shadow-card border-0">
           <CardHeader>
-            <CardTitle>Planning des 30 prochains jours</CardTitle>
-            <CardDescription>Échéances et planification des tâches</CardDescription>
+            <CardTitle>Planning (20 jours passés + 30 jours à venir)</CardTitle>
+            <CardDescription>Vue d'ensemble des échéances et planification</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {(() => {
-                // Générer les 30 prochains jours
+                // Générer 20 jours passés + aujourd'hui + 30 jours futurs
                 const days = [];
                 const today = new Date();
                 
-                for (let i = 0; i < 30; i++) {
+                // Commencer 20 jours avant aujourd'hui
+                for (let i = -20; i <= 30; i++) {
                   const date = new Date(today);
                   date.setDate(today.getDate() + i);
                   
@@ -214,78 +215,127 @@ const DashboardPage = () => {
                 }
                 
                 return (
-                  <div className="grid grid-cols-7 gap-1 text-xs">
-                    {/* Headers des jours */}
-                    {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'].map((day) => (
-                      <div key={day} className="p-2 text-center font-medium text-muted-foreground bg-muted/30 rounded">
-                        {day}
-                      </div>
-                    ))}
-                    
-                    {/* Remplir les cases vides au début si nécessaire */}
-                    {(() => {
-                      const firstDate = days[0]?.date;
-                      if (!firstDate) return null;
-                      
-                      const startDay = firstDate.getDay();
-                      const emptyCells = [];
-                      
-                      for (let i = 0; i < startDay; i++) {
-                        emptyCells.push(
-                          <div key={`empty-${i}`} className="p-1 h-16 border border-transparent">
+                  <div className="space-y-4">
+                    {/* Navigation par semaines */}
+                    <div className="max-h-80 overflow-y-auto space-y-2">
+                      {(() => {
+                        // Organiser les jours par semaines
+                        const weeks = [];
+                        let currentWeek = [];
+                        
+                        days.forEach((day, index) => {
+                          // Si c'est lundi ou le premier jour, commencer une nouvelle semaine
+                          if (day.date.getDay() === 1 || index === 0) {
+                            // Ajouter des cases vides au début si nécessaire
+                            if (index === 0) {
+                              const startDay = day.date.getDay();
+                              for (let i = 0; i < startDay; i++) {
+                                currentWeek.push(null);
+                              }
+                            }
+                            
+                            if (currentWeek.length > 0) {
+                              weeks.push([...currentWeek]);
+                            }
+                            currentWeek = [day];
+                          } else {
+                            currentWeek.push(day);
+                          }
+                        });
+                        
+                        // Ajouter la dernière semaine
+                        if (currentWeek.length > 0) {
+                          weeks.push(currentWeek);
+                        }
+                        
+                        return (
+                          <div className="space-y-2">
+                            {/* Headers des jours */}
+                            <div className="grid grid-cols-7 gap-1 text-xs">
+                              {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'].map((day) => (
+                                <div key={day} className="p-2 text-center font-medium text-muted-foreground bg-muted/30 rounded">
+                                  {day}
+                                </div>
+                              ))}
+                            </div>
+                            
+                            {/* Semaines */}
+                            {weeks.map((week, weekIndex) => (
+                              <div key={weekIndex} className="grid grid-cols-7 gap-1 text-xs">
+                                {week.map((day, dayIndex) => {
+                                  if (!day) {
+                                    return (
+                                      <div key={`empty-${weekIndex}-${dayIndex}`} className="p-1 h-16 border border-transparent">
+                                      </div>
+                                    );
+                                  }
+                                  
+                                  const { date, tasks } = day;
+                                  const isToday = date.toDateString() === today.toDateString();
+                                  const isPast = date < today && !isToday;
+                                  
+                                  return (
+                                    <div 
+                                      key={date.toISOString()} 
+                                      className={`p-1 h-16 border border-border/20 rounded relative overflow-hidden ${
+                                        isToday 
+                                          ? 'bg-orange-100 border-orange-300 dark:bg-orange-900/20 dark:border-orange-700' 
+                                          : isPast 
+                                            ? 'bg-muted/10 hover:bg-muted/20' 
+                                            : 'hover:bg-muted/20'
+                                      }`}
+                                    >
+                                      <div className={`font-medium ${
+                                        isToday 
+                                          ? 'text-orange-600 dark:text-orange-400' 
+                                          : isPast 
+                                            ? 'text-muted-foreground' 
+                                            : 'text-foreground'
+                                      }`}>
+                                        {date.getDate()}
+                                      </div>
+                                      
+                                      {tasks.length > 0 && (
+                                        <div className="absolute bottom-0 left-0 right-0 space-y-0.5">
+                                          {tasks.slice(0, 2).map((task) => {
+                                            const taskDate = new Date(task.due_date);
+                                            const isOverdue = taskDate < today && task.status !== 'done';
+                                            const isCompleted = task.status === 'done';
+                                            
+                                            return (
+                                              <div 
+                                                key={task.id}
+                                                className={`text-xs p-0.5 rounded cursor-pointer truncate ${
+                                                  isCompleted
+                                                    ? 'bg-success/20 text-success hover:bg-success/30'
+                                                    : isOverdue 
+                                                      ? 'bg-destructive/20 text-destructive hover:bg-destructive/30' 
+                                                      : 'bg-primary/20 text-primary hover:bg-primary/30'
+                                                }`}
+                                                onClick={() => handleViewTask(task)}
+                                                title={task.title}
+                                              >
+                                                {task.title}
+                                              </div>
+                                            );
+                                          })}
+                                          
+                                          {tasks.length > 2 && (
+                                            <div className="text-xs text-muted-foreground text-center">
+                                              +{tasks.length - 2} autre{tasks.length - 2 > 1 ? 's' : ''}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ))}
                           </div>
                         );
-                      }
-                      return emptyCells;
-                    })()}
-                    
-                    {/* Jours avec tâches */}
-                    {days.map(({ date, tasks }) => {
-                      const isToday = date.toDateString() === today.toDateString();
-                      
-                      return (
-                        <div 
-                          key={date.toISOString()} 
-                          className={`p-1 h-16 border border-border/20 rounded relative overflow-hidden ${
-                            isToday ? 'bg-orange-100 border-orange-300 dark:bg-orange-900/20 dark:border-orange-700' : 'hover:bg-muted/20'
-                          }`}
-                        >
-                          <div className={`font-medium ${isToday ? 'text-orange-600 dark:text-orange-400' : 'text-foreground'}`}>
-                            {date.getDate()}
-                          </div>
-                          
-                          {tasks.length > 0 && (
-                            <div className="absolute bottom-0 left-0 right-0 space-y-0.5">
-                              {tasks.slice(0, 2).map((task) => {
-                                const taskDate = new Date(task.due_date);
-                                const isOverdue = taskDate < today && task.status !== 'done';
-                                
-                                return (
-                                  <div 
-                                    key={task.id}
-                                    className={`text-xs p-0.5 rounded cursor-pointer truncate ${
-                                      isOverdue 
-                                        ? 'bg-destructive/20 text-destructive hover:bg-destructive/30' 
-                                        : 'bg-primary/20 text-primary hover:bg-primary/30'
-                                    }`}
-                                    onClick={() => handleViewTask(task)}
-                                    title={task.title}
-                                  >
-                                    {task.title}
-                                  </div>
-                                );
-                              })}
-                              
-                              {tasks.length > 2 && (
-                                <div className="text-xs text-muted-foreground text-center">
-                                  +{tasks.length - 2} autre{tasks.length - 2 > 1 ? 's' : ''}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                      })()}
+                    </div>
                   </div>
                 );
               })()}
@@ -298,6 +348,10 @@ const DashboardPage = () => {
                 <div className="flex items-center gap-1">
                   <div className="w-3 h-3 bg-destructive/20 rounded"></div>
                   <span>Tâches en retard</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 bg-success/20 rounded"></div>
+                  <span>Tâches terminées</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <div className="w-3 h-3 bg-orange-100 border border-orange-300 dark:bg-orange-900/20 dark:border-orange-700 rounded"></div>

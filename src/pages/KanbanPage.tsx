@@ -71,26 +71,32 @@ function TaskCard({
     <Card
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
-      className="shadow-task cursor-grab active:cursor-grabbing hover:shadow-card transition-shadow"
+      className="shadow-task hover:shadow-card transition-shadow bg-card"
     >
       <CardContent className="p-4">
         <div className="space-y-3">
           <div className="flex items-start justify-between">
-            <h3 className="font-medium text-sm line-clamp-2">{task.title}</h3>
+            <div 
+              {...attributes}
+              {...listeners}
+              className="flex-1 cursor-grab active:cursor-grabbing"
+            >
+              <h3 className="font-medium text-sm line-clamp-2">{task.title}</h3>
+            </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="p-1 h-auto"
+                  className="p-1 h-auto ml-2 flex-shrink-0"
+                  onClick={(e) => e.stopPropagation()}
                   onPointerDown={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
                 >
                   <MoreVertical className="w-3 h-3" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-40 z-50">
+              <DropdownMenuContent align="end" className="min-w-40 z-[9999] bg-popover border shadow-md">
                 <DropdownMenuItem onSelect={() => onOpen(task)}>Ouvrir</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => onEdit(task)}>Modifier</DropdownMenuItem>
                   <DropdownMenuSub>

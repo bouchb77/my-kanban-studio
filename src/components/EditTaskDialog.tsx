@@ -56,7 +56,8 @@ export function EditTaskDialog({ open, onOpenChange, task, onTaskUpdated }: Edit
       setPriority(task.priority);
       setStatus(task.status);
       setDueDate(task.dueDate);
-      setCustomFieldValues({});
+      // Load existing custom field values
+      setCustomFieldValues(task.customFields || {});
     }
   }, [open, task]);
 
@@ -75,6 +76,7 @@ export function EditTaskDialog({ open, onOpenChange, task, onTaskUpdated }: Edit
           priority: priority || 'medium',
           status,
           due_date: dueDate?.toISOString() || null,
+          custom_fields: customFieldValues,
         })
         .eq('id', task.id);
 

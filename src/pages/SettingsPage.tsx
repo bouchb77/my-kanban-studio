@@ -22,9 +22,11 @@ import {
   Plus, 
   Trash2,
   Edit,
-  Save
+  Save,
+  FileSpreadsheet
 } from "lucide-react";
 import { DragDropList } from "@/components/DragDropList";
+import { CompanyImportSection } from "@/components/CompanyImportSection";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -397,7 +399,7 @@ const SettingsPage = () => {
       </div>
 
       <Tabs defaultValue="columns" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="columns" className="flex items-center gap-2">
             <Columns className="w-4 h-4" />
             Colonnes
@@ -405,6 +407,10 @@ const SettingsPage = () => {
           <TabsTrigger value="fields" className="flex items-center gap-2">
             <Edit className="w-4 h-4" />
             Champs
+          </TabsTrigger>
+          <TabsTrigger value="companies" className="flex items-center gap-2">
+            <FileSpreadsheet className="w-4 h-4" />
+            Entreprises
           </TabsTrigger>
           <TabsTrigger value="cards" className="flex items-center gap-2">
             <Settings className="w-4 h-4" />
@@ -615,14 +621,19 @@ const SettingsPage = () => {
                     <Plus className="w-4 h-4 mr-2" />
                     Ajouter
                   </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                 </div>
+               </div>
+             </CardContent>
+           </Card>
+         </TabsContent>
 
-        {/* Configuration des cartes Kanban */}
-        <TabsContent value="cards">
+         {/* Entreprises */}
+         <TabsContent value="companies">
+           <CompanyImportSection />
+         </TabsContent>
+
+         {/* Configuration des cartes Kanban */}
+         <TabsContent value="cards">
           <Card className="shadow-card border-0">
             <CardHeader>
               <CardTitle>Configuration des cartes Kanban</CardTitle>

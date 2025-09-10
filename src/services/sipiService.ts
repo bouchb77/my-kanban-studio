@@ -1,19 +1,10 @@
 // Service pour récupérer les informations d'entreprise via le numéro SIPI
-// En production, ceci ferait appel à une API externe réelle
+import { supabase } from "@/integrations/supabase/client";
 
 interface CompanyInfo {
   name: string;
   sipi: string;
 }
-
-// Base de données simulée d'entreprises (à remplacer par une vraie API)
-const mockCompanies: Record<string, CompanyInfo> = {
-  "12345678": { name: "Tech Solutions SA", sipi: "12345678" },
-  "87654321": { name: "Innovation Corp", sipi: "87654321" },
-  "11111111": { name: "Digital Services SARL", sipi: "11111111" },
-  "22222222": { name: "Business Consulting SA", sipi: "22222222" },
-  "33333333": { name: "Creative Agency SARL", sipi: "33333333" }
-};
 
 /**
  * Récupère les informations d'une entreprise à partir de son numéro SIPI
@@ -21,15 +12,28 @@ const mockCompanies: Record<string, CompanyInfo> = {
  * @returns Informations de l'entreprise ou null si non trouvée
  */
 export const getCompanyBySipi = async (sipi: string): Promise<CompanyInfo | null> => {
-  // Simuler un délai d'API
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  // Nettoyer le numéro SIPI (enlever espaces et caractères non numériques)
-  const cleanSipi = sipi.replace(/\D/g, '');
-  
-  if (cleanSipi.length === 0) return null;
-  
-  return mockCompanies[cleanSipi] || null;
+  try {
+    // Nettoyer le numéro SIPI (enlever espaces et caractères non numériques)
+    const cleanSipi = sipi.replace(/\D/g, '');
+    
+    if (cleanSipi.length === 0) return null;
+    
+    const { data, error } = await supabase
+      .from('companies')
+      .select('sipi_number, company_name')
+      .eq('sipi_number', cleanSipi)
+      .single();
+    
+    if (error || !data) return null;
+    
+    return {
+      name: data.company_name,
+      sipi: data.sipi_number
+    };
+  } catch (error) {
+    console.error('Error fetching company:', error);
+    return null;
+  }
 };
 
 /**

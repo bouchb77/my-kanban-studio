@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -38,11 +37,6 @@ export function AppSidebar() {
   const currentPath = location.pathname;
 
   const isActive = (path: string) => currentPath === path;
-  
-  const getNavClass = ({ isActive }: { isActive: boolean }) =>
-    isActive 
-      ? "bg-primary text-primary-foreground font-medium hover:bg-primary/90" 
-      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors";
 
   return (
     <Sidebar collapsible="none" className="w-64">
@@ -67,11 +61,8 @@ export function AppSidebar() {
             <SidebarMenu>
               {navigationItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink 
-                      to={item.url} 
-                      className={getNavClass}
-                    >
+                  <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                    <NavLink to={item.url}>
                       <item.icon className="w-4 h-4 flex-shrink-0" />
                       <span>{item.title}</span>
                     </NavLink>
@@ -89,11 +80,8 @@ export function AppSidebar() {
             <SidebarMenu>
               {settingsItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink 
-                      to={item.url} 
-                      className={getNavClass}
-                    >
+                  <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                    <NavLink to={item.url}>
                       <item.icon className="w-4 h-4 flex-shrink-0" />
                       <span>{item.title}</span>
                     </NavLink>

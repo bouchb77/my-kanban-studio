@@ -127,24 +127,35 @@ const DashboardPage = () => {
                   <p className="text-sm">Aucune tâche en retard !</p>
                 </div>
               ) : (
-                overdueTasks.map((task) => (
-                  <div 
-                    key={task.id} 
-                    className="flex flex-col gap-2 p-3 bg-destructive/5 rounded-lg border border-destructive/10 cursor-pointer hover:bg-destructive/10 transition-colors"
-                    onClick={() => handleViewTask(task)}
-                  >
-                    <div className="flex items-start justify-between">
-                      <p className="text-sm font-medium line-clamp-2 flex-1">{task.title}</p>
-                      <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0 ml-2" />
+                overdueTasks.map((task) => {
+                  // Sécuriser la date avant de l'utiliser
+                  const dueDate = task.due_date ? new Date(task.due_date) : null;
+                  const isValidDate = dueDate && !isNaN(dueDate.getTime());
+                  
+                  return (
+                    <div 
+                      key={task.id} 
+                      className="flex flex-col gap-2 p-3 bg-destructive/5 rounded-lg border border-destructive/10 cursor-pointer hover:bg-destructive/10 transition-colors"
+                      onClick={() => handleViewTask(task)}
+                    >
+                      <div className="flex items-start justify-between">
+                        <p className="text-sm font-medium line-clamp-2 flex-1">{task.title}</p>
+                        <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0 ml-2" />
+                      </div>
+                      <div className="text-xs text-muted-foreground flex items-center justify-between">
+                        <span>
+                          Échéance: {isValidDate ? dueDate.toLocaleDateString('fr-FR') : 'Date invalide'}
+                        </span>
+                        <span className="text-destructive font-medium">
+                          {isValidDate ? 
+                            formatDistanceToNow(dueDate, { addSuffix: true, locale: fr }) : 
+                            'Date invalide'
+                          }
+                        </span>
+                      </div>
                     </div>
-                    <div className="text-xs text-muted-foreground flex items-center justify-between">
-                      <span>Échéance: {new Date(task.due_date).toLocaleDateString('fr-FR')}</span>
-                      <span className="text-destructive font-medium">
-                        {formatDistanceToNow(new Date(task.due_date), { addSuffix: true, locale: fr })}
-                      </span>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </CardContent>
@@ -194,45 +205,53 @@ const DashboardPage = () => {
               ) : recentTasks.length === 0 ? (
                 <div className="text-center text-muted-foreground">Aucune tâche récente</div>
               ) : (
-                recentTasks.map((task, index) => (
-                  <div key={task.id} className="flex items-center justify-between py-2">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{task.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(task.updated_at), { addSuffix: true, locale: fr })}
-                      </p>
+                recentTasks.map((task, index) => {
+                  const updatedDate = task.updated_at ? new Date(task.updated_at) : null;
+                  const isValidUpdatedDate = updatedDate && !isNaN(updatedDate.getTime());
+                  
+                  return (
+                    <div key={task.id} className="flex items-center justify-between py-2">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{task.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {isValidUpdatedDate ? 
+                            formatDistanceToNow(updatedDate, { addSuffix: true, locale: fr }) :
+                            'Date inconnue'
+                          }
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          task.status === 'done' ? 'bg-status-done text-success' :
+                          task.status === 'in-progress' ? 'bg-status-progress text-primary' :
+                          task.status === 'review' ? 'bg-status-review text-warning' :
+                          'bg-status-todo text-muted-foreground'
+                        }`}>
+                          {task.status === 'done' ? 'Terminé' :
+                           task.status === 'in-progress' ? 'En cours' :
+                           task.status === 'review' ? 'En révision' : 'À faire'}
+                        </span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onPointerDown={(e) => e.stopPropagation()}
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="min-w-40">
+                          <DropdownMenuItem onClick={() => handleViewTask(task)}>Ouvrir</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => console.log('Modifier:', task.title)}>Modifier</DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="text-destructive" onClick={() => console.log('Supprimer:', task.title)}>Supprimer</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        task.status === 'done' ? 'bg-status-done text-success' :
-                        task.status === 'in-progress' ? 'bg-status-progress text-primary' :
-                        task.status === 'review' ? 'bg-status-review text-warning' :
-                        'bg-status-todo text-muted-foreground'
-                      }`}>
-                        {task.status === 'done' ? 'Terminé' :
-                         task.status === 'in-progress' ? 'En cours' :
-                         task.status === 'review' ? 'En révision' : 'À faire'}
-                      </span>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onPointerDown={(e) => e.stopPropagation()}
-                        >
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="min-w-40">
-                        <DropdownMenuItem onClick={() => handleViewTask(task)}>Ouvrir</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => console.log('Modifier:', task.title)}>Modifier</DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive" onClick={() => console.log('Supprimer:', task.title)}>Supprimer</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </CardContent>

@@ -81,11 +81,14 @@ export const useTasks = () => {
     const todo = tasks.filter(task => task.status === 'todo').length;
     
     const now = new Date();
-    const overdue = tasks.filter(task => 
-      task.due_date && 
-      new Date(task.due_date) < now && 
-      task.status !== 'done'
-    ).length;
+    const overdue = tasks.filter(task => {
+      if (!task.due_date) return false;
+      
+      const dueDate = new Date(task.due_date);
+      if (isNaN(dueDate.getTime())) return false;
+      
+      return dueDate < now && task.status !== 'done';
+    }).length;
 
     return {
       total: tasks.length,
@@ -100,6 +103,12 @@ export const useTasks = () => {
 
   const getRecentTasks = (limit: number = 4) => {
     return tasks
+      .filter(task => {
+        // S'assurer que updated_at est valide
+        if (!task.updated_at) return false;
+        const updatedDate = new Date(task.updated_at);
+        return !isNaN(updatedDate.getTime());
+      })
       .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
       .slice(0, limit);
   };
@@ -107,12 +116,21 @@ export const useTasks = () => {
   const getOverdueTasks = (limit: number = 5) => {
     const now = new Date();
     return tasks
-      .filter(task => 
-        task.due_date && 
-        new Date(task.due_date) < now && 
-        task.status !== 'done'
-      )
-      .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
+      .filter(task => {
+        // Vérifier que due_date existe et est valide
+        if (!task.due_date) return false;
+        
+        const dueDate = new Date(task.due_date);
+        // Vérifier que la date est valide
+        if (isNaN(dueDate.getTime())) return false;
+        
+        return dueDate < now && task.status !== 'done';
+      })
+      .sort((a, b) => {
+        const dateA = new Date(a.due_date);
+        const dateB = new Date(b.due_date);
+        return dateA.getTime() - dateB.getTime();
+      })
       .slice(0, limit);
   };
 

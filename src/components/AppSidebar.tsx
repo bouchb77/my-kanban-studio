@@ -46,11 +46,11 @@ export function AppSidebar() {
   const getNavClass = ({ isActive }: { isActive: boolean }) =>
     isActive 
       ? "bg-primary text-primary-foreground font-medium hover:bg-primary/90" 
-      : "text-sidebar-foreground hover:bg-secondary-hover hover:text-foreground transition-colors";
+      : "text-foreground/80 hover:bg-secondary-hover hover:text-foreground transition-colors";
 
   return (
     <Sidebar className={collapsed ? "w-14" : "w-64"}>
-      <SidebarContent className="bg-surface border-r border-border">
+      <SidebarContent className="bg-surface border-r border-border text-foreground/90">
         {/* Header with logo */}
         <div className="p-4 border-b border-border">
           <div className="flex items-center gap-3">

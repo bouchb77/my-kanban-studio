@@ -5,6 +5,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Plus, MoreVertical, Calendar, User } from "lucide-react";
@@ -86,17 +87,33 @@ function TaskCard({ task }: { task: Task }) {
         <div className="space-y-3">
           <div className="flex items-start justify-between">
             <h3 className="font-medium text-sm line-clamp-2">{task.title}</h3>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="p-1 h-auto"
-              onClick={(e) => {
-                e.stopPropagation();
-                console.log('Options pour:', task.title);
-              }}
-            >
-              <MoreVertical className="w-3 h-3" />
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="p-1 h-auto"
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  <MoreVertical className="w-3 h-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-40">
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); console.log('Ouvrir:', task.title); }}>Ouvrir</DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); console.log('Modifier:', task.title); }}>Modifier</DropdownMenuItem>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>Déplacer vers</DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); console.log('Déplacer vers: À faire'); }}>À faire</DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); console.log('Déplacer vers: En cours'); }}>En cours</DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); console.log('Déplacer vers: En révision'); }}>En révision</DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); console.log('Déplacer vers: Terminé'); }}>Terminé</DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); console.log('Supprimer:', task.title); }}>Supprimer</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           
           {task.description && (

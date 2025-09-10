@@ -32,6 +32,7 @@ import { useUserColumns } from "@/hooks/useUserSettings";
 import { EditTaskDialog } from "@/components/EditTaskDialog";
 import { ViewTaskDialog } from "@/components/ViewTaskDialog";
 import { useUserViewPreferences } from "@/hooks/useUserViewPreferences";
+import { useUserCustomFields } from "@/hooks/useUserSettings";
 
 // Default columns as fallback
 const defaultColumns = [
@@ -48,7 +49,8 @@ function TaskCard({
   onMove,
   onDelete,
   userColumns,
-  visibleFields
+  visibleFields,
+  customFields
 }: {
   task: Task;
   onOpen: (task: Task) => void;
@@ -57,6 +59,7 @@ function TaskCard({
   onDelete: (task: Task) => void;
   userColumns: any[];
   visibleFields: string[];
+  customFields: any[];
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
 
@@ -170,6 +173,32 @@ function TaskCard({
               <span className="text-xs text-muted-foreground">{task.assignee}</span>
             </div>
           )}
+
+          {/* Custom Fields */}
+          {customFields.map((field) => {
+            const fieldKey = `custom_field_${field.id}`;
+            if (!visibleFields.includes(fieldKey)) return null;
+            
+            const fieldValue = task.customFields?.[field.id];
+            if (!fieldValue) return null;
+
+            return (
+              <div key={field.id} className="text-xs">
+                <span className="font-medium text-muted-foreground">{field.name}: </span>
+                {field.type === 'checkbox' ? (
+                  <span className={fieldValue ? "text-success" : "text-muted-foreground"}>
+                    {fieldValue ? "✓" : "✗"}
+                  </span>
+                ) : field.type === 'date' ? (
+                  <span className="text-foreground">
+                    {new Date(fieldValue).toLocaleDateString('fr-FR')}
+                  </span>
+                ) : (
+                  <span className="text-foreground">{String(fieldValue)}</span>
+                )}
+              </div>
+            );
+          })}
         </div>
       </CardContent>
     </Card>
@@ -184,7 +213,8 @@ function KanbanColumn({
   onMove,
   onDelete,
   userColumns,
-  visibleFields
+  visibleFields,
+  customFields
 }: {
   column: any;
   tasks: Task[];
@@ -194,6 +224,7 @@ function KanbanColumn({
   onDelete: (task: Task) => void;
   userColumns: any[];
   visibleFields: string[];
+  customFields: any[];
 }) {
   const columnTasks = tasks.filter((task) => task.status === column.status);
   const { setNodeRef: setDroppableRef } = useDroppable({ id: column.status });
@@ -228,6 +259,7 @@ function KanbanColumn({
               onDelete={onDelete}
               userColumns={userColumns}
               visibleFields={visibleFields}
+              customFields={customFields}
             />
           ))}
         </div>
@@ -245,6 +277,7 @@ const KanbanPage = () => {
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const { toast } = useToast();
   const { columns: userColumns, loading: columnsLoading } = useUserColumns();
+  const { customFields } = useUserCustomFields();
   const { preferences: kanbanPreferences } = useUserViewPreferences('kanban');
 
   // Use user columns or fall back to defaults
@@ -267,6 +300,7 @@ const KanbanPage = () => {
     dueDate: row.due_date ? new Date(row.due_date) : undefined,
     createdAt: row.created_at ? new Date(row.created_at) : new Date(),
     updatedAt: row.updated_at ? new Date(row.updated_at) : new Date(),
+    customFields: row.custom_fields || {},
   });
 
   // Load tasks from Supabase (only user's tasks)
@@ -407,6 +441,7 @@ const KanbanPage = () => {
               onDelete={handleDeleteTask}
               userColumns={columns}
               visibleFields={visibleFields}
+              customFields={customFields}
             />
           ))}
         </div>
@@ -420,6 +455,7 @@ const KanbanPage = () => {
             onDelete={() => {}} 
             userColumns={columns}
             visibleFields={visibleFields}
+            customFields={customFields}
           />
         ) : null}</DragOverlay>
       </DndContext>

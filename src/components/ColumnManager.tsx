@@ -4,7 +4,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Settings2, Eye, EyeOff, GripVertical } from "lucide-react";
+import { Settings2, Eye, EyeOff } from "lucide-react";
 import { DragDropList } from "./DragDropList";
 import { useUserColumns, useUserCustomFields } from "@/hooks/useUserSettings";
 import { useUserViewPreferences } from "@/hooks/useUserViewPreferences";
@@ -44,7 +44,7 @@ export function ColumnManager({ onColumnOrderChange, onVisibleColumnsChange }: C
     ...SYSTEM_COLUMNS,
     ...userColumns.map(col => ({
       id: `user_column_${col.id}`,
-      label: col.title,
+      label: col.status, // Juste le statut au lieu du titre
       type: 'user_column' as const,
       order: 10 + col.order,
     })),
@@ -81,8 +81,9 @@ export function ColumnManager({ onColumnOrderChange, onVisibleColumnsChange }: C
   const visibleColumns = getVisibleColumns();
   const columnOrder = getColumnOrder();
 
-  // Sort columns by current order
-  const sortedColumns = allColumns
+  // Get only visible columns for reordering
+  const visibleColumnObjects = allColumns
+    .filter(col => visibleColumns.includes(col.id))
     .sort((a, b) => {
       const aIndex = columnOrder.indexOf(a.id);
       const bIndex = columnOrder.indexOf(b.id);
@@ -93,17 +94,37 @@ export function ColumnManager({ onColumnOrderChange, onVisibleColumnsChange }: C
     });
 
   const handleToggleColumn = async (columnId: string) => {
-    await toggleColumnVisibility(columnId);
-    const newVisible = visibleColumns.includes(columnId)
-      ? visibleColumns.filter(id => id !== columnId)
-      : [...visibleColumns, columnId];
-    onVisibleColumnsChange?.(newVisible);
+    try {
+      await toggleColumnVisibility(columnId);
+      const newVisible = visibleColumns.includes(columnId)
+        ? visibleColumns.filter(id => id !== columnId)
+        : [...visibleColumns, columnId];
+      onVisibleColumnsChange?.(newVisible);
+    } catch (error) {
+      console.error('Error toggling column visibility:', error);
+    }
   };
 
-  const handleReorderColumns = async (reorderedItems: any[]) => {
-    const newOrder = reorderedItems.map(item => item.id);
-    await reorderColumns(newOrder);
-    onColumnOrderChange?.(newOrder);
+  const handleReorderColumns = async (reorderedItems: ColumnDefinition[]) => {
+    try {
+      // Keep the order of non-visible columns and only update visible ones
+      const newVisibleOrder = reorderedItems.map(item => item.id);
+      const nonVisibleColumns = columnOrder.filter(id => !visibleColumns.includes(id));
+      
+      // Insert visible columns in their new order, keeping non-visible in original positions
+      const newOrder = [...columnOrder];
+      
+      // Remove all visible columns from current order
+      const filteredOrder = newOrder.filter(id => !visibleColumns.includes(id));
+      
+      // Insert visible columns at the beginning (or maintain some logic for positioning)
+      const finalOrder = [...newVisibleOrder, ...filteredOrder];
+      
+      await reorderColumns(finalOrder);
+      onColumnOrderChange?.(finalOrder);
+    } catch (error) {
+      console.error('Error reordering columns:', error);
+    }
   };
 
   return (
@@ -114,21 +135,21 @@ export function ColumnManager({ onColumnOrderChange, onVisibleColumnsChange }: C
           Colonnes
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-[400px] sm:w-[540px]">
+      <SheetContent className="w-[400px] sm:w-[500px]">
         <SheetHeader>
           <SheetTitle>Gestion des colonnes</SheetTitle>
           <SheetDescription>
-            Personnalisez l'affichage et l'ordre des colonnes dans votre vue liste
+            Personnalisez l'affichage et l'ordre des colonnes
           </SheetDescription>
         </SheetHeader>
 
         <div className="mt-6 space-y-6">
           {/* Column Visibility */}
           <div>
-            <h4 className="text-sm font-medium mb-4">Colonnes visibles</h4>
-            <div className="space-y-3">
+            <h4 className="text-sm font-medium mb-4">Colonnes disponibles</h4>
+            <div className="space-y-2 max-h-[300px] overflow-y-auto">
               {allColumns.map((column) => (
-                <div key={column.id} className="flex items-center justify-between p-3 border rounded-lg">
+                <div key={column.id} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded">
                   <div className="flex items-center space-x-3">
                     <Checkbox
                       checked={visibleColumns.includes(column.id)}
@@ -136,10 +157,10 @@ export function ColumnManager({ onColumnOrderChange, onVisibleColumnsChange }: C
                       disabled={column.required}
                     />
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">{column.label}</span>
+                      <span className="text-sm">{column.label}</span>
                       <Badge variant="outline" className="text-xs">
                         {column.type === 'system' ? 'Système' : 
-                         column.type === 'user_column' ? 'Colonne' : 'Champ perso'}
+                         column.type === 'user_column' ? 'Kanban' : 'Champ'}
                       </Badge>
                       {column.required && (
                         <Badge variant="secondary" className="text-xs">
@@ -160,33 +181,36 @@ export function ColumnManager({ onColumnOrderChange, onVisibleColumnsChange }: C
 
           <Separator />
 
-          {/* Column Order */}
+          {/* Column Order - Only visible columns */}
           <div>
-            <h4 className="text-sm font-medium mb-4">Ordre des colonnes</h4>
-            <p className="text-xs text-muted-foreground mb-4">
-              Glissez-déposez pour réorganiser l'ordre d'affichage
-            </p>
-            <DragDropList
-              items={sortedColumns.map((col, index) => ({ ...col, order: index }))}
-              onReorder={handleReorderColumns}
-              renderItem={(column) => (
-                <div className="flex items-center justify-between p-3 bg-surface-variant rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{column.label}</span>
-                    <Badge variant="outline" className="text-xs">
-                      {column.type === 'system' ? 'Système' : 
-                       column.type === 'user_column' ? 'Colonne' : 'Champ perso'}
-                    </Badge>
-                  </div>
-                  {visibleColumns.includes(column.id) ? (
-                    <Eye className="w-4 h-4 text-success" />
-                  ) : (
-                    <EyeOff className="w-4 h-4 text-muted-foreground" />
+            <h4 className="text-sm font-medium mb-4">
+              Ordre des colonnes visibles ({visibleColumnObjects.length})
+            </h4>
+            {visibleColumnObjects.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Aucune colonne visible sélectionnée
+              </p>
+            ) : (
+              <div className="max-h-[250px] overflow-y-auto">
+                <DragDropList
+                  items={visibleColumnObjects.map((col, index) => ({ ...col, order: index }))}
+                  onReorder={handleReorderColumns}
+                  renderItem={(column) => (
+                    <div className="flex items-center justify-between py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{column.label}</span>
+                        <Badge variant="outline" className="text-xs">
+                          {column.type === 'system' ? 'Système' : 
+                           column.type === 'user_column' ? 'Kanban' : 'Champ'}
+                        </Badge>
+                      </div>
+                      <Eye className="w-4 h-4 text-success" />
+                    </div>
                   )}
-                </div>
-              )}
-              itemClassName="p-4 bg-background rounded-lg border"
-            />
+                  itemClassName="p-2 bg-background rounded border"
+                />
+              </div>
+            )}
           </div>
         </div>
       </SheetContent>

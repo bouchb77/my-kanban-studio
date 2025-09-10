@@ -61,8 +61,68 @@ const TasksPage = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const { columns } = useUserColumns();
+  const { customFields } = useUserCustomFields();
+  const { preferences } = useUserViewPreferences('table');
 
-  // Default columns as fallback
+  // Available columns for dynamic table rendering  
+  const systemColumns = [
+    { id: 'select', label: 'Sélection', required: true },
+    { id: 'title', label: 'Titre', required: true },
+    { id: 'status', label: 'Statut', required: true },
+    { id: 'priority', label: 'Priorité', required: true },
+    { id: 'assignee', label: 'Assigné à', required: false },
+    { id: 'dueDate', label: 'Échéance', required: false },
+    { id: 'tags', label: 'Tags', required: false },
+    { id: 'actions', label: 'Actions', required: true },
+  ];
+
+  const customFieldColumns = customFields.map(field => ({
+    id: `custom_field_${field.id}`,
+    label: field.name,
+    required: false,
+    field: field
+  }));
+
+  const allAvailableColumns = [...systemColumns, ...customFieldColumns];
+
+  // Get visible columns with defaults
+  const getVisibleColumns = () => {
+    if (preferences?.visible_columns && preferences.visible_columns.length > 0) {
+      return preferences.visible_columns.filter(id => 
+        allAvailableColumns.find(col => col.id === id)
+      );
+    }
+    return allAvailableColumns
+      .filter(col => col.required || ['title', 'status', 'priority', 'dueDate'].includes(col.id))
+      .map(col => col.id);
+  };
+
+  // Get column order with defaults
+  const getColumnOrder = () => {
+    if (preferences?.column_order && preferences.column_order.length > 0) {
+      return preferences.column_order.filter(id => 
+        allAvailableColumns.find(col => col.id === id)
+      );
+    }
+    return allAvailableColumns.map(col => col.id);
+  };
+
+  const visibleColumns = getVisibleColumns();
+  const columnOrder = getColumnOrder();
+
+  // Get ordered visible columns for rendering
+  const orderedVisibleColumns = allAvailableColumns
+    .filter(col => visibleColumns.includes(col.id))
+    .sort((a, b) => {
+      const aIndex = columnOrder.indexOf(a.id);
+      const bIndex = columnOrder.indexOf(b.id);
+      if (aIndex === -1 && bIndex === -1) return 0;
+      if (aIndex === -1) return 1;
+      if (bIndex === -1) return -1;
+      return aIndex - bIndex;
+    });
+
+  // Default columns as fallback for status filter
   const defaultColumns = [
     { status: "todo", title: "À faire" },
     { status: "in-progress", title: "En cours" },
@@ -111,6 +171,7 @@ const TasksPage = () => {
     dueDate: row.due_date ? new Date(row.due_date) : undefined,
     createdAt: row.created_at ? new Date(row.created_at) : new Date(),
     updatedAt: row.updated_at ? new Date(row.updated_at) : new Date(),
+    customFields: row.custom_fields || {},
   });
 
   // Load tasks from Supabase
@@ -221,6 +282,161 @@ const TasksPage = () => {
     setIsEditTaskOpen(true);
   };
 
+  // Render table cell based on column type
+  const renderTableCell = (column: any, task: Task) => {
+    switch (column.id) {
+      case 'select':
+        return (
+          <TableCell key="select">
+            <Checkbox
+              checked={selectedTasks.includes(task.id)}
+              onCheckedChange={() => toggleTaskSelection(task.id)}
+            />
+          </TableCell>
+        );
+      
+      case 'title':
+        return (
+          <TableCell key="title">
+            <InlineEditField
+              value={task.title}
+              onSave={(value) => handleInlineEdit(task.id, "title", value)}
+              type="text"
+              placeholder="Titre de la tâche"
+            />
+            {task.description && (
+              <div className="text-sm text-muted-foreground line-clamp-1 mt-1">
+                {task.description}
+              </div>
+            )}
+          </TableCell>
+        );
+      
+      case 'status':
+        return (
+          <TableCell key="status">
+            <InlineEditField
+              value={task.status}
+              onSave={(value) => handleInlineEdit(task.id, "status", value)}
+              type="select"
+              options={availableColumns.map(col => ({
+                value: col.status,
+                label: col.title,
+                color: (col as any).color
+              }))}
+              displayValue={statusLabels[task.status]}
+            />
+          </TableCell>
+        );
+      
+      case 'priority':
+        return (
+          <TableCell key="priority">
+            <InlineEditField
+              value={task.priority}
+              onSave={(value) => handleInlineEdit(task.id, "priority", value)}
+              type="select"
+              options={[
+                { value: "low", label: "Faible" },
+                { value: "medium", label: "Moyenne" },
+                { value: "high", label: "Élevée" },
+              ]}
+              displayValue={priorityLabels[task.priority]}
+            />
+          </TableCell>
+        );
+      
+      case 'assignee':
+        return (
+          <TableCell key="assignee">
+            <InlineEditField
+              value={task.assignee || ""}
+              onSave={(value) => handleInlineEdit(task.id, "assignee", value)}
+              type="text"
+              placeholder="Non assigné"
+            />
+          </TableCell>
+        );
+      
+      case 'dueDate':
+        return (
+          <TableCell key="dueDate">
+            <InlineEditField
+              value={task.dueDate}
+              onSave={(value) => handleInlineEdit(task.id, "dueDate", value)}
+              type="date"
+              placeholder="Aucune date"
+              displayValue={
+                task.dueDate ? task.dueDate.toLocaleDateString('fr-FR') : "-"
+              }
+            />
+          </TableCell>
+        );
+      
+      case 'tags':
+        return (
+          <TableCell key="tags">
+            <InlineEditField
+              value={task.tags || []}
+              onSave={(value) => handleInlineEdit(task.id, "tags", value)}
+              type="tags"
+              placeholder="Aucun tag"
+              displayValue={
+                task.tags && task.tags.length > 0 
+                  ? task.tags.slice(0, 2).join(", ") + (task.tags.length > 2 ? `... (+${task.tags.length - 2})` : "")
+                  : "Aucun tag"
+              }
+            />
+          </TableCell>
+        );
+      
+      case 'actions':
+        return (
+          <TableCell key="actions">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm">
+                  <MoreVertical className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => handleEditTask(task)}>
+                  <Edit className="w-4 h-4 mr-2" />
+                  Modifier
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  className="text-destructive"
+                  onSelect={() => handleDeleteTask(task.id)}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Supprimer
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </TableCell>
+        );
+      
+      default:
+        // Custom field
+        if (column.id.startsWith('custom_field_') && column.field) {
+          const fieldValue = task.customFields?.[column.field.id] || '';
+          return (
+            <TableCell key={column.id}>
+              <InlineEditField
+                value={fieldValue}
+                onSave={(value) => handleInlineEdit(task.id, `custom_${column.field.id}`, value)}
+                type={column.field.type === 'select' ? 'select' : 'text'}
+                options={column.field.options?.map((opt: string) => ({ value: opt, label: opt })) || []}
+                placeholder={`Aucun ${column.field.name.toLowerCase()}`}
+              />
+            </TableCell>
+          );
+        }
+        return <TableCell key={column.id}>-</TableCell>;
+    }
+  };
+
   const handleInlineEdit = async (taskId: string, field: string, value: any) => {
     try {
       const updateData: any = {};
@@ -237,6 +453,13 @@ const TasksPage = () => {
         updateData.due_date = value ? value.toISOString() : null;
       } else if (field === "tags") {
         updateData.tags = Array.isArray(value) ? value : [];
+      } else if (field.startsWith("custom_")) {
+        // Handle custom fields
+        const fieldId = field.replace("custom_", "");
+        updateData.custom_fields = {
+          ...tasks.find(t => t.id === taskId)?.customFields,
+          [fieldId]: value
+        };
       }
 
       const { error } = await supabase
@@ -393,134 +616,34 @@ const TasksPage = () => {
             </TableCaption>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12">
-                  <Checkbox
-                    checked={selectedTasks.length === filteredTasks.length && filteredTasks.length > 0}
-                    onCheckedChange={toggleAllTasks}
-                  />
-                </TableHead>
-                <TableHead>
-                  <Button variant="ghost" className="h-auto p-0 font-semibold">
-                    Titre
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                  </Button>
-                </TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead>Priorité</TableHead>
-                <TableHead>Assigné à</TableHead>
-                <TableHead>Échéance</TableHead>
-                <TableHead>Tags</TableHead>
-                <TableHead className="w-12"></TableHead>
+                {orderedVisibleColumns.map((column) => (
+                  <TableHead key={column.id} className={column.id === 'select' || column.id === 'actions' ? "w-12" : ""}>
+                    {column.id === 'title' ? (
+                      <Button variant="ghost" className="h-auto p-0 font-semibold">
+                        {column.label}
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                      </Button>
+                    ) : column.id === 'select' ? (
+                      <Checkbox
+                        checked={selectedTasks.length === filteredTasks.length && filteredTasks.length > 0}
+                        onCheckedChange={toggleAllTasks}
+                      />
+                    ) : (
+                      column.label
+                    )}
+                  </TableHead>
+                ))}
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredTasks.map((task) => (
                 <TableRow key={task.id} className="hover:bg-surface-variant/50">
-                  <TableCell>
-                    <Checkbox
-                      checked={selectedTasks.includes(task.id)}
-                      onCheckedChange={() => toggleTaskSelection(task.id)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <InlineEditField
-                      value={task.title}
-                      onSave={(value) => handleInlineEdit(task.id, "title", value)}
-                      type="text"
-                      placeholder="Titre de la tâche"
-                    />
-                    {task.description && (
-                      <div className="text-sm text-muted-foreground line-clamp-1 mt-1">
-                        {task.description}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <InlineEditField
-                      value={task.status}
-                      onSave={(value) => handleInlineEdit(task.id, "status", value)}
-                      type="select"
-                      options={availableColumns.map(col => ({
-                        value: col.status,
-                        label: col.title,
-                        color: (col as any).color
-                      }))}
-                      displayValue={statusLabels[task.status]}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <InlineEditField
-                      value={task.priority}
-                      onSave={(value) => handleInlineEdit(task.id, "priority", value)}
-                      type="select"
-                      options={[
-                        { value: "low", label: "Faible" },
-                        { value: "medium", label: "Moyenne" },
-                        { value: "high", label: "Élevée" },
-                      ]}
-                      displayValue={priorityLabels[task.priority]}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <InlineEditField
-                      value={task.assignee || ""}
-                      onSave={(value) => handleInlineEdit(task.id, "assignee", value)}
-                      type="text"
-                      placeholder="Non assigné"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <InlineEditField
-                      value={task.dueDate}
-                      onSave={(value) => handleInlineEdit(task.id, "dueDate", value)}
-                      type="date"
-                      placeholder="Aucune date"
-                      displayValue={
-                        task.dueDate ? task.dueDate.toLocaleDateString('fr-FR') : "-"
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <InlineEditField
-                      value={task.tags || []}
-                      onSave={(value) => handleInlineEdit(task.id, "tags", value)}
-                      type="tags"
-                      placeholder="Aucun tag"
-                      displayValue={
-                        task.tags && task.tags.length > 0 
-                          ? task.tags.slice(0, 2).join(", ") + (task.tags.length > 2 ? `... (+${task.tags.length - 2})` : "")
-                          : "Aucun tag"
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => handleEditTask(task)}>
-                          <Edit className="w-4 h-4 mr-2" />
-                          Modifier
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          className="text-destructive"
-                          onSelect={() => handleDeleteTask(task.id)}
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Supprimer
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+                  {orderedVisibleColumns.map((column) => renderTableCell(column, task))}
                 </TableRow>
               ))}
               {filteredTasks.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={orderedVisibleColumns.length} className="text-center py-6 text-muted-foreground">
                     Aucune tâche trouvée
                   </TableCell>
                 </TableRow>

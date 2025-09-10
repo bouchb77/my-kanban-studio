@@ -106,7 +106,7 @@ export function ViewTaskDialog({ open, onOpenChange, task, onEdit }: ViewTaskDia
 
           {/* Due Date and Assignee */}
           <div className="grid grid-cols-2 gap-4">
-            {task.dueDate && (
+            {task.dueDate && !isNaN(task.dueDate.getTime()) && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                   <Calendar className="w-4 h-4" />
@@ -162,7 +162,9 @@ export function ViewTaskDialog({ open, onOpenChange, task, onEdit }: ViewTaskDia
                 Créée le
               </div>
               <span className="text-sm">
-                {format(task.createdAt, "PPpp", { locale: fr })}
+                {task.createdAt && !isNaN(task.createdAt.getTime())
+                  ? format(task.createdAt, "PPpp", { locale: fr })
+                  : "Date inconnue"}
               </span>
             </div>
 
@@ -172,7 +174,9 @@ export function ViewTaskDialog({ open, onOpenChange, task, onEdit }: ViewTaskDia
                 Modifiée le
               </div>
               <span className="text-sm">
-                {format(task.updatedAt, "PPpp", { locale: fr })}
+                {task.updatedAt && !isNaN(task.updatedAt.getTime())
+                  ? format(task.updatedAt, "PPpp", { locale: fr })
+                  : "Date inconnue"}
               </span>
             </div>
           </div>

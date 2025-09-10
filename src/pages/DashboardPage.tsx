@@ -263,9 +263,31 @@ const DashboardPage = () => {
                               ))}
                             </div>
                             
-                            {/* Semaines */}
-                            {weeks.map((week, weekIndex) => (
-                              <div key={weekIndex} className="grid grid-cols-7 gap-1 text-xs">
+                            {/* Semaines avec séparateurs de mois */}
+                            {weeks.map((week, weekIndex) => {
+                              // Vérifier si cette semaine commence un nouveau mois
+                              const firstDayOfWeek = week.find(day => day !== null);
+                              const showMonthHeader = firstDayOfWeek && (
+                                weekIndex === 0 || 
+                                (weeks[weekIndex - 1] && weeks[weekIndex - 1].find(day => day !== null)?.date.getMonth() !== firstDayOfWeek.date.getMonth())
+                              );
+                              
+                              return (
+                                <div key={weekIndex}>
+                                  {/* Header de mois */}
+                                  {showMonthHeader && (
+                                    <div className="mb-2 mt-4 first:mt-0">
+                                      <div className="flex items-center gap-2">
+                                        <div className="h-px bg-border flex-1"></div>
+                                        <div className="px-3 py-1 bg-primary/10 text-primary font-semibold text-sm rounded-full border border-primary/20">
+                                          {firstDayOfWeek.date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+                                        </div>
+                                        <div className="h-px bg-border flex-1"></div>
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  <div className="grid grid-cols-7 gap-1 text-xs">
                                 {week.map((day, dayIndex) => {
                                   if (!day) {
                                     return (
@@ -333,9 +355,11 @@ const DashboardPage = () => {
                                       )}
                                     </div>
                                   );
-                                })}
-                              </div>
-                            ))}
+                                 })}
+                                   </div>
+                                 </div>
+                               );
+                             })}
                           </div>
                         );
                       })()}

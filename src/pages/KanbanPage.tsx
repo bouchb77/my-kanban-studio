@@ -177,6 +177,20 @@ function TaskCard({
             </div>
           )}
 
+          {visibleFields.includes('sipiNumber') && task.sipiNumber && (
+            <div className="text-xs">
+              <span className="text-muted-foreground">SIPI: </span>
+              <span className="text-foreground">{task.sipiNumber}</span>
+            </div>
+          )}
+
+          {visibleFields.includes('companyName') && task.companyName && (
+            <div className="text-xs">
+              <span className="text-muted-foreground">Société: </span>
+              <span className="text-foreground">{task.companyName}</span>
+            </div>
+          )}
+
           {/* Custom Fields */}
           {customFields.map((field) => {
             const fieldKey = `custom_field_${field.id}`;
@@ -295,22 +309,24 @@ const KanbanPage = () => {
   // Get visible fields for cards (default to showing all if not set)
   const visibleFields = kanbanPreferences?.visible_columns || ['title', 'description', 'tags', 'priority', 'dueDate', 'assignee'];
 
-  // Map DB row to Task type
-  const mapDbTask = (row: any): Task => ({
-    id: String(row.id),
-    title: row.title,
-    description: row.description || undefined,
-    status: (row.status as Task["status"]) ?? "todo",
-    priority: (["low", "medium", "high"].includes(row.priority)
-      ? row.priority
-      : "medium") as Task["priority"],
-    tags: row.tags ?? [],
-    assignee: row.assignee || undefined,
-    dueDate: row.due_date ? new Date(row.due_date) : undefined,
-    createdAt: row.created_at ? new Date(row.created_at) : new Date(),
-    updatedAt: row.updated_at ? new Date(row.updated_at) : new Date(),
-    customFields: row.custom_fields || {},
-  });
+// Map DB row to Task type
+const mapDbTask = (row: any): Task => ({
+  id: String(row.id),
+  title: row.title,
+  description: row.description || undefined,
+  status: (row.status as Task["status"]) ?? "todo",
+  priority: (["low", "medium", "high"].includes(row.priority)
+    ? row.priority
+    : "medium") as Task["priority"],
+  tags: row.tags ?? [],
+  assignee: row.assignee || undefined,
+  dueDate: row.due_date ? new Date(row.due_date) : undefined,
+  createdAt: row.created_at ? new Date(row.created_at) : new Date(),
+  updatedAt: row.updated_at ? new Date(row.updated_at) : new Date(),
+  customFields: row.custom_fields || {},
+  sipiNumber: row.sipi_number || undefined,
+  companyName: row.company_name || undefined,
+});
 
   // Load tasks from Supabase (only user's tasks)
   const loadTasks = async () => {

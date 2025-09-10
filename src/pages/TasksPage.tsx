@@ -76,17 +76,19 @@ const TasksPage = () => {
     setLocalColumnOrder(null);
   }, [preferences?.visible_columns, preferences?.column_order]);
 
-  // Available columns for dynamic table rendering  
-  const systemColumns = [
-    { id: 'select', label: 'Sélection', required: true },
-    { id: 'title', label: 'Titre', required: true },
-    { id: 'status', label: 'Statut', required: true },
-    { id: 'priority', label: 'Priorité', required: true },
-    { id: 'assignee', label: 'Assigné à', required: false },
-    { id: 'dueDate', label: 'Échéance', required: false },
-    { id: 'tags', label: 'Tags', required: false },
-    { id: 'actions', label: 'Actions', required: true },
-  ];
+// Available columns for dynamic table rendering  
+const systemColumns = [
+  { id: 'select', label: 'Sélection', required: true },
+  { id: 'title', label: 'Titre', required: true },
+  { id: 'status', label: 'Statut', required: true },
+  { id: 'priority', label: 'Priorité', required: true },
+  { id: 'assignee', label: 'Assigné à', required: false },
+  { id: 'dueDate', label: 'Échéance', required: false },
+  { id: 'tags', label: 'Tags', required: false },
+  { id: 'sipi_number', label: 'Numéro SIPI', required: false },
+  { id: 'company_name', label: 'Société', required: false },
+  { id: 'actions', label: 'Actions', required: true },
+];
 
   const customFieldColumns = customFields.map(field => ({
     id: `custom_field_${field.id}`,
@@ -171,22 +173,24 @@ const TasksPage = () => {
     done: "bg-status-done text-success",
   };
 
-  // Map DB row to Task type (same as kanban)
-  const mapDbTask = (row: any): Task => ({
-    id: String(row.id),
-    title: row.title,
-    description: row.description || undefined,
-    status: (row.status as Task["status"]) ?? "todo",
-    priority: (["low", "medium", "high"].includes(row.priority)
-      ? row.priority
-      : "medium") as Task["priority"],
-    tags: row.tags ?? [],
-    assignee: row.assignee || undefined,
-    dueDate: row.due_date ? new Date(row.due_date) : undefined,
-    createdAt: row.created_at ? new Date(row.created_at) : new Date(),
-    updatedAt: row.updated_at ? new Date(row.updated_at) : new Date(),
-    customFields: row.custom_fields || {},
-  });
+// Map DB row to Task type (same as kanban)
+const mapDbTask = (row: any): Task => ({
+  id: String(row.id),
+  title: row.title,
+  description: row.description || undefined,
+  status: (row.status as Task["status"]) ?? "todo",
+  priority: (["low", "medium", "high"].includes(row.priority)
+    ? row.priority
+    : "medium") as Task["priority"],
+  tags: row.tags ?? [],
+  assignee: row.assignee || undefined,
+  dueDate: row.due_date ? new Date(row.due_date) : undefined,
+  createdAt: row.created_at ? new Date(row.created_at) : new Date(),
+  updatedAt: row.updated_at ? new Date(row.updated_at) : new Date(),
+  customFields: row.custom_fields || {},
+  sipiNumber: row.sipi_number || undefined,
+  companyName: row.company_name || undefined,
+});
 
   // Load tasks from Supabase
   const loadTasks = async () => {
@@ -423,6 +427,20 @@ const TasksPage = () => {
                   : "Aucun tag"
               }
             />
+          </TableCell>
+        );
+      
+      case 'sipi_number':
+        return (
+          <TableCell key="sipi_number">
+            {task.sipiNumber || '-'}
+          </TableCell>
+        );
+      
+      case 'company_name':
+        return (
+          <TableCell key="company_name">
+            {task.companyName || '-'}
           </TableCell>
         );
       

@@ -23,8 +23,10 @@ const SYSTEM_COLUMNS: ColumnDefinition[] = [
   { id: 'status', label: 'Statut', type: 'system', order: 2 },
   { id: 'priority', label: 'Priorité', type: 'system', order: 3 },
   { id: 'assignee', label: 'Assigné à', type: 'system', order: 4 },
-  { id: 'dueDate', label: 'Échéance', type: 'system', order: 5 },
+  { id: 'dueDate', label: "Échéance", type: 'system', order: 5 },
   { id: 'tags', label: 'Tags', type: 'system', order: 6 },
+  { id: 'sipi_number', label: 'Numéro SIPI', type: 'system', order: 7 },
+  { id: 'company_name', label: 'Société', type: 'system', order: 8 },
   { id: 'actions', label: 'Actions', type: 'system', required: true, order: 100 },
 ];
 

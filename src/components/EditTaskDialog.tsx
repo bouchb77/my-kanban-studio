@@ -62,24 +62,9 @@ export function EditTaskDialog({ open, onOpenChange, task, onTaskUpdated }: Edit
         const company = await getCompanyBySipi(value);
         if (company) {
           setCompanyName(company.name);
-          toast({
-            title: "Entreprise trouvée",
-            description: `${company.name} (SIPI: ${company.sipi})`,
-          });
         } else {
           setCompanyName("");
-          toast({
-            title: "Entreprise non trouvée",
-            description: "Aucune entreprise trouvée pour ce numéro SIPI",
-            variant: "destructive",
-          });
         }
-      } catch (error) {
-        toast({
-          title: "Erreur",
-          description: "Erreur lors de la recherche de l'entreprise",
-          variant: "destructive",
-        });
       } finally {
         setIsLoadingSipi(false);
       }

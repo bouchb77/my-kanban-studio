@@ -21,7 +21,9 @@ export const getCompanyBySipi = async (sipi: string): Promise<CompanyInfo | null
     const { data, error } = await supabase
       .from('companies')
       .select('sipi_number, company_name')
-      .eq('sipi_number', cleanSipi)
+      .ilike('sipi_number', `${cleanSipi}%`)
+      .order('sipi_number')
+      .limit(1)
       .maybeSingle();
     
     if (error || !data) return null;

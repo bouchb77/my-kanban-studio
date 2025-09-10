@@ -20,8 +20,8 @@ export interface ColumnDefinition {
 const SYSTEM_COLUMNS: ColumnDefinition[] = [
   { id: 'select', label: 'Sélection', type: 'system', required: true, order: 0 },
   { id: 'title', label: 'Titre', type: 'system', required: true, order: 1 },
-  { id: 'status', label: 'Statut', type: 'system', required: true, order: 2 },
-  { id: 'priority', label: 'Priorité', type: 'system', required: true, order: 3 },
+  { id: 'status', label: 'Statut', type: 'system', order: 2 },
+  { id: 'priority', label: 'Priorité', type: 'system', order: 3 },
   { id: 'assignee', label: 'Assigné à', type: 'system', order: 4 },
   { id: 'dueDate', label: 'Échéance', type: 'system', order: 5 },
   { id: 'tags', label: 'Tags', type: 'system', order: 6 },
@@ -54,13 +54,13 @@ export function ColumnManager({ onColumnOrderChange, onVisibleColumnsChange }: C
   const [localOrder, setLocalOrder] = useState<string[]>([]);
 
   useEffect(() => {
-    const defaults = allColumns
-      .filter(col => col.required || ['title', 'status', 'priority', 'dueDate'].includes(col.id))
+    const requiredDefaults = allColumns
+      .filter(col => col.required)
       .map(col => col.id);
 
     const visible = preferences?.visible_columns?.length
       ? preferences.visible_columns.filter(id => allColumns.find(c => c.id === id))
-      : defaults;
+      : [...requiredDefaults, 'title', 'status'];
 
     const order = preferences?.column_order?.length
       ? preferences.column_order.filter(id => allColumns.find(c => c.id === id))

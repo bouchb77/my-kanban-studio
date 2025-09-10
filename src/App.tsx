@@ -12,6 +12,7 @@ import KanbanPage from "./pages/KanbanPage";
 import TasksPage from "./pages/TasksPage";
 import SettingsPage from "./pages/SettingsPage";
 import ReportingPage from "./pages/ReportingPage";
+import { CalendarPage } from "./pages/CalendarPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,6 +48,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <MainLayout><TasksPage /></MainLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/calendar" 
+              element={
+                <ProtectedRoute>
+                  <MainLayout><CalendarPage /></MainLayout>
                 </ProtectedRoute>
               } 
             />

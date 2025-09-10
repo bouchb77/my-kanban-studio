@@ -397,7 +397,7 @@ const mapDbTask = (row: any): Task => ({
                   label: col.title,
                   color: (col as any).color
                 }))}
-                displayValue=""
+                displayValue={statusLabels[task.status]}
                 className="opacity-0 hover:opacity-100 transition-opacity"
               />
             </div>

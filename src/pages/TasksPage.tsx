@@ -50,6 +50,7 @@ import { ColumnManager } from "@/components/ColumnManager";
 import { useUserColumns, useUserCustomFields } from "@/hooks/useUserSettings";
 import { useUserViewPreferences } from "@/hooks/useUserViewPreferences";
 import { PriorityFlag } from "@/components/PriorityFlag";
+import { useUserCategories } from "@/hooks/useUserCategories";
 
 const TasksPage = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -69,6 +70,7 @@ const TasksPage = () => {
   const { columns } = useUserColumns();
   const { customFields } = useUserCustomFields();
   const { preferences } = useUserViewPreferences('table');
+  const { categories } = useUserCategories();
 
   useEffect(() => {
     // When server preferences change, clear local overrides to reflect saved state
@@ -82,6 +84,7 @@ const systemColumns = [
   { id: 'title', label: 'Titre', required: true },
   { id: 'status', label: 'Statut', required: true },
   { id: 'priority', label: 'Priorité', required: true },
+  { id: 'category', label: 'Catégorie', required: false },
   { id: 'assignee', label: 'Assigné à', required: false },
   { id: 'dueDate', label: 'Échéance', required: false },
   { id: 'tags', label: 'Tags', required: false },
@@ -205,6 +208,7 @@ const mapDbTask = (row: any): Task => ({
   customFields: row.custom_fields || {},
   sipiNumber: row.sipi_number || undefined,
   companyName: row.company_name || undefined,
+  category: row.category || 'general',
 });
 
   // Load tasks from Supabase
@@ -465,6 +469,23 @@ const mapDbTask = (row: any): Task => ({
           </TableCell>
         );
       
+      case 'category':
+        return (
+          <TableCell key="category">
+            <InlineEditField
+              value={task.category || "general"}
+              onSave={(value) => handleInlineEdit(task.id, "category", value)}
+              type="select"
+              options={categories.length > 0 ? categories.map(cat => ({
+                value: cat.name,
+                label: cat.name,
+                color: cat.color
+              })) : [{ value: "general", label: "Général" }]}
+              displayValue={task.category || "Général"}
+            />
+          </TableCell>
+        );
+      
       case 'sipi_number':
         return (
           <TableCell key="sipi_number">
@@ -583,6 +604,8 @@ const mapDbTask = (row: any): Task => ({
         updateData.due_date = value ? value.toISOString() : null;
       } else if (field === "tags") {
         updateData.tags = Array.isArray(value) ? value : [];
+      } else if (field === "category") {
+        updateData.category = value || "general";
       } else if (field.startsWith("custom_")) {
         // Handle custom fields
         const fieldId = field.replace("custom_", "");

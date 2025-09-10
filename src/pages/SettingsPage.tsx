@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,35 +18,314 @@ import {
   Settings, 
   Columns, 
   Bell, 
-  Palette, 
   User, 
   Plus, 
   Trash2,
   Edit,
-  GripVertical
+  GripVertical,
+  Save
 } from "lucide-react";
-import { Column, CustomField } from "@/types/task";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+
+interface UserColumn {
+  id: string;
+  title: string;
+  status: string;
+  color: string;
+  order: number;
+}
+
+interface CustomField {
+  id: string;
+  name: string;
+  type: 'text' | 'number' | 'select' | 'date' | 'checkbox';
+  options?: string[];
+  required: boolean;
+  order: number;
+}
+
+interface NotificationSettings {
+  email: boolean;
+  push: boolean;
+  daysBeforeDue: number;
+  dailyDigest: boolean;
+}
 
 const SettingsPage = () => {
-  const [columns, setColumns] = useState<Column[]>([
-    { id: "1", title: "À faire", status: "todo", order: 1, color: "#94a3b8" },
-    { id: "2", title: "En cours", status: "in-progress", order: 2, color: "#3b82f6" },
-    { id: "3", title: "En révision", status: "review", order: 3, color: "#eab308" },
-    { id: "4", title: "Terminé", status: "done", order: 4, color: "#22c55e" },
-  ]);
-
-  const [customFields, setCustomFields] = useState<CustomField[]>([
-    { id: "1", name: "Client", type: "text", required: false },
-    { id: "2", name: "Budget", type: "number", required: false },
-    { id: "3", name: "Type de projet", type: "select", options: ["Web", "Mobile", "Design"], required: true },
-  ]);
-
-  const [notifications, setNotifications] = useState({
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  
+  const [columns, setColumns] = useState<UserColumn[]>([]);
+  const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  const [notifications, setNotifications] = useState<NotificationSettings>({
     email: true,
     push: true,
     daysBeforeDue: 3,
     dailyDigest: false,
   });
+  
+  const [newColumnTitle, setNewColumnTitle] = useState("");
+  const [newFieldName, setNewFieldName] = useState("");
+  const [newFieldType, setNewFieldType] = useState<'text' | 'number' | 'select' | 'date' | 'checkbox'>('text');
+  const [newFieldOptions, setNewFieldOptions] = useState("");
+
+  // Load data from Supabase
+  useEffect(() => {
+    if (user) {
+      loadUserSettings();
+    }
+  }, [user]);
+
+  const loadUserSettings = async () => {
+    if (!user) return;
+    
+    try {
+      // Load columns
+      const { data: columnsData, error: columnsError } = await supabase
+        .from('user_columns')
+        .select('*')
+        .order('order');
+      
+      if (columnsError) throw columnsError;
+      
+      // Load custom fields
+      const { data: fieldsData, error: fieldsError } = await supabase
+        .from('user_custom_fields')
+        .select('*')
+        .order('order');
+      
+      if (fieldsError) throw fieldsError;
+      
+      // Load preferences
+      const { data: prefsData, error: prefsError } = await supabase
+        .from('user_preferences')
+        .select('*')
+        .single();
+      
+      if (prefsError && prefsError.code !== 'PGRST116') throw prefsError;
+      
+      setColumns(columnsData || []);
+      setCustomFields((fieldsData || []).map(field => ({
+        id: field.id,
+        name: field.name,
+        type: field.type as 'text' | 'number' | 'select' | 'date' | 'checkbox',
+        options: Array.isArray(field.options) ? field.options as string[] : [],
+        required: field.required || false,
+        order: field.order || 0
+      })));
+      
+      if (prefsData?.notifications) {
+        const notifs = prefsData.notifications as any;
+        if (typeof notifs === 'object' && notifs !== null) {
+          setNotifications({
+            email: notifs.email || true,
+            push: notifs.push || true,
+            daysBeforeDue: notifs.daysBeforeDue || 3,
+            dailyDigest: notifs.dailyDigest || false
+          });
+        }
+      }
+      
+    } catch (error) {
+      console.error('Error loading settings:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les paramètres",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateColumn = async (columnId: string, updates: Partial<UserColumn>) => {
+    const { error } = await supabase
+      .from('user_columns')
+      .update(updates)
+      .eq('id', columnId);
+    
+    if (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de modifier la colonne",
+        variant: "destructive",
+      });
+    } else {
+      setColumns(prev => prev.map(col => 
+        col.id === columnId ? { ...col, ...updates } : col
+      ));
+    }
+  };
+
+  const addColumn = async () => {
+    if (!newColumnTitle.trim() || !user) return;
+    
+    const newStatus = `custom_${Date.now()}`;
+    const maxOrder = Math.max(...columns.map(c => c.order), 0);
+    
+    const { data, error } = await supabase
+      .from('user_columns')
+      .insert([{
+        user_id: user.id,
+        title: newColumnTitle,
+        status: newStatus,
+        color: '#64748b',
+        order: maxOrder + 1
+      }])
+      .select()
+      .single();
+    
+    if (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible d'ajouter la colonne",
+        variant: "destructive",
+      });
+    } else {
+      setColumns(prev => [...prev, data]);
+      setNewColumnTitle("");
+      toast({ title: "Colonne ajoutée" });
+    }
+  };
+
+  const deleteColumn = async (columnId: string) => {
+    const { error } = await supabase
+      .from('user_columns')
+      .delete()
+      .eq('id', columnId);
+    
+    if (error) {
+      toast({
+        title: "Erreur", 
+        description: "Impossible de supprimer la colonne",
+        variant: "destructive",
+      });
+    } else {
+      setColumns(prev => prev.filter(col => col.id !== columnId));
+      toast({ title: "Colonne supprimée" });
+    }
+  };
+
+  const addCustomField = async () => {
+    if (!newFieldName.trim() || !user) return;
+    
+    const maxOrder = Math.max(...customFields.map(f => f.order), 0);
+    const options = newFieldType === 'select' 
+      ? newFieldOptions.split(',').map(o => o.trim()).filter(Boolean)
+      : [];
+    
+    const { data, error } = await supabase
+      .from('user_custom_fields')
+      .insert([{
+        user_id: user.id,
+        name: newFieldName,
+        type: newFieldType,
+        options: options,
+        required: false,
+        order: maxOrder + 1
+      }])
+      .select()
+      .single();
+    
+    if (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible d'ajouter le champ",
+        variant: "destructive",
+      });
+    } else {
+      setCustomFields(prev => [...prev, {
+        id: data.id,
+        name: data.name,
+        type: data.type as 'text' | 'number' | 'select' | 'date' | 'checkbox',
+        options: options,
+        required: data.required || false,
+        order: data.order || 0
+      }]);
+      setNewFieldName("");
+      setNewFieldType('text');
+      setNewFieldOptions("");
+      toast({ title: "Champ ajouté" });
+    }
+  };
+
+  const updateCustomField = async (fieldId: string, updates: Partial<CustomField>) => {
+    const { error } = await supabase
+      .from('user_custom_fields')
+      .update(updates)
+      .eq('id', fieldId);
+    
+    if (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de modifier le champ",
+        variant: "destructive",
+      });
+    } else {
+      setCustomFields(prev => prev.map(field => 
+        field.id === fieldId ? { ...field, ...updates } : field
+      ));
+    }
+  };
+
+  const deleteCustomField = async (fieldId: string) => {
+    const { error } = await supabase
+      .from('user_custom_fields')
+      .delete()
+      .eq('id', fieldId);
+    
+    if (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer le champ",
+        variant: "destructive",
+      });
+    } else {
+      setCustomFields(prev => prev.filter(field => field.id !== fieldId));
+      toast({ title: "Champ supprimé" });
+    }
+  };
+
+  const saveNotifications = async () => {
+    if (!user) return;
+    
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('user_preferences')
+        .upsert({
+          user_id: user.id,
+          notifications: notifications as any
+        });
+      
+      if (error) throw error;
+      
+      toast({ title: "Préférences sauvegardées" });
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de sauvegarder les préférences",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Chargement des paramètres...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -88,29 +367,18 @@ const SettingsPage = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {columns.map((column, index) => (
+              {columns.map((column) => (
                 <div key={column.id} className="flex items-center gap-4 p-4 bg-surface-variant rounded-lg">
                   <GripVertical className="w-5 h-5 text-muted-foreground cursor-grab" />
                   
-                  <div className="flex-1 grid grid-cols-3 gap-4">
+                  <div className="flex-1 grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-sm">Nom de la colonne</Label>
-                      <Input value={column.title} className="mt-1" />
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm">Statut</Label>
-                      <Select value={column.status}>
-                        <SelectTrigger className="mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="todo">À faire</SelectItem>
-                          <SelectItem value="in-progress">En cours</SelectItem>
-                          <SelectItem value="review">En révision</SelectItem>
-                          <SelectItem value="done">Terminé</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Input 
+                        value={column.title} 
+                        className="mt-1"
+                        onChange={(e) => updateColumn(column.id, { title: e.target.value })}
+                      />
                     </div>
                     
                     <div>
@@ -124,25 +392,34 @@ const SettingsPage = () => {
                           type="color" 
                           value={column.color} 
                           className="w-16 h-8 p-0 border-0"
+                          onChange={(e) => updateColumn(column.id, { color: e.target.value })}
                         />
                       </div>
                     </div>
                   </div>
                   
-                  <Button variant="ghost" size="sm" className="text-destructive">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-destructive"
+                    onClick={() => deleteColumn(column.id)}
+                  >
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
               ))}
               
-              <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={() => console.log('Ajouter une colonne')}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Ajouter une colonne
-              </Button>
+              <div className="flex gap-2">
+                <Input 
+                  placeholder="Nom de la nouvelle colonne"
+                  value={newColumnTitle}
+                  onChange={(e) => setNewColumnTitle(e.target.value)}
+                />
+                <Button variant="outline" onClick={addColumn}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Ajouter
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -159,15 +436,22 @@ const SettingsPage = () => {
             <CardContent className="space-y-4">
               {customFields.map((field) => (
                 <div key={field.id} className="flex items-center gap-4 p-4 bg-surface-variant rounded-lg">
-                  <div className="flex-1 grid grid-cols-4 gap-4">
+                  <div className="flex-1 grid grid-cols-3 gap-4">
                     <div>
                       <Label className="text-sm">Nom du champ</Label>
-                      <Input value={field.name} className="mt-1" />
+                      <Input 
+                        value={field.name} 
+                        className="mt-1"
+                        onChange={(e) => updateCustomField(field.id, { name: e.target.value })}
+                      />
                     </div>
                     
                     <div>
                       <Label className="text-sm">Type</Label>
-                      <Select value={field.type}>
+                      <Select 
+                        value={field.type}
+                        onValueChange={(value: any) => updateCustomField(field.id, { type: value })}
+                      >
                         <SelectTrigger className="mt-1">
                           <SelectValue />
                         </SelectTrigger>
@@ -181,23 +465,11 @@ const SettingsPage = () => {
                       </Select>
                     </div>
                     
-                    {field.type === "select" && (
-                      <div>
-                        <Label className="text-sm">Options</Label>
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          {field.options?.map((option, i) => (
-                            <Badge key={i} variant="secondary" className="text-xs">
-                              {option}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 mt-6">
                       <Switch 
                         id={`required-${field.id}`}
                         checked={field.required}
+                        onCheckedChange={(checked) => updateCustomField(field.id, { required: checked })}
                       />
                       <Label htmlFor={`required-${field.id}`} className="text-sm">
                         Obligatoire
@@ -205,20 +477,56 @@ const SettingsPage = () => {
                     </div>
                   </div>
                   
-                  <Button variant="ghost" size="sm" className="text-destructive">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-destructive"
+                    onClick={() => deleteCustomField(field.id)}
+                  >
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
               ))}
               
-              <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={() => console.log('Ajouter un champ')}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Ajouter un champ
-              </Button>
+              <div className="grid grid-cols-12 gap-2">
+                <Input 
+                  className="col-span-4"
+                  placeholder="Nom du champ"
+                  value={newFieldName}
+                  onChange={(e) => setNewFieldName(e.target.value)}
+                />
+                <Select 
+                  value={newFieldType}
+                  onValueChange={(value) => setNewFieldType(value as 'text' | 'number' | 'select' | 'date' | 'checkbox')}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="text">Texte</SelectItem>
+                    <SelectItem value="number">Nombre</SelectItem>
+                    <SelectItem value="select">Liste</SelectItem>
+                    <SelectItem value="date">Date</SelectItem>
+                    <SelectItem value="checkbox">Case</SelectItem>
+                  </SelectContent>
+                </Select>
+                {newFieldType === 'select' && (
+                  <Input 
+                    className="col-span-3"
+                    placeholder="Options (séparées par virgules)"
+                    value={newFieldOptions}
+                    onChange={(e) => setNewFieldOptions(e.target.value)}
+                  />
+                )}
+                <Button 
+                  variant="outline" 
+                  className={newFieldType === 'select' ? "col-span-2" : "col-span-5"}
+                  onClick={addCustomField}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Ajouter
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -305,6 +613,18 @@ const SettingsPage = () => {
                   />
                 </div>
               </div>
+              
+              <div className="pt-4">
+                <Button 
+                  onClick={saveNotifications}
+                  disabled={saving}
+                  style={{ background: "var(--gradient-primary)" }} 
+                  className="border-0 text-primary-foreground"
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  {saving ? "Sauvegarde..." : "Sauvegarder"}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -321,18 +641,13 @@ const SettingsPage = () => {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Prénom</Label>
-                  <Input placeholder="Votre prénom" className="mt-1" />
+                  <Label>Email</Label>
+                  <Input value={user?.email || ""} disabled className="mt-1" />
                 </div>
                 <div>
-                  <Label>Nom</Label>
-                  <Input placeholder="Votre nom" className="mt-1" />
+                  <Label>Nom complet</Label>
+                  <Input placeholder="Votre nom complet" className="mt-1" />
                 </div>
-              </div>
-              
-              <div>
-                <Label>Email</Label>
-                <Input type="email" placeholder="votre@email.com" className="mt-1" />
               </div>
               
               <div>
@@ -352,7 +667,11 @@ const SettingsPage = () => {
               <Separator />
 
               <div className="pt-4">
-                <Button style={{ background: "var(--gradient-primary)" }} className="border-0 text-primary-foreground">
+                <Button 
+                  style={{ background: "var(--gradient-primary)" }} 
+                  className="border-0 text-primary-foreground"
+                >
+                  <Save className="w-4 h-4 mr-2" />
                   Sauvegarder les modifications
                 </Button>
               </div>

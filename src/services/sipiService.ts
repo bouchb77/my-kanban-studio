@@ -22,7 +22,7 @@ export const getCompanyBySipi = async (sipi: string): Promise<CompanyInfo | null
       .from('companies')
       .select('sipi_number, company_name')
       .eq('sipi_number', cleanSipi)
-      .single();
+      .maybeSingle();
     
     if (error || !data) return null;
     

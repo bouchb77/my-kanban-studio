@@ -664,7 +664,7 @@ const SettingsPage = () => {
                     <Switch 
                       checked={kanbanPreferences?.visible_columns?.includes('description') ?? true}
                       onCheckedChange={(checked) => {
-                        const current = kanbanPreferences?.visible_columns || ['title', 'description', 'tags', 'priority', 'dueDate', 'assignee'];
+                        const current = kanbanPreferences?.visible_columns || ['title', 'description', 'tags', 'priority', 'dueDate', 'assignee', 'sipiNumber', 'companyName'];
                         const updated = checked 
                           ? [...current.filter(c => c !== 'description'), 'description']
                           : current.filter(c => c !== 'description');
@@ -681,7 +681,7 @@ const SettingsPage = () => {
                     <Switch 
                       checked={kanbanPreferences?.visible_columns?.includes('tags') ?? true}
                       onCheckedChange={(checked) => {
-                        const current = kanbanPreferences?.visible_columns || ['title', 'description', 'tags', 'priority', 'dueDate', 'assignee'];
+                        const current = kanbanPreferences?.visible_columns || ['title', 'description', 'tags', 'priority', 'dueDate', 'assignee', 'sipiNumber', 'companyName'];
                         const updated = checked 
                           ? [...current.filter(c => c !== 'tags'), 'tags']
                           : current.filter(c => c !== 'tags');
@@ -715,7 +715,7 @@ const SettingsPage = () => {
                     <Switch 
                       checked={kanbanPreferences?.visible_columns?.includes('dueDate') ?? true}
                       onCheckedChange={(checked) => {
-                        const current = kanbanPreferences?.visible_columns || ['title', 'description', 'tags', 'priority', 'dueDate', 'assignee'];
+                        const current = kanbanPreferences?.visible_columns || ['title', 'description', 'tags', 'priority', 'dueDate', 'assignee', 'sipiNumber', 'companyName'];
                         const updated = checked 
                           ? [...current.filter(c => c !== 'dueDate'), 'dueDate']
                           : current.filter(c => c !== 'dueDate');
@@ -732,10 +732,44 @@ const SettingsPage = () => {
                     <Switch 
                       checked={kanbanPreferences?.visible_columns?.includes('assignee') ?? true}
                       onCheckedChange={(checked) => {
-                        const current = kanbanPreferences?.visible_columns || ['title', 'description', 'tags', 'priority', 'dueDate', 'assignee'];
+                        const current = kanbanPreferences?.visible_columns || ['title', 'description', 'tags', 'priority', 'dueDate', 'assignee', 'sipiNumber', 'companyName'];
                         const updated = checked 
                           ? [...current.filter(c => c !== 'assignee'), 'assignee']
                           : current.filter(c => c !== 'assignee');
+                        saveKanbanPreferences({ visible_columns: updated });
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <Label>Numéro SIPI</Label>
+                      <p className="text-xs text-muted-foreground">Numéro d'identification de l'entreprise</p>
+                    </div>
+                    <Switch 
+                      checked={kanbanPreferences?.visible_columns?.includes('sipiNumber') ?? true}
+                      onCheckedChange={(checked) => {
+                        const current = kanbanPreferences?.visible_columns || ['title', 'description', 'tags', 'priority', 'dueDate', 'assignee', 'sipiNumber', 'companyName'];
+                        const updated = checked 
+                          ? [...current.filter(c => c !== 'sipiNumber'), 'sipiNumber']
+                          : current.filter(c => c !== 'sipiNumber');
+                        saveKanbanPreferences({ visible_columns: updated });
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <Label>Société</Label>
+                      <p className="text-xs text-muted-foreground">Nom de l'entreprise</p>
+                    </div>
+                    <Switch 
+                      checked={kanbanPreferences?.visible_columns?.includes('companyName') ?? true}
+                      onCheckedChange={(checked) => {
+                        const current = kanbanPreferences?.visible_columns || ['title', 'description', 'tags', 'priority', 'dueDate', 'assignee', 'sipiNumber', 'companyName'];
+                        const updated = checked 
+                          ? [...current.filter(c => c !== 'companyName'), 'companyName']
+                          : current.filter(c => c !== 'companyName');
                         saveKanbanPreferences({ visible_columns: updated });
                       }}
                     />
@@ -759,7 +793,7 @@ const SettingsPage = () => {
                           <Switch 
                             checked={kanbanPreferences?.visible_columns?.includes(`custom_field_${field.id}`) ?? false}
                             onCheckedChange={(checked) => {
-                              const current = kanbanPreferences?.visible_columns || ['title', 'description', 'tags', 'priority', 'dueDate', 'assignee'];
+                              const current = kanbanPreferences?.visible_columns || ['title', 'description', 'tags', 'priority', 'dueDate', 'assignee', 'sipiNumber', 'companyName'];
                               const fieldKey = `custom_field_${field.id}`;
                               const updated = checked 
                                 ? [...current.filter(c => c !== fieldKey), fieldKey]

@@ -31,6 +31,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUserColumns } from "@/hooks/useUserSettings";
 import { EditTaskDialog } from "@/components/EditTaskDialog";
 import { ViewTaskDialog } from "@/components/ViewTaskDialog";
+import { useUserViewPreferences } from "@/hooks/useUserViewPreferences";
 
 // Default columns as fallback
 const defaultColumns = [
@@ -46,7 +47,8 @@ function TaskCard({
   onEdit,
   onMove,
   onDelete,
-  userColumns
+  userColumns,
+  visibleFields
 }: {
   task: Task;
   onOpen: (task: Task) => void;
@@ -54,6 +56,7 @@ function TaskCard({
   onMove: (task: Task, status: Task["status"]) => void;
   onDelete: (task: Task) => void;
   userColumns: any[];
+  visibleFields: string[];
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
 
@@ -125,11 +128,11 @@ function TaskCard({
             </DropdownMenu>
           </div>
 
-          {task.description && (
+          {task.description && visibleFields.includes('description') && (
             <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
           )}
 
-          {task.tags?.length ? (
+          {task.tags?.length && visibleFields.includes('tags') ? (
             <div className="flex flex-wrap gap-1">
               {task.tags.map((tag) => (
                 <Badge key={tag} variant="secondary" className="text-xs px-2 py-0">
@@ -140,11 +143,13 @@ function TaskCard({
           ) : null}
 
           <div className="flex items-center justify-between text-xs">
-            <Badge variant="outline" className={priorityColors[task.priority]}>
-              {task.priority}
-            </Badge>
+            {visibleFields.includes('priority') && (
+              <Badge variant="outline" className={priorityColors[task.priority]}>
+                {task.priority}
+              </Badge>
+            )}
 
-            {task.dueDate && (
+            {task.dueDate && visibleFields.includes('dueDate') && (
               <div className="flex items-center gap-1 text-muted-foreground">
                 <Calendar className="w-3 h-3" />
                 {task.dueDate.toLocaleDateString("fr-FR", {
@@ -155,7 +160,7 @@ function TaskCard({
             )}
           </div>
 
-          {task.assignee && (
+          {task.assignee && visibleFields.includes('assignee') && (
             <div className="flex items-center gap-2">
               <Avatar className="w-5 h-5">
                 <AvatarFallback className="text-xs">
@@ -178,7 +183,8 @@ function KanbanColumn({
   onEdit,
   onMove,
   onDelete,
-  userColumns
+  userColumns,
+  visibleFields
 }: {
   column: any;
   tasks: Task[];
@@ -187,6 +193,7 @@ function KanbanColumn({
   onMove: (task: Task, status: Task["status"]) => void;
   onDelete: (task: Task) => void;
   userColumns: any[];
+  visibleFields: string[];
 }) {
   const columnTasks = tasks.filter((task) => task.status === column.status);
   const { setNodeRef: setDroppableRef } = useDroppable({ id: column.status });
@@ -220,6 +227,7 @@ function KanbanColumn({
               onMove={onMove}
               onDelete={onDelete}
               userColumns={userColumns}
+              visibleFields={visibleFields}
             />
           ))}
         </div>
@@ -237,9 +245,13 @@ const KanbanPage = () => {
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const { toast } = useToast();
   const { columns: userColumns, loading: columnsLoading } = useUserColumns();
+  const { preferences: kanbanPreferences } = useUserViewPreferences('kanban');
 
   // Use user columns or fall back to defaults
   const columns = userColumns.length > 0 ? userColumns : defaultColumns;
+
+  // Get visible fields for cards (default to showing all if not set)
+  const visibleFields = kanbanPreferences?.visible_columns || ['title', 'description', 'tags', 'priority', 'dueDate', 'assignee'];
 
   // Map DB row to Task type
   const mapDbTask = (row: any): Task => ({
@@ -394,6 +406,7 @@ const KanbanPage = () => {
               onMove={handleMoveTask}
               onDelete={handleDeleteTask}
               userColumns={columns}
+              visibleFields={visibleFields}
             />
           ))}
         </div>
@@ -406,6 +419,7 @@ const KanbanPage = () => {
             onMove={() => {}} 
             onDelete={() => {}} 
             userColumns={columns}
+            visibleFields={visibleFields}
           />
         ) : null}</DragOverlay>
       </DndContext>

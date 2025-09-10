@@ -28,6 +28,7 @@ import { DragDropList } from "@/components/DragDropList";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useUserViewPreferences } from "@/hooks/useUserViewPreferences";
 
 interface UserColumn {
   id: string;
@@ -58,6 +59,9 @@ const SettingsPage = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  
+  // Kanban card preferences
+  const { preferences: kanbanPreferences, savePreferences: saveKanbanPreferences } = useUserViewPreferences('kanban');
   
   // Default system fields that should always be displayed (read-only)
   const systemFields = [
@@ -393,7 +397,7 @@ const SettingsPage = () => {
       </div>
 
       <Tabs defaultValue="columns" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="columns" className="flex items-center gap-2">
             <Columns className="w-4 h-4" />
             Colonnes
@@ -401,6 +405,10 @@ const SettingsPage = () => {
           <TabsTrigger value="fields" className="flex items-center gap-2">
             <Edit className="w-4 h-4" />
             Champs
+          </TabsTrigger>
+          <TabsTrigger value="cards" className="flex items-center gap-2">
+            <Settings className="w-4 h-4" />
+            Cartes
           </TabsTrigger>
           <TabsTrigger value="notifications" className="flex items-center gap-2">
             <Bell className="w-4 h-4" />
@@ -607,6 +615,149 @@ const SettingsPage = () => {
                     <Plus className="w-4 h-4 mr-2" />
                     Ajouter
                   </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Configuration des cartes Kanban */}
+        <TabsContent value="cards">
+          <Card className="shadow-card border-0">
+            <CardHeader>
+              <CardTitle>Configuration des cartes Kanban</CardTitle>
+              <CardDescription>
+                Choisissez les informations à afficher sur les cartes de votre tableau Kanban
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium">Éléments à afficher sur les cartes</h4>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <Label>Titre</Label>
+                      <p className="text-xs text-muted-foreground">Titre principal de la tâche</p>
+                    </div>
+                    <Switch checked disabled />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <Label>Description</Label>
+                      <p className="text-xs text-muted-foreground">Description courte de la tâche</p>
+                    </div>
+                    <Switch 
+                      checked={kanbanPreferences?.visible_columns?.includes('description') ?? true}
+                      onCheckedChange={(checked) => {
+                        const current = kanbanPreferences?.visible_columns || ['title', 'description', 'tags', 'priority', 'dueDate', 'assignee'];
+                        const updated = checked 
+                          ? [...current.filter(c => c !== 'description'), 'description']
+                          : current.filter(c => c !== 'description');
+                        saveKanbanPreferences({ visible_columns: updated });
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <Label>Tags</Label>
+                      <p className="text-xs text-muted-foreground">Étiquettes de la tâche</p>
+                    </div>
+                    <Switch 
+                      checked={kanbanPreferences?.visible_columns?.includes('tags') ?? true}
+                      onCheckedChange={(checked) => {
+                        const current = kanbanPreferences?.visible_columns || ['title', 'description', 'tags', 'priority', 'dueDate', 'assignee'];
+                        const updated = checked 
+                          ? [...current.filter(c => c !== 'tags'), 'tags']
+                          : current.filter(c => c !== 'tags');
+                        saveKanbanPreferences({ visible_columns: updated });
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <Label>Priorité</Label>
+                      <p className="text-xs text-muted-foreground">Niveau de priorité</p>
+                    </div>
+                    <Switch 
+                      checked={kanbanPreferences?.visible_columns?.includes('priority') ?? true}
+                      onCheckedChange={(checked) => {
+                        const current = kanbanPreferences?.visible_columns || ['title', 'description', 'tags', 'priority', 'dueDate', 'assignee'];
+                        const updated = checked 
+                          ? [...current.filter(c => c !== 'priority'), 'priority']
+                          : current.filter(c => c !== 'priority');
+                        saveKanbanPreferences({ visible_columns: updated });
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <Label>Date d'échéance</Label>
+                      <p className="text-xs text-muted-foreground">Date limite de la tâche</p>
+                    </div>
+                    <Switch 
+                      checked={kanbanPreferences?.visible_columns?.includes('dueDate') ?? true}
+                      onCheckedChange={(checked) => {
+                        const current = kanbanPreferences?.visible_columns || ['title', 'description', 'tags', 'priority', 'dueDate', 'assignee'];
+                        const updated = checked 
+                          ? [...current.filter(c => c !== 'dueDate'), 'dueDate']
+                          : current.filter(c => c !== 'dueDate');
+                        saveKanbanPreferences({ visible_columns: updated });
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <Label>Assigné à</Label>
+                      <p className="text-xs text-muted-foreground">Personne responsable</p>
+                    </div>
+                    <Switch 
+                      checked={kanbanPreferences?.visible_columns?.includes('assignee') ?? true}
+                      onCheckedChange={(checked) => {
+                        const current = kanbanPreferences?.visible_columns || ['title', 'description', 'tags', 'priority', 'dueDate', 'assignee'];
+                        const updated = checked 
+                          ? [...current.filter(c => c !== 'assignee'), 'assignee']
+                          : current.filter(c => c !== 'assignee');
+                        saveKanbanPreferences({ visible_columns: updated });
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                  <h4 className="text-sm font-medium mb-3">Champs personnalisés</h4>
+                  {customFields.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Aucun champ personnalisé configuré</p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-4">
+                      {customFields.map((field) => (
+                        <div key={field.id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div>
+                            <Label>{field.name}</Label>
+                            <p className="text-xs text-muted-foreground">Champ personnalisé {field.type}</p>
+                          </div>
+                          <Switch 
+                            checked={kanbanPreferences?.visible_columns?.includes(`custom_field_${field.id}`) ?? false}
+                            onCheckedChange={(checked) => {
+                              const current = kanbanPreferences?.visible_columns || ['title', 'description', 'tags', 'priority', 'dueDate', 'assignee'];
+                              const fieldKey = `custom_field_${field.id}`;
+                              const updated = checked 
+                                ? [...current.filter(c => c !== fieldKey), fieldKey]
+                                : current.filter(c => c !== fieldKey);
+                              saveKanbanPreferences({ visible_columns: updated });
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>

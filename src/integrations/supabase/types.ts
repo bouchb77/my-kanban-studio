@@ -45,6 +45,7 @@ export type Database = {
         Row: {
           assignee: string | null
           created_at: string
+          custom_fields: Json
           description: string | null
           due_date: string | null
           id: string
@@ -58,6 +59,7 @@ export type Database = {
         Insert: {
           assignee?: string | null
           created_at?: string
+          custom_fields?: Json
           description?: string | null
           due_date?: string | null
           id?: string
@@ -71,6 +73,7 @@ export type Database = {
         Update: {
           assignee?: string | null
           created_at?: string
+          custom_fields?: Json
           description?: string | null
           due_date?: string | null
           id?: string

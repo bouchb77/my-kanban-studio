@@ -484,8 +484,11 @@ const TasksPage = () => {
       } else if (field.startsWith("custom_")) {
         // Handle custom fields
         const fieldId = field.replace("custom_", "");
+        const currentTask = tasks.find(t => t.id === taskId);
+        const currentCustomFields = currentTask?.customFields || {};
+        
         updateData.custom_fields = {
-          ...tasks.find(t => t.id === taskId)?.customFields,
+          ...currentCustomFields,
           [fieldId]: value
         };
       }

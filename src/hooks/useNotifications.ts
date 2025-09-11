@@ -20,6 +20,31 @@ export const useNotifications = () => {
   const { user } = useAuth();
   const { tasks } = useTasks();
 
+  // Load read notifications from database
+  const loadReadNotifications = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('user_notifications')
+        .select('notification_id, read')
+        .eq('user_id', user.id)
+        .eq('read', true);
+      
+      if (error) {
+        console.error('Error loading read notifications:', error);
+        return;
+      }
+      
+      if (data) {
+        const readIds = new Set(data.map(item => item.notification_id));
+        setReadNotifications(readIds);
+      }
+    } catch (error) {
+      console.error('Error loading read notifications:', error);
+    }
+  };
+
   const generateNotificationsFromTasks = () => {
     const generatedNotifications: Notification[] = [];
     const now = new Date();
@@ -84,27 +109,72 @@ export const useNotifications = () => {
     return generatedNotifications;
   };
 
-  const markAsRead = (notificationId: string) => {
-    setReadNotifications(prev => new Set([...prev, notificationId]));
-    setNotifications(prev => 
-      prev.map(notif => 
-        notif.id === notificationId 
-          ? { ...notif, read: true }
-          : notif
-      )
-    );
+  const markAsRead = async (notificationId: string) => {
+    if (!user) return;
+    
+    try {
+      // Save to database
+      await supabase
+        .from('user_notifications')
+        .upsert({
+          user_id: user.id,
+          notification_id: notificationId,
+          read: true
+        }, {
+          onConflict: 'user_id,notification_id'
+        });
+      
+      // Update local state
+      setReadNotifications(prev => new Set([...prev, notificationId]));
+      setNotifications(prev => 
+        prev.map(notif => 
+          notif.id === notificationId 
+            ? { ...notif, read: true }
+            : notif
+        )
+      );
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
   };
 
-  const markAllAsRead = () => {
-    const allIds = notifications.map(n => n.id);
-    setReadNotifications(prev => new Set([...prev, ...allIds]));
-    setNotifications(prev => 
-      prev.map(notif => ({ ...notif, read: true }))
-    );
+  const markAllAsRead = async () => {
+    if (!user) return;
+    
+    try {
+      // Prepare all notifications to mark as read
+      const allIds = notifications.map(n => n.id);
+      const upsertData = allIds.map(id => ({
+        user_id: user.id,
+        notification_id: id,
+        read: true
+      }));
+      
+      // Save all to database
+      await supabase
+        .from('user_notifications')
+        .upsert(upsertData, {
+          onConflict: 'user_id,notification_id'
+        });
+      
+      // Update local state
+      setReadNotifications(prev => new Set([...prev, ...allIds]));
+      setNotifications(prev => 
+        prev.map(notif => ({ ...notif, read: true }))
+      );
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+    }
   };
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
+  // Load read notifications on mount and when user changes
+  useEffect(() => {
+    loadReadNotifications();
+  }, [user]);
+
+  // Generate notifications when tasks or read notifications change
   useEffect(() => {
     if (tasks.length > 0) {
       const generatedNotifications = generateNotificationsFromTasks();
@@ -119,6 +189,6 @@ export const useNotifications = () => {
     unreadCount,
     markAsRead,
     markAllAsRead,
-    refetch: () => {}
+    refetch: loadReadNotifications
   };
 };

@@ -21,6 +21,7 @@ interface IcsEvent {
   };
   bodyPreview?: string;
   categories?: string[];
+  debugCategoriesProps?: { prop: string; value: string }[];
 }
 
 function parseIcsDate(dateStr: string): string {
@@ -103,6 +104,10 @@ function parseIcsContent(icsContent: string): IcsEvent[] {
           if (!currentEvent.categories) {
             currentEvent.categories = [];
           }
+          if (!currentEvent.debugCategoriesProps) {
+            currentEvent.debugCategoriesProps = [];
+          }
+          currentEvent.debugCategoriesProps.push({ prop: baseProp, value });
           categories.forEach(cat => {
             if (!currentEvent.categories!.includes(cat)) {
               currentEvent.categories!.push(cat);

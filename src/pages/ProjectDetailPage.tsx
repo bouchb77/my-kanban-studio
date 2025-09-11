@@ -80,13 +80,32 @@ const GanttChart: React.FC<{ tasks: ProjectTask[] }> = ({ tasks }) => {
                   {Array.from({ length: differenceInDays(new Date(task.end_date), new Date(task.start_date)) + 1 }, (_, index) => {
                     const dayCount = differenceInDays(new Date(task.end_date), new Date(task.start_date)) + 1;
                     const dayWidth = `calc((100% - 8px) / ${dayCount})`;
+                    const currentDay = new Date(new Date(task.start_date).getTime() + index * 24 * 60 * 60 * 1000);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    currentDay.setHours(0, 0, 0, 0);
+                    
+                    const isToday = currentDay.getTime() === today.getTime();
+                    const isPast = currentDay.getTime() < today.getTime();
+                    
+                    let dayStyle = "h-4 border border-white/50 rounded-sm";
+                    
+                    if (isToday) {
+                      dayStyle += " bg-green-400";
+                    } else if (isPast) {
+                      dayStyle += " bg-white/30 bg-stripe-pattern";
+                    } else {
+                      dayStyle += " bg-white/30";
+                    }
+                    
                     return (
                       <div
                         key={index}
-                        className="h-4 bg-white/30 border border-white/50 rounded-sm"
+                        className={dayStyle}
                         style={{ 
                           width: dayWidth,
-                          marginRight: index < dayCount - 1 ? '1px' : '0'
+                          marginRight: index < dayCount - 1 ? '1px' : '0',
+                          backgroundImage: isPast ? 'repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.2) 2px, rgba(255,255,255,0.2) 4px)' : undefined
                         }}
                       />
                     );

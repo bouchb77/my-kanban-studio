@@ -152,6 +152,27 @@ const ProjectsPage: React.FC = () => {
     );
   }
 
+  // Trier les projets par statut avec les actifs en haut
+  const sortedProjects = [...projects].sort((a, b) => {
+    const statusOrder = {
+      'active': 0,
+      'planning': 1,
+      'on_hold': 2,
+      'completed': 3,
+      'cancelled': 4
+    };
+    
+    const aOrder = statusOrder[a.status as keyof typeof statusOrder] ?? 5;
+    const bOrder = statusOrder[b.status as keyof typeof statusOrder] ?? 5;
+    
+    if (aOrder !== bOrder) {
+      return aOrder - bOrder;
+    }
+    
+    // Si même statut, trier par date de mise à jour décroissante
+    return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+  });
+
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
@@ -183,7 +204,7 @@ const ProjectsPage: React.FC = () => {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {projects.map((project) => (
+          {sortedProjects.map((project) => (
             <ProjectCard key={project.id} project={project} onEdit={handleEditProject} />
           ))}
         </div>

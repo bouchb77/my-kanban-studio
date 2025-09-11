@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { CreateTaskDialog } from "@/components/CreateTaskDialog";
 import { ViewTaskDialog } from "@/components/ViewTaskDialog";
+import { ProjectsOverview } from "@/components/ProjectsOverview";
 import { useState } from "react";
 import { useTasks } from "@/hooks/useTasks";
 import { formatDistanceToNow } from "date-fns";
@@ -127,6 +128,11 @@ const DashboardPage = () => {
             </p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Projets Overview */}
+      <div className="mb-6">
+        <ProjectsOverview />
       </div>
 
       {/* Main content grid */}

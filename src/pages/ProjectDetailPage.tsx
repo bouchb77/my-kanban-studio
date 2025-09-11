@@ -74,12 +74,15 @@ const GanttChart: React.FC<{ tasks: ProjectTask[] }> = ({ tasks }) => {
               
               <div className="flex-1 relative h-8 bg-muted rounded">
                 <div
-                  className={`absolute top-1 bottom-1 rounded ${getStatusColor(task.status)} flex items-center px-2`}
+                  className={`absolute top-1 bottom-1 rounded ${getStatusColor(task.status)} flex items-center px-1`}
                   style={position}
                 >
-                  <span className="text-xs text-white font-medium truncate">
-                    {task.progress}%
-                  </span>
+                  {Array.from({ length: differenceInDays(new Date(task.end_date), new Date(task.start_date)) + 1 }, (_, index) => (
+                    <div
+                      key={index}
+                      className="w-2 h-4 bg-white/30 border border-white/50 mr-0.5 last:mr-0 rounded-sm"
+                    />
+                  ))}
                 </div>
               </div>
               
@@ -571,8 +574,10 @@ const ProjectDetailPage: React.FC = () => {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {tasks.map((task) => (
+            <div className="space-y-6">
+              {[...tasks].sort((a, b) => 
+                new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
+              ).map((task) => (
                 <TaskCard 
                   key={task.id} 
                   task={task} 

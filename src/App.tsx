@@ -11,6 +11,7 @@ import DashboardPage from "./pages/DashboardPage";
 import KanbanPage from "./pages/KanbanPage";
 import TasksPage from "./pages/TasksPage";
 import SettingsPage from "./pages/SettingsPage";
+import ProfilePage from "./pages/ProfilePage";
 import ReportingPage from "./pages/ReportingPage";
 import { CalendarPage } from "./pages/CalendarPage";
 import NotificationsPage from "./pages/NotificationsPage";
@@ -65,6 +66,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <MainLayout><SettingsPage /></MainLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/profile" 
+              element={
+                <ProtectedRoute>
+                  <MainLayout><ProfilePage /></MainLayout>
                 </ProtectedRoute>
               } 
             />

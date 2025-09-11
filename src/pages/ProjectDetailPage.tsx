@@ -74,15 +74,23 @@ const GanttChart: React.FC<{ tasks: ProjectTask[] }> = ({ tasks }) => {
               
               <div className="flex-1 relative h-8 bg-muted rounded">
                 <div
-                  className={`absolute top-1 bottom-1 rounded ${getStatusColor(task.status)} flex items-center px-1`}
+                  className={`absolute top-1 bottom-1 rounded ${getStatusColor(task.status)} flex items-center`}
                   style={position}
                 >
-                  {Array.from({ length: differenceInDays(new Date(task.end_date), new Date(task.start_date)) + 1 }, (_, index) => (
-                    <div
-                      key={index}
-                      className="w-2 h-4 bg-white/30 border border-white/50 mr-0.5 last:mr-0 rounded-sm"
-                    />
-                  ))}
+                  {Array.from({ length: differenceInDays(new Date(task.end_date), new Date(task.start_date)) + 1 }, (_, index) => {
+                    const dayCount = differenceInDays(new Date(task.end_date), new Date(task.start_date)) + 1;
+                    const dayWidth = `calc((100% - 8px) / ${dayCount})`;
+                    return (
+                      <div
+                        key={index}
+                        className="h-4 bg-white/30 border border-white/50 rounded-sm"
+                        style={{ 
+                          width: dayWidth,
+                          marginRight: index < dayCount - 1 ? '1px' : '0'
+                        }}
+                      />
+                    );
+                  })}
                 </div>
               </div>
               

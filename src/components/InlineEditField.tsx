@@ -17,7 +17,7 @@ interface InlineEditFieldProps {
   options?: { value: string; label: string; color?: string }[];
   placeholder?: string;
   className?: string;
-  displayValue?: string;
+  displayValue?: React.ReactNode;
   disabled?: boolean;
 }
 
@@ -87,11 +87,11 @@ export function InlineEditField({
         )}
         onClick={() => setIsEditing(true)}
       >
-        <span className="flex-1">
+        <div className="flex-1">
           {displayValue || value || (
             <span className="text-muted-foreground italic">{placeholder}</span>
           )}
-        </span>
+        </div>
         <Edit2 className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
     );

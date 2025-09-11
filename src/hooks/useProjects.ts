@@ -521,6 +521,8 @@ export const useProjectTasks = (projectId: string) => {
           assignment_id: assignmentId,
           user_id: userId,
           ...updates
+        }, {
+          onConflict: 'assignment_id,user_id'
         });
 
       if (error) throw error;

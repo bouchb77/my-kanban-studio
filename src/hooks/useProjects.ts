@@ -218,6 +218,23 @@ export const useProjectCollaborators = (projectId: string) => {
         return;
       }
 
+      // Check if user is already a collaborator
+      const { data: existingCollaborator } = await supabase
+        .from('project_collaborators')
+        .select('id')
+        .eq('project_id', projectId)
+        .eq('user_id', profiles.id)
+        .single();
+
+      if (existingCollaborator) {
+        toast({
+          title: "Erreur",
+          description: "Cet utilisateur est déjà collaborateur",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('project_collaborators')
         .insert({

@@ -386,25 +386,28 @@ const mapDbTask = (row: any): Task => ({
       case 'status':
         return (
           <TableCell key="status">
-            <div className="flex items-center gap-2">
-              <Badge 
-                className="border-none"
-                style={getStatusColor(task.status)}
-              >
-                {statusLabels[task.status]}
-              </Badge>
-              <InlineEditField
-                value={task.status}
-                onSave={(value) => handleInlineEdit(task.id, "status", value)}
-                type="select"
-                options={availableColumns.map(col => ({
-                  value: col.status,
-                  label: col.title,
-                  color: (col as any).color
-                }))}
-                displayValue={statusLabels[task.status]}
-                className="opacity-0 hover:opacity-100 transition-opacity"
-              />
+            <div className="group relative">
+              <div className="cursor-pointer" onClick={() => {}}>
+                <Badge 
+                  className="border-none hover:opacity-70 transition-opacity"
+                  style={getStatusColor(task.status)}
+                >
+                  {statusLabels[task.status]}
+                </Badge>
+              </div>
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                <InlineEditField
+                  value={task.status}
+                  onSave={(value) => handleInlineEdit(task.id, "status", value)}
+                  type="select"
+                  options={availableColumns.map(col => ({
+                    value: col.status,
+                    label: col.title,
+                    color: (col as any).color
+                  }))}
+                  displayValue={statusLabels[task.status]}
+                />
+              </div>
             </div>
           </TableCell>
         );
@@ -471,19 +474,35 @@ const mapDbTask = (row: any): Task => ({
         );
       
       case 'category':
+        const categoryData = categories.find(cat => cat.name === task.category);
         return (
           <TableCell key="category">
-            <InlineEditField
-              value={task.category || "general"}
-              onSave={(value) => handleInlineEdit(task.id, "category", value)}
-              type="select"
-              options={categories.length > 0 ? categories.map(cat => ({
-                value: cat.name,
-                label: cat.name,
-                color: cat.color
-              })) : [{ value: "general", label: "Général" }]}
-              displayValue={task.category || "Général"}
-            />
+            <div className="group relative">
+              <div className="cursor-pointer" onClick={() => {}}>
+                <Badge 
+                  className="border-none hover:opacity-70 transition-opacity"
+                  style={{
+                    backgroundColor: categoryData?.color || '#6b7280',
+                    color: '#ffffff'
+                  }}
+                >
+                  {task.category || "Général"}
+                </Badge>
+              </div>
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                <InlineEditField
+                  value={task.category || "general"}
+                  onSave={(value) => handleInlineEdit(task.id, "category", value)}
+                  type="select"
+                  options={categories.length > 0 ? categories.map(cat => ({
+                    value: cat.name,
+                    label: cat.name,
+                    color: cat.color
+                  })) : [{ value: "general", label: "Général" }]}
+                  displayValue={task.category || "Général"}
+                />
+              </div>
+            </div>
           </TableCell>
         );
       

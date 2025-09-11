@@ -60,7 +60,7 @@ export function ColumnManager({}: ColumnManagerProps) {
 
     const visible = preferences?.visible_columns?.length
       ? preferences.visible_columns.filter(id => allColumns.find(c => c.id === id))
-      : [...requiredDefaults, 'title', 'status'];
+      : [...requiredDefaults, 'status', 'priority', 'dueDate'];
 
     const order = preferences?.column_order?.length
       ? preferences.column_order.filter(id => allColumns.find(c => c.id === id))
@@ -68,7 +68,7 @@ export function ColumnManager({}: ColumnManagerProps) {
 
     setLocalVisible(visible);
     setLocalOrder(order);
-  }, [preferences?.visible_columns, preferences?.column_order, customFields.length]);
+  }, [preferences?.visible_columns, preferences?.column_order, allColumns.length]);
 
   const visibleColumnObjects = allColumns
     .filter(col => localVisible.includes(col.id))

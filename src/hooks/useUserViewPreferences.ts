@@ -25,9 +25,9 @@ export const useUserViewPreferences = (viewType: 'table' | 'kanban' = 'table') =
         .select('*')
         .eq('user_id', user.id)
         .eq('view_type', viewType)
-        .single();
+        .maybeSingle();
       
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         console.error('Error loading view preferences:', error);
         return;
       }
@@ -87,7 +87,16 @@ export const useUserViewPreferences = (viewType: 'table' | 'kanban' = 'table') =
   };
 
   const toggleColumnVisibility = async (columnId: string) => {
-    if (!preferences) return;
+    if (!preferences) {
+      // If no preferences exist, create initial ones
+      const initialVisible = ['select', 'title', 'status', 'priority', 'actions'];
+      const newVisible = initialVisible.includes(columnId)
+        ? initialVisible.filter(id => id !== columnId)
+        : [...initialVisible, columnId];
+      
+      await savePreferences({ visible_columns: newVisible });
+      return;
+    }
     
     const currentVisible = preferences.visible_columns || [];
     const newVisible = currentVisible.includes(columnId)

@@ -20,6 +20,7 @@ interface IcsEvent {
     displayName: string;
   };
   bodyPreview?: string;
+  categories?: string[];
 }
 
 function parseIcsDate(dateStr: string): string {
@@ -88,6 +89,8 @@ function parseIcsContent(icsContent: string): IcsEvent[] {
           };
         } else if (property === 'DESCRIPTION') {
           currentEvent.bodyPreview = value.replace(/\\n/g, ' ').replace(/\\,/g, ',').substring(0, 200);
+        } else if (property === 'CATEGORIES') {
+          currentEvent.categories = value.split(',').map(cat => cat.trim()).filter(cat => cat.length > 0);
         }
       }
     }

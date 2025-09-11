@@ -1,8 +1,6 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,9 +9,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Bell, Search, User, LogOut, Plus } from "lucide-react";
+import { Bell, User, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { CreateTaskDialog } from "./CreateTaskDialog";
 import { useNavigate } from "react-router-dom";
 import { useNotifications } from "@/hooks/useNotifications";
 
@@ -22,7 +19,6 @@ interface MainLayoutProps {
 }
 
 export function MainLayout({ children }: MainLayoutProps) {
-  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { unreadCount } = useNotifications();
@@ -41,29 +37,9 @@ export function MainLayout({ children }: MainLayoutProps) {
           <header className="h-16 border-b border-border bg-surface flex items-center justify-between px-6">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="p-2" />
-              
-              {/* Search bar */}
-              <div className="relative w-96">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Rechercher des tâches..."
-                  className="pl-10 bg-muted border-0"
-                />
-              </div>
             </div>
 
             <div className="flex items-center gap-3">
-              {/* Add task button */}
-              <Button 
-                onClick={() => setIsCreateTaskOpen(true)}
-                style={{ background: "var(--gradient-primary)" }} 
-                className="border-0 text-primary-foreground"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Nouvelle tâche
-              </Button>
-
-              {/* Notifications */}
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -114,11 +90,6 @@ export function MainLayout({ children }: MainLayoutProps) {
           </main>
         </div>
       </div>
-      
-      <CreateTaskDialog 
-        open={isCreateTaskOpen} 
-        onOpenChange={setIsCreateTaskOpen} 
-      />
     </SidebarProvider>
   );
 }

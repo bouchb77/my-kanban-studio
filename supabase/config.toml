@@ -1,1 +1,4 @@
 project_id = "grfnbxbxcbqiddbcrdru"
+
+[functions.ics-sync]
+verify_jwt = false

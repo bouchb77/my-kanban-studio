@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
-import { Calendar as CalendarIcon, Plus, Clock, MapPin, Users } from "lucide-react";
+import { Calendar as CalendarIcon, Plus, Clock, MapPin, Users, Link, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CalendarEvent {
   id: string;
@@ -33,25 +36,87 @@ interface CalendarEvent {
 
 export function CalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const [icsUrl, setIcsUrl] = useState("");
+  const [isSyncing, setIsSyncing] = useState(false);
   const { toast } = useToast();
 
+  // Load saved ICS URL on component mount
   useEffect(() => {
-    // Simuler une vérification d'authentification
-    const checkAuth = () => {
-      // Pour le moment, on simule que l'utilisateur n'est pas connecté à Outlook
-      setIsAuthenticated(false);
-      setIsLoading(false);
-    };
-
-    checkAuth();
+    const savedUrl = localStorage.getItem('outlook-ics-url');
+    const savedEvents = localStorage.getItem('outlook-events');
+    
+    if (savedUrl) {
+      setIcsUrl(savedUrl);
+      setIsConnected(true);
+      
+      if (savedEvents) {
+        try {
+          setEvents(JSON.parse(savedEvents));
+        } catch (error) {
+          console.error('Error parsing saved events:', error);
+        }
+      }
+    }
   }, []);
 
-  const handleConnectOutlook = async () => {
+  const syncCalendar = async () => {
+    if (!icsUrl.trim()) {
+      toast({
+        title: "URL requise",
+        description: "Veuillez saisir l'URL de votre flux ICS Outlook.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSyncing(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('ics-sync', {
+        body: { icsUrl: icsUrl.trim() }
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (data?.events) {
+        setEvents(data.events);
+        setIsConnected(true);
+        
+        // Save to localStorage
+        localStorage.setItem('outlook-ics-url', icsUrl.trim());
+        localStorage.setItem('outlook-events', JSON.stringify(data.events));
+        
+        toast({
+          title: "Synchronisation réussie",
+          description: `${data.events.length} événement(s) synchronisé(s)`,
+        });
+      }
+    } catch (error) {
+      console.error('Sync error:', error);
+      toast({
+        title: "Erreur de synchronisation",
+        description: "Impossible de récupérer les données du calendrier. Vérifiez l'URL ICS.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleDisconnect = () => {
+    setIsConnected(false);
+    setEvents([]);
+    setIcsUrl("");
+    localStorage.removeItem('outlook-ics-url');
+    localStorage.removeItem('outlook-events');
+    
     toast({
-      title: "Connexion Outlook",
-      description: "La connexion à Outlook sera bientôt disponible. En attendant, vous pouvez utiliser les autres fonctionnalités de l'application.",
+      title: "Connexion fermée",
+      description: "Votre calendrier Outlook a été déconnecté.",
     });
   };
 
@@ -91,7 +156,7 @@ export function CalendarPage() {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isConnected) {
     return (
       <div className="flex-1 space-y-4 p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
@@ -103,19 +168,42 @@ export function CalendarPage() {
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
               <CalendarIcon className="h-6 w-6 text-primary" />
             </div>
-            <CardTitle>Connectez votre agenda Outlook</CardTitle>
+            <CardTitle>Connectez votre calendrier Outlook</CardTitle>
             <CardDescription>
-              Synchronisez vos événements Outlook pour une gestion centralisée de vos tâches et rendez-vous.
+              Synchronisez vos événements via le flux ICS de votre calendrier Outlook.
             </CardDescription>
           </CardHeader>
-          <CardContent className="text-center">
-            <Button onClick={handleConnectOutlook} className="w-full">
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              Connecter Outlook
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="ics-url">URL du flux ICS Outlook</Label>
+              <Input
+                id="ics-url"
+                type="url"
+                placeholder="webcal://outlook.live.com/owa/calendar/..."
+                value={icsUrl}
+                onChange={(e) => setIcsUrl(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Trouvez cette URL dans Outlook → Paramètres → Calendrier → Calendriers partagés → Publier un calendrier
+              </p>
+            </div>
+            <Button 
+              onClick={syncCalendar} 
+              className="w-full"
+              disabled={isSyncing}
+            >
+              {isSyncing ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  Synchronisation...
+                </>
+              ) : (
+                <>
+                  <Link className="mr-2 h-4 w-4" />
+                  Connecter le calendrier
+                </>
+              )}
             </Button>
-            <p className="mt-4 text-sm text-muted-foreground">
-              Vos données restent sécurisées et privées
-            </p>
           </CardContent>
         </Card>
 
@@ -123,33 +211,27 @@ export function CalendarPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CalendarIcon className="h-5 w-5" />
-              Fonctionnalités de l'agenda
+              Comment obtenir l'URL ICS ?
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <h4 className="font-medium">📅 Synchronisation automatique</h4>
-                <p className="text-sm text-muted-foreground">
-                  Vos événements Outlook apparaîtront automatiquement dans l'application
+            <div className="space-y-3 text-sm">
+              <div>
+                <strong>1. Outlook Web (outlook.live.com) :</strong>
+                <p className="text-muted-foreground ml-4">
+                  Paramètres → Calendrier → Calendriers partagés → Publier un calendrier → Copiez l'URL ICS
                 </p>
               </div>
-              <div className="space-y-2">
-                <h4 className="font-medium">🔔 Notifications</h4>
-                <p className="text-sm text-muted-foreground">
-                  Recevez des rappels pour vos rendez-vous importants
+              <div>
+                <strong>2. Outlook Desktop :</strong>
+                <p className="text-muted-foreground ml-4">
+                  Fichier → Paramètres du compte → Paramètres du compte → Onglet Internet Calendars
                 </p>
               </div>
-              <div className="space-y-2">
-                <h4 className="font-medium">🤝 Intégration avec les tâches</h4>
-                <p className="text-sm text-muted-foreground">
-                  Liez vos tâches Kanban à vos événements de calendrier
-                </p>
-              </div>
-              <div className="space-y-2">
-                <h4 className="font-medium">👥 Collaboration</h4>
-                <p className="text-sm text-muted-foreground">
-                  Partagez vos disponibilités avec votre équipe
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="text-xs">
+                  💡 <strong>Astuce :</strong> L'URL commence généralement par "webcal://" ou "https://" 
+                  et contient "outlook.live.com" ou votre domaine d'entreprise.
                 </p>
               </div>
             </div>
@@ -164,11 +246,42 @@ export function CalendarPage() {
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Agenda Outlook</h2>
         <div className="flex items-center space-x-2">
-          <Button size="sm">
-            <Plus className="mr-2 h-4 w-4" />
-            Nouveau rendez-vous
+          <Button 
+            size="sm" 
+            variant="outline"
+            onClick={syncCalendar}
+            disabled={isSyncing}
+          >
+            {isSyncing ? (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                Synchronisation...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Actualiser
+              </>
+            )}
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleDisconnect}>
+            Déconnecter
           </Button>
         </div>
+      </div>
+
+      <div className="mb-4">
+        <Card>
+          <CardContent className="py-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Link className="h-4 w-4" />
+              <span>Connecté au flux:</span>
+              <code className="text-xs bg-muted px-2 py-1 rounded">
+                {icsUrl.length > 50 ? `${icsUrl.substring(0, 50)}...` : icsUrl}
+              </code>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid gap-4">
@@ -176,10 +289,28 @@ export function CalendarPage() {
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-8">
               <CalendarIcon className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Aucun événement aujourd'hui</h3>
+              <h3 className="text-lg font-semibold mb-2">Aucun événement à venir</h3>
               <p className="text-muted-foreground text-center">
-                Vos événements Outlook apparaîtront ici une fois synchronisés.
+                Aucun événement trouvé dans les 30 prochains jours.
               </p>
+              <Button 
+                className="mt-4" 
+                variant="outline" 
+                onClick={syncCalendar}
+                disabled={isSyncing}
+              >
+                {isSyncing ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Actualisation...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Actualiser le calendrier
+                  </>
+                )}
+              </Button>
             </CardContent>
           </Card>
         ) : (
@@ -206,38 +337,13 @@ export function CalendarPage() {
                         )}
                       </div>
                     </div>
-                    {event.isOnlineMeeting && (
-                      <Badge variant="secondary">En ligne</Badge>
-                    )}
                   </div>
                 </CardHeader>
-                {(event.bodyPreview || event.attendees) && (
+                {event.bodyPreview && (
                   <CardContent>
-                    {event.bodyPreview && (
-                      <p className="text-sm text-muted-foreground mb-3">
-                        {event.bodyPreview}
-                      </p>
-                    )}
-                    {event.attendees && event.attendees.length > 0 && (
-                      <>
-                        <Separator className="mb-3" />
-                        <div className="flex items-center space-x-2">
-                          <Users className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">
-                            {event.attendees.length} participant{event.attendees.length > 1 ? 's' : ''}
-                          </span>
-                        </div>
-                      </>
-                    )}
-                    {event.onlineMeetingUrl && (
-                      <div className="mt-3">
-                        <Button variant="outline" size="sm" asChild>
-                          <a href={event.onlineMeetingUrl} target="_blank" rel="noopener noreferrer">
-                            Rejoindre la réunion
-                          </a>
-                        </Button>
-                      </div>
-                    )}
+                    <p className="text-sm text-muted-foreground">
+                      {event.bodyPreview}
+                    </p>
                   </CardContent>
                 )}
               </Card>

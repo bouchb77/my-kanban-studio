@@ -12,6 +12,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { useProjects, useProjectCollaborators, useProjectTasks } from '@/hooks/useProjects';
+import { useAuth } from '@/contexts/AuthContext';
+import { EditProjectTaskDialog } from '@/components/EditProjectTaskDialog';
 import { Project, ProjectTask } from '@/types/project';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -236,14 +238,16 @@ const CreateTaskDialog: React.FC<{ projectId: string; collaborators: any[]; onSu
   );
 };
 
-const TaskCard: React.FC<{ task: ProjectTask; onUpdate: () => void }> = ({ task, onUpdate }) => {
+const TaskCard: React.FC<{ task: ProjectTask; onUpdate: () => void; collaborators: any[]; onEdit: (task: ProjectTask) => void }> = ({ task, onUpdate, collaborators, onEdit }) => {
   const [comment, setComment] = useState('');
-  const [progress, setProgress] = useState(task.progress);
-  const { updateTask, addComment } = useProjectTasks(task.project_id);
+  const { addComment, updateAssignmentStatus } = useProjectTasks(task.project_id);
+  const { user } = useAuth();
 
-  const handleProgressUpdate = async () => {
-    await updateTask(task.id, { progress });
-    onUpdate();
+  const handleUpdateMyStatus = async (assignmentId: string, status: string, progress: number) => {
+    if (user) {
+      await updateAssignmentStatus(assignmentId, user.id, { status, progress });
+      onUpdate();
+    }
   };
 
   const handleAddComment = async (e: React.FormEvent) => {
@@ -326,25 +330,78 @@ const TaskCard: React.FC<{ task: ProjectTask; onUpdate: () => void }> = ({ task,
           )}
         </div>
 
+        {/* Affichage des assignations individuelles */}
+        {task.assignments && task.assignments.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Assignations</span>
+              <Button size="sm" variant="outline" onClick={() => onEdit(task)}>
+                Modifier
+              </Button>
+            </div>
+            
+            {task.assignments.map((assignment) => (
+              <div key={assignment.id} className="border rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <User className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">
+                      {assignment.profiles?.full_name || assignment.profiles?.email || 'Utilisateur'}
+                    </span>
+                  </div>
+                  <Badge className={`text-white border-none ${getStatusColor(assignment.status?.status || 'todo')}`}>
+                    {assignment.status?.status === 'todo' ? 'À faire' : 
+                     assignment.status?.status === 'in_progress' ? 'En cours' :
+                     assignment.status?.status === 'review' ? 'En révision' : 'Terminé'}
+                  </Badge>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Progression</span>
+                    <span className="text-xs text-muted-foreground">{assignment.status?.progress || 0}%</span>
+                  </div>
+                  <Progress value={assignment.status?.progress || 0} className="h-1" />
+                  
+                  {user && assignment.user_id === user.id && (
+                    <div className="flex items-center space-x-2 pt-2">
+                      <Select 
+                        value={assignment.status?.status || 'todo'} 
+                        onValueChange={(status) => handleUpdateMyStatus(assignment.id, status, assignment.status?.progress || 0)}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todo">À faire</SelectItem>
+                          <SelectItem value="in_progress">En cours</SelectItem>
+                          <SelectItem value="review">En révision</SelectItem>
+                          <SelectItem value="done">Terminé</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={assignment.status?.progress || 0}
+                        onChange={(e) => handleUpdateMyStatus(assignment.id, assignment.status?.status || 'todo', Number(e.target.value))}
+                        className="w-16 h-8 text-xs"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Progression globale de la tâche */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Progression</span>
-            <span className="text-sm text-muted-foreground">{progress}%</span>
+            <span className="text-sm font-medium">Progression globale</span>
+            <span className="text-sm text-muted-foreground">{task.progress}%</span>
           </div>
-          <Progress value={progress} className="h-2" />
-          <div className="flex items-center space-x-2">
-            <Input
-              type="number"
-              min="0"
-              max="100"
-              value={progress}
-              onChange={(e) => setProgress(Number(e.target.value))}
-              className="w-20"
-            />
-            <Button size="sm" onClick={handleProgressUpdate}>
-              Mettre à jour
-            </Button>
-          </div>
+          <Progress value={task.progress} className="h-2" />
         </div>
 
         {task.comments && task.comments.length > 0 && (
@@ -389,6 +446,13 @@ const ProjectDetailPage: React.FC = () => {
   const { projects } = useProjects();
   const { collaborators } = useProjectCollaborators(id || '');
   const { tasks, refetch: refetchTasks } = useProjectTasks(id || '');
+  const [editingTask, setEditingTask] = useState<ProjectTask | null>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+
+  const handleEditTask = (task: ProjectTask) => {
+    setEditingTask(task);
+    setShowEditDialog(true);
+  };
 
   const project = projects.find(p => p.id === id);
 
@@ -472,7 +536,13 @@ const ProjectDetailPage: React.FC = () => {
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {tasks.map((task) => (
-                <TaskCard key={task.id} task={task} onUpdate={refetchTasks} />
+                <TaskCard 
+                  key={task.id} 
+                  task={task} 
+                  onUpdate={refetchTasks} 
+                  collaborators={collaborators}
+                  onEdit={handleEditTask}
+                />
               ))}
             </div>
           )}
@@ -519,6 +589,14 @@ const ProjectDetailPage: React.FC = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      <EditProjectTaskDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        task={editingTask}
+        collaborators={collaborators}
+        onSuccess={refetchTasks}
+      />
     </div>
   );
 };

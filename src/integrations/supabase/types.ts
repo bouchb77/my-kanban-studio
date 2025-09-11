@@ -100,6 +100,44 @@ export type Database = {
           },
         ]
       }
+      project_task_assignment_status: {
+        Row: {
+          assignment_id: string
+          created_at: string
+          id: string
+          progress: number
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assignment_id: string
+          created_at?: string
+          id?: string
+          progress?: number
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assignment_id?: string
+          created_at?: string
+          id?: string
+          progress?: number
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_task_assignment_status_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "project_task_assignments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_task_assignments: {
         Row: {
           assigned_at: string

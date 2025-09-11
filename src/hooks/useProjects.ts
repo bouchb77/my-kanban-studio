@@ -316,6 +316,17 @@ export const useProjectTasks = (projectId: string) => {
         console.warn('Could not load assignments:', assignmentsError);
       }
 
+      // Récupérer les statuts d'assignation
+      const assignmentIds = assignmentsData?.map(a => a.id) || [];
+      const { data: assignmentStatusData, error: assignmentStatusError } = await supabase
+        .from('project_task_assignment_status')
+        .select('*')
+        .in('assignment_id', assignmentIds);
+
+      if (assignmentStatusError) {
+        console.warn('Could not load assignment status:', assignmentStatusError);
+      }
+
       // Récupérer les commentaires
       const { data: commentsData, error: commentsError } = await supabase
         .from('project_task_comments')
@@ -346,7 +357,8 @@ export const useProjectTasks = (projectId: string) => {
         ...task,
         assignments: assignmentsData?.filter(a => a.task_id === task.id).map(assignment => ({
           ...assignment,
-          profiles: profilesData?.find(p => p.id === assignment.user_id)
+          profiles: profilesData?.find(p => p.id === assignment.user_id),
+          status: assignmentStatusData?.find(s => s.assignment_id === assignment.id && s.user_id === assignment.user_id)
         })) || [],
         comments: commentsData?.filter(c => c.task_id === task.id).map(comment => ({
           ...comment,
@@ -462,11 +474,26 @@ export const useProjectTasks = (projectId: string) => {
           user_id: userId
         }));
 
-        const { error } = await supabase
+        const { data: insertedAssignments, error } = await supabase
           .from('project_task_assignments')
-          .insert(assignments);
+          .insert(assignments)
+          .select();
 
         if (error) throw error;
+
+        // Create default status for each assignment
+        if (insertedAssignments) {
+          const statusEntries = insertedAssignments.map(assignment => ({
+            assignment_id: assignment.id,
+            user_id: assignment.user_id,
+            status: 'todo' as const,
+            progress: 0
+          }));
+
+          await supabase
+            .from('project_task_assignment_status')
+            .insert(statusEntries);
+        }
       }
 
       await loadTasks();
@@ -484,6 +511,35 @@ export const useProjectTasks = (projectId: string) => {
     }
   };
 
+  const updateAssignmentStatus = async (assignmentId: string, userId: string, updates: { status?: string; progress?: number }) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('project_task_assignment_status')
+        .upsert({
+          assignment_id: assignmentId,
+          user_id: userId,
+          ...updates
+        });
+
+      if (error) throw error;
+
+      await loadTasks();
+      toast({
+        title: "Succès",
+        description: "Statut mis à jour",
+      });
+    } catch (error) {
+      console.error('Error updating assignment status:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de mettre à jour le statut",
+        variant: "destructive",
+      });
+    }
+  };
+
   useEffect(() => {
     loadTasks();
   }, [projectId]);
@@ -495,6 +551,7 @@ export const useProjectTasks = (projectId: string) => {
     updateTask,
     addComment,
     assignTask,
+    updateAssignmentStatus,
     refetch: loadTasks
   };
 };

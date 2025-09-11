@@ -50,6 +50,17 @@ export interface ProjectTaskAssignment {
     full_name?: string;
     email?: string;
   };
+  status?: ProjectTaskAssignmentStatus;
+}
+
+export interface ProjectTaskAssignmentStatus {
+  id: string;
+  assignment_id: string;
+  user_id: string;
+  status: 'todo' | 'in_progress' | 'review' | 'done';
+  progress: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ProjectTaskComment {

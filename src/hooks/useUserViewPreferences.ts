@@ -23,6 +23,7 @@ export const useUserViewPreferences = (viewType: 'table' | 'kanban' = 'table') =
       const { data, error } = await supabase
         .from('user_view_preferences')
         .select('*')
+        .eq('user_id', user.id)
         .eq('view_type', viewType)
         .single();
       

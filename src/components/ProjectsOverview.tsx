@@ -75,7 +75,10 @@ export const ProjectsOverview: React.FC = () => {
               };
             }
 
-            // Filtrer les tâches selon le statut personnel de l'utilisateur
+            // Filtrer les tâches selon le statut personnel de l'utilisateur et les dates
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Normaliser à minuit pour comparaison
+
             const userTasks = userAssignments
               .map(assignment => {
                 const task = assignment.project_tasks;
@@ -84,12 +87,26 @@ export const ProjectsOverview: React.FC = () => {
               })
               .filter(task => task.userStatus !== 'done'); // Exclure les tâches terminées par l'utilisateur
 
-            const currentTasks = userTasks.filter(task => 
-              task.userStatus === 'in_progress' || task.userStatus === 'todo'
-            );
+            // Tâches en cours = tâches où aujourd'hui est entre start_date et end_date
+            const currentTasks = userTasks.filter(task => {
+              if (!task.start_date || !task.end_date) return false;
+              
+              const startDate = new Date(task.start_date);
+              const endDate = new Date(task.end_date);
+              startDate.setHours(0, 0, 0, 0);
+              endDate.setHours(23, 59, 59, 999);
+              
+              return today >= startDate && today <= endDate;
+            });
 
+            // Prochaine tâche = tâche à venir (start_date > aujourd'hui) avec le status todo
             const nextTask = userTasks
-              .filter(task => task.userStatus === 'todo')
+              .filter(task => {
+                if (!task.start_date || task.userStatus !== 'todo') return false;
+                const startDate = new Date(task.start_date);
+                startDate.setHours(0, 0, 0, 0);
+                return startDate > today;
+              })
               .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())[0] || null;
 
             // Calculer la progression basée sur les tâches de l'utilisateur
@@ -213,7 +230,7 @@ export const ProjectsOverview: React.FC = () => {
                             <div className="text-muted-foreground flex items-center justify-between">
                               <span>Priorité: {task.priority === 'high' ? '🔴' : task.priority === 'medium' ? '🟡' : '🔵'}</span>
                               <span className="text-xs">
-                                {task.userStatus === 'in_progress' ? 'En cours' : 'À faire'}
+                                Période active
                               </span>
                             </div>
                           </div>

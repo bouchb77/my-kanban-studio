@@ -19,8 +19,9 @@ import { format, parseISO, differenceInDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { EditProjectTaskDialog } from '@/components/EditProjectTaskDialog';
 import { InviteCollaboratorDialog } from '@/components/InviteCollaboratorDialog';
+import { ViewProjectTaskDialog } from '@/components/ViewProjectTaskDialog';
 
-const GanttChart: React.FC<{ tasks: ProjectTask[] }> = ({ tasks }) => {
+const GanttChart: React.FC<{ tasks: ProjectTask[]; onTaskClick: (task: ProjectTask) => void }> = ({ tasks, onTaskClick }) => {
   if (tasks.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -99,7 +100,10 @@ const GanttChart: React.FC<{ tasks: ProjectTask[] }> = ({ tasks }) => {
                 </div>
               </div>
               
-              <div className="flex-1 relative h-8 bg-muted rounded">
+              <div 
+                className="flex-1 relative h-8 bg-muted rounded cursor-pointer hover:opacity-80"
+                onClick={() => onTaskClick(task)}
+              >
                 <div
                   className={`absolute top-1 bottom-1 rounded ${getStatusColor(task)} flex items-center`}
                   style={position}
@@ -560,6 +564,8 @@ const ProjectDetailPage: React.FC = () => {
   const [editingTask, setEditingTask] = useState<ProjectTask | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const [viewingTask, setViewingTask] = useState<ProjectTask | null>(null);
+  const [showViewDialog, setShowViewDialog] = useState(false);
 
   const handleEditTask = (task: ProjectTask) => {
     setEditingTask(task);
@@ -568,6 +574,11 @@ const ProjectDetailPage: React.FC = () => {
 
   const handleInviteCollaborator = () => {
     setShowInviteDialog(true);
+  };
+
+  const handleViewTask = (task: ProjectTask) => {
+    setViewingTask(task);
+    setShowViewDialog(true);
   };
 
   const project = projects.find(p => p.id === id);
@@ -670,7 +681,7 @@ const ProjectDetailPage: React.FC = () => {
           <h2 className="text-xl font-semibold">Diagramme de Gantt</h2>
           <Card>
             <CardContent className="p-6">
-              <GanttChart tasks={tasks} />
+              <GanttChart tasks={tasks} onTaskClick={handleViewTask} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -721,6 +732,12 @@ const ProjectDetailPage: React.FC = () => {
         onOpenChange={setShowInviteDialog}
         projectId={project.id}
         onSuccess={refetchCollaborators}
+      />
+
+      <ViewProjectTaskDialog
+        open={showViewDialog}
+        onOpenChange={setShowViewDialog}
+        task={viewingTask}
       />
     </div>
   );

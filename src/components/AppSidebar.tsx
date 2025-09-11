@@ -49,8 +49,8 @@ export function AppSidebar() {
         {/* Header with logo */}
         <div className="p-4 border-b border-sidebar-border">
           <div className="flex items-center gap-3">
-            <div className="flex-shrink-0 w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-              <CheckSquare className="w-5 h-5 text-primary-foreground" />
+            <div className="flex-shrink-0 w-8 h-8 rounded-lg overflow-hidden">
+              <img src="/lovable-uploads/ada61702-74b1-4eb4-b110-1b1f2897a2d4.png" alt="TaskFlow Logo" className="w-full h-full object-contain" />
             </div>
             {!collapsed && (
               <div>

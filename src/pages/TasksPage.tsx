@@ -62,8 +62,6 @@ const TasksPage = () => {
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [isEditTaskOpen, setIsEditTaskOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [localVisibleColumns, setLocalVisibleColumns] = useState<string[] | null>(null);
-  const [localColumnOrder, setLocalColumnOrder] = useState<string[] | null>(null);
   const [dueFilter, setDueFilter] = useState<'all' | 'overdue' | 'today' | 'this_week' | 'no_due'>('all');
   const { toast } = useToast();
   const { user } = useAuth();
@@ -72,11 +70,6 @@ const TasksPage = () => {
   const { preferences } = useUserViewPreferences('table');
   const { categories } = useUserCategories();
 
-  useEffect(() => {
-    // When server preferences change, clear local overrides to reflect saved state
-    setLocalVisibleColumns(null);
-    setLocalColumnOrder(null);
-  }, [preferences?.visible_columns, preferences?.column_order]);
 
 // Available columns for dynamic table rendering  
 const systemColumns = [
@@ -104,7 +97,6 @@ const systemColumns = [
 
   // Get visible columns with defaults
   const getVisibleColumns = () => {
-    if (localVisibleColumns) return localVisibleColumns;
     if (preferences?.visible_columns && preferences.visible_columns.length > 0) {
       return preferences.visible_columns.filter(id => 
         allAvailableColumns.find(col => col.id === id)
@@ -117,7 +109,6 @@ const systemColumns = [
 
   // Get column order with defaults
   const getColumnOrder = () => {
-    if (localColumnOrder) return localColumnOrder;
     if (preferences?.column_order && preferences.column_order.length > 0) {
       return preferences.column_order.filter(id => 
         allAvailableColumns.find(col => col.id === id)
@@ -706,10 +697,7 @@ const mapDbTask = (row: any): Task => ({
             <Plus className="w-4 h-4 mr-2" />
             Nouvelle tâche
           </Button>
-          <ColumnManager 
-            onVisibleColumnsChange={setLocalVisibleColumns}
-            onColumnOrderChange={setLocalColumnOrder}
-          />
+          <ColumnManager />
         </div>
       </div>
 

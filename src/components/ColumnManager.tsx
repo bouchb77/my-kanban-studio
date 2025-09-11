@@ -31,12 +31,9 @@ const SYSTEM_COLUMNS: ColumnDefinition[] = [
   { id: 'actions', label: 'Actions', type: 'system', required: true, order: 100 },
 ];
 
-interface ColumnManagerProps {
-  onColumnOrderChange?: (columnOrder: string[]) => void;
-  onVisibleColumnsChange?: (visibleColumns: string[]) => void;
-}
+interface ColumnManagerProps {}
 
-export function ColumnManager({ onColumnOrderChange, onVisibleColumnsChange }: ColumnManagerProps) {
+export function ColumnManager({}: ColumnManagerProps) {
   const [open, setOpen] = useState(false);
   const { customFields } = useUserCustomFields();
   const { preferences, toggleColumnVisibility, reorderColumns } = useUserViewPreferences('table');
@@ -90,10 +87,9 @@ export function ColumnManager({ onColumnOrderChange, onVisibleColumnsChange }: C
         ? localVisible.filter(id => id !== columnId)
         : [...localVisible, columnId];
       setLocalVisible(next);
-      onVisibleColumnsChange?.(next);
       await toggleColumnVisibility(columnId);
     } catch (error) {
-      // ignore
+      console.error('Error toggling column visibility:', error);
     }
   };
 
@@ -103,10 +99,9 @@ export function ColumnManager({ onColumnOrderChange, onVisibleColumnsChange }: C
       const nonVisible = localOrder.filter(id => !localVisible.includes(id));
       const finalOrder = [...newVisibleOrder, ...nonVisible];
       setLocalOrder(finalOrder);
-      onColumnOrderChange?.(finalOrder);
       await reorderColumns(finalOrder);
     } catch (error) {
-      // ignore
+      console.error('Error reordering columns:', error);
     }
   };
 

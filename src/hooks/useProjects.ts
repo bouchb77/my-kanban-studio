@@ -15,17 +15,10 @@ export const useProjects = () => {
 
     try {
       console.log('Loading projects for user:', user.id);
-      // Récupérer les projets avec les informations du propriétaire
+      // Récupérer d'abord les projets
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
-        .select(`
-          *,
-          profiles!projects_owner_id_fkey(
-            id,
-            full_name,
-            email
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (projectsError) {
@@ -33,8 +26,31 @@ export const useProjects = () => {
         throw projectsError;
       }
       
-      console.log('Projects loaded:', projectsData?.length || 0);
-      setProjects(projectsData as Project[] || []);
+      if (!projectsData || projectsData.length === 0) {
+        console.log('No projects found');
+        setProjects([]);
+        return;
+      }
+
+      // Récupérer les profils des propriétaires
+      const ownerIds = [...new Set(projectsData.map(p => p.owner_id))];
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', ownerIds);
+
+      if (profilesError) {
+        console.warn('Could not load owner profiles:', profilesError);
+      }
+
+      // Combiner les données
+      const projectsWithOwners = projectsData.map(project => ({
+        ...project,
+        profiles: profilesData?.find(profile => profile.id === project.owner_id)
+      }));
+      
+      console.log('Projects loaded:', projectsWithOwners.length);
+      setProjects(projectsWithOwners as Project[] || []);
     } catch (error) {
       console.error('Error loading projects:', error);
       toast({

@@ -87,6 +87,13 @@ const GanttChart: React.FC<{ tasks: ProjectTask[] }> = ({ tasks }) => {
             <div key={task.id} className="flex items-center space-x-4">
               <div className="w-48 text-sm font-medium truncate">
                 {task.title}
+                {task.assignments && task.assignments.length > 0 && (
+                  <div className="text-xs text-blue-600 font-medium">
+                    {task.assignments.map(assignment => 
+                      assignment.profiles?.full_name || assignment.profiles?.email || 'Utilisateur'
+                    ).join(', ')}
+                  </div>
+                )}
                 <div className="text-xs text-muted-foreground">
                   {format(new Date(task.start_date), 'dd/MM', { locale: fr })} - {format(new Date(task.end_date), 'dd/MM', { locale: fr })}
                 </div>

@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -106,13 +107,13 @@ const CreateTaskDialog: React.FC<{ projectId: string; collaborators: any[]; onSu
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [status, setStatus] = useState<'todo' | 'in_progress' | 'review' | 'done'>('todo');
   const [assignees, setAssignees] = useState<string[]>([]);
-  const { createTask } = useProjectTasks(projectId);
+  const { createTask, assignTask } = useProjectTasks(projectId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !startDate || !endDate) return;
 
-    const success = await createTask({
+    const newTask = await createTask({
       project_id: projectId,
       title,
       description: description.trim() || undefined,
@@ -124,7 +125,11 @@ const CreateTaskDialog: React.FC<{ projectId: string; collaborators: any[]; onSu
       dependencies: []
     });
 
-    if (success) {
+    if (newTask && assignees.length > 0) {
+      await assignTask(newTask.id, assignees);
+    }
+
+    if (newTask) {
       setOpen(false);
       setTitle('');
       setDescription('');
@@ -135,6 +140,14 @@ const CreateTaskDialog: React.FC<{ projectId: string; collaborators: any[]; onSu
       setAssignees([]);
       onSuccess();
     }
+  };
+
+  const toggleAssignment = (userId: string) => {
+    setAssignees(prev => 
+      prev.includes(userId) 
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
   };
 
   return (
@@ -224,6 +237,24 @@ const CreateTaskDialog: React.FC<{ projectId: string; collaborators: any[]; onSu
                   <SelectItem value="done">Terminé</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+
+          <div>
+            <Label>Assignés</Label>
+            <div className="space-y-2 mt-2 max-h-32 overflow-y-auto">
+              {collaborators.map((collaborator) => (
+                <div key={collaborator.id} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`assignee-${collaborator.user_id}`}
+                    checked={assignees.includes(collaborator.user_id)}
+                    onCheckedChange={() => toggleAssignment(collaborator.user_id)}
+                  />
+                  <Label htmlFor={`assignee-${collaborator.user_id}`} className="text-sm">
+                    {collaborator.profiles?.full_name || collaborator.profiles?.email || 'Utilisateur'}
+                  </Label>
+                </div>
+              ))}
             </div>
           </div>
 

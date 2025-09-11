@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useProjectCollaborators } from '@/hooks/useProjects';
+import { useUsers } from '@/hooks/useUsers';
 
 interface InviteCollaboratorDialogProps {
   open: boolean;
@@ -19,17 +19,21 @@ export const InviteCollaboratorDialog: React.FC<InviteCollaboratorDialogProps> =
   projectId,
   onSuccess
 }) => {
-  const [email, setEmail] = useState('');
+  const [selectedUserId, setSelectedUserId] = useState('');
   const [role, setRole] = useState<'admin' | 'member' | 'viewer'>('member');
   const { inviteCollaborator } = useProjectCollaborators(projectId);
+  const { users, loading } = useUsers();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) return;
+    if (!selectedUserId) return;
+
+    const selectedUser = users.find(u => u.id === selectedUserId);
+    if (!selectedUser) return;
 
     try {
-      await inviteCollaborator(email.trim(), role);
-      setEmail('');
+      await inviteCollaborator(selectedUser.email, role);
+      setSelectedUserId('');
       setRole('member');
       onOpenChange(false);
       onSuccess();
@@ -46,15 +50,19 @@ export const InviteCollaboratorDialog: React.FC<InviteCollaboratorDialogProps> =
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="email">Adresse email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="collaborateur@example.com"
-              required
-            />
+            <Label htmlFor="user">Utilisateur</Label>
+            <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner un utilisateur" />
+              </SelectTrigger>
+              <SelectContent>
+                {users.map((user) => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {user.full_name || user.email} - {user.email}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           
           <div>

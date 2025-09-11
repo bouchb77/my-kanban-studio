@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Users, Settings, Clock } from 'lucide-react';
+import { Calendar, Users, Settings, Clock, User } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -74,16 +74,25 @@ const ProjectCard: React.FC<{ project: any; onEdit: (project: Project) => void }
           </div>
         </div>
 
-        {(project.start_date || project.end_date) && (
-          <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-2">
-            <Calendar className="w-4 h-4" />
+        <div className="space-y-2">
+          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+            <User className="w-4 h-4" />
             <span>
-              {project.start_date && format(new Date(project.start_date), 'dd MMM', { locale: fr })}
-              {project.start_date && project.end_date && ' - '}
-              {project.end_date && format(new Date(project.end_date), 'dd MMM yyyy', { locale: fr })}
+              {project.profiles?.full_name || project.profiles?.email || 'Utilisateur inconnu'}
             </span>
           </div>
-        )}
+
+          {(project.start_date || project.end_date) && (
+            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+              <Calendar className="w-4 h-4" />
+              <span>
+                {project.start_date && format(new Date(project.start_date), 'dd MMM', { locale: fr })}
+                {project.start_date && project.end_date && ' - '}
+                {project.end_date && format(new Date(project.end_date), 'dd MMM yyyy', { locale: fr })}
+              </span>
+            </div>
+          )}
+        </div>
 
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>

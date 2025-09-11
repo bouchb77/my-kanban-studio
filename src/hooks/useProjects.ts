@@ -15,10 +15,17 @@ export const useProjects = () => {
 
     try {
       console.log('Loading projects for user:', user.id);
-      // Récupérer d'abord les projets sans les collaborateurs
+      // Récupérer les projets avec les informations du propriétaire
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
-        .select('*')
+        .select(`
+          *,
+          profiles!projects_owner_id_fkey(
+            id,
+            full_name,
+            email
+          )
+        `)
         .order('created_at', { ascending: false });
 
       if (projectsError) {

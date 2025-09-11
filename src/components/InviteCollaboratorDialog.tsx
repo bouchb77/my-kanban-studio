@@ -21,14 +21,19 @@ export const InviteCollaboratorDialog: React.FC<InviteCollaboratorDialogProps> =
 }) => {
   const [selectedUserId, setSelectedUserId] = useState('');
   const [role, setRole] = useState<'admin' | 'member' | 'viewer'>('member');
-  const { inviteCollaborator } = useProjectCollaborators(projectId);
+  const { inviteCollaborator, collaborators } = useProjectCollaborators(projectId);
   const { users, loading } = useUsers();
+
+  // Filter out users who are already collaborators
+  const availableUsers = users.filter(user => 
+    !collaborators.some(collaborator => collaborator.user_id === user.id)
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedUserId) return;
 
-    const selectedUser = users.find(u => u.id === selectedUserId);
+    const selectedUser = availableUsers.find(u => u.id === selectedUserId);
     if (!selectedUser) return;
 
     try {
@@ -56,11 +61,18 @@ export const InviteCollaboratorDialog: React.FC<InviteCollaboratorDialogProps> =
                 <SelectValue placeholder="Sélectionner un utilisateur" />
               </SelectTrigger>
               <SelectContent>
-                {users.map((user) => (
-                  <SelectItem key={user.id} value={user.id}>
-                    {user.full_name || user.email} - {user.email}
-                  </SelectItem>
-                ))}
+                {availableUsers.length === 0 ? (
+                  <div className="p-2 text-sm text-muted-foreground">
+                    Aucun utilisateur disponible à inviter
+                  </div>
+                ) : (
+                  availableUsers.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.full_name || user.email}
+                      {user.full_name && <span className="text-muted-foreground ml-2">({user.email})</span>}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -83,7 +95,9 @@ export const InviteCollaboratorDialog: React.FC<InviteCollaboratorDialogProps> =
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Annuler
             </Button>
-            <Button type="submit">Inviter</Button>
+            <Button type="submit" disabled={!selectedUserId || availableUsers.length === 0}>
+              Inviter
+            </Button>
           </div>
         </form>
       </DialogContent>

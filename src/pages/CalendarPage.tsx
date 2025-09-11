@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, addMonths, subMonths } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface CalendarEvent {
   id: string;
@@ -48,41 +49,66 @@ export function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const { toast } = useToast();
+  const { user } = useAuth();
 
-  // Load saved ICS URL on component mount
+  // Load saved ICS URL from database on component mount and auto-sync
   useEffect(() => {
-    const savedUrl = localStorage.getItem('outlook-ics-url');
-    const savedEvents = localStorage.getItem('outlook-events');
+    if (user) {
+      loadUserCalendarSettings();
+    }
+  }, [user]);
+
+  const loadUserCalendarSettings = async () => {
+    if (!user) return;
     
-    if (savedUrl) {
-      setIcsUrl(savedUrl);
-      setIsConnected(true);
-      
-      if (savedEvents) {
-        try {
-          setEvents(JSON.parse(savedEvents));
-        } catch (error) {
-          console.error('Error parsing saved events:', error);
-        }
+    try {
+      const { data, error } = await supabase
+        .from('user_calendar_settings')
+        .select('ics_url')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+        console.error('Error loading calendar settings:', error);
+        return;
       }
-    }
-  }, []);
 
-  const syncCalendar = async () => {
-    if (!icsUrl.trim()) {
-      toast({
-        title: "URL requise",
-        description: "Veuillez saisir l'URL de votre flux ICS Outlook.",
-        variant: "destructive"
-      });
-      return;
+      if (data?.ics_url) {
+        setIcsUrl(data.ics_url);
+        setIsConnected(true);
+        // Auto-sync when loading the page
+        await syncCalendarWithUrl(data.ics_url);
+      }
+    } catch (error) {
+      console.error('Error loading user calendar settings:', error);
     }
+  };
 
+  const saveUserCalendarSettings = async (url: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('user_calendar_settings')
+        .upsert({
+          user_id: user.id,
+          ics_url: url
+        });
+
+      if (error) {
+        console.error('Error saving calendar settings:', error);
+      }
+    } catch (error) {
+      console.error('Error saving user calendar settings:', error);
+    }
+  };
+
+  const syncCalendarWithUrl = async (url: string) => {
     setIsSyncing(true);
     
     try {
       const { data, error } = await supabase.functions.invoke('ics-sync', {
-        body: { icsUrl: icsUrl.trim() }
+        body: { icsUrl: url }
       });
 
       if (error) {
@@ -92,10 +118,6 @@ export function CalendarPage() {
       if (data?.events) {
         setEvents(data.events);
         setIsConnected(true);
-        
-        // Save to localStorage
-        localStorage.setItem('outlook-ics-url', icsUrl.trim());
-        localStorage.setItem('outlook-events', JSON.stringify(data.events));
         
         toast({
           title: "Synchronisation réussie",
@@ -114,17 +136,55 @@ export function CalendarPage() {
     }
   };
 
-  const handleDisconnect = () => {
-    setIsConnected(false);
-    setEvents([]);
-    setIcsUrl("");
-    localStorage.removeItem('outlook-ics-url');
-    localStorage.removeItem('outlook-events');
-    
-    toast({
-      title: "Connexion fermée",
-      description: "Votre calendrier Outlook a été déconnecté.",
-    });
+  const syncCalendar = async () => {
+    if (!icsUrl.trim()) {
+      toast({
+        title: "URL requise",
+        description: "Veuillez saisir l'URL de votre flux ICS Outlook.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!user) {
+      toast({
+        title: "Connexion requise",
+        description: "Vous devez être connecté pour sauvegarder vos paramètres.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const trimmedUrl = icsUrl.trim();
+    await saveUserCalendarSettings(trimmedUrl);
+    await syncCalendarWithUrl(trimmedUrl);
+  };
+
+  const handleDisconnect = async () => {
+    if (!user) return;
+
+    try {
+      await supabase
+        .from('user_calendar_settings')
+        .delete()
+        .eq('user_id', user.id);
+
+      setIsConnected(false);
+      setEvents([]);
+      setIcsUrl("");
+      
+      toast({
+        title: "Connexion fermée",
+        description: "Votre calendrier Outlook a été déconnecté.",
+      });
+    } catch (error) {
+      console.error('Error disconnecting calendar:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de déconnecter le calendrier.",
+        variant: "destructive"
+      });
+    }
   };
 
   const formatDateTime = (dateTimeString: string) => {

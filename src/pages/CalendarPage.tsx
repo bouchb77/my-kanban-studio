@@ -37,7 +37,6 @@ interface CalendarEvent {
   isOnlineMeeting?: boolean;
   onlineMeetingUrl?: string;
   categories?: string[];
-  debugCategoriesProps?: { prop: string; value: string }[];
 }
 
 export function CalendarPage() {
@@ -479,17 +478,10 @@ export function CalendarPage() {
                             {event.location.displayName}
                           </div>
                         )}
-                        {event.categories && event.categories.length > 0 ? (
-                          <div className="text-xs">
-                            <span className="text-muted-foreground">Catégories: </span>
-                            {event.categories.join(', ')}
-                          </div>
-                        ) : (
-                          <div className="text-xs text-muted-foreground">Aucune catégorie depuis ICS</div>
-                        )}
-                        {event.debugCategoriesProps && event.debugCategoriesProps.length > 0 && (
-                          <div className="text-[10px] text-muted-foreground">
-                            Debug ICS: {event.debugCategoriesProps.map((p) => `${p.prop}=${p.value}`).join(' | ')}
+                        {event.categories && event.categories.length > 0 && (
+                          <div className="text-xs bg-muted/50 px-2 py-1 rounded inline-flex items-center gap-1">
+                            <span>📂</span>
+                            <span>{event.categories.join(', ')}</span>
                           </div>
                         )}
                         {event.bodyPreview && (

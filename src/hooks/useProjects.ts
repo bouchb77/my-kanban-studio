@@ -559,6 +559,43 @@ export const useProjectTasks = (projectId: string) => {
     }
   };
 
+  const deleteTask = async (taskId: string) => {
+    try {
+      const { data, error } = await supabase
+        .rpc('delete_project_task', { task_uuid: taskId });
+
+      if (error) throw error;
+      if (!data) {
+        throw new Error('Vous n\'avez pas les droits pour supprimer cette tâche');
+      }
+
+      await loadTasks();
+      return true;
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      throw error;
+    }
+  };
+
+  const checkIsProjectAdmin = async (projectId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return false;
+
+      const { data, error } = await supabase
+        .rpc('user_is_project_admin', { 
+          project_uuid: projectId, 
+          user_uuid: user.id 
+        });
+
+      if (error) throw error;
+      return data || false;
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      return false;
+    }
+  };
+
   useEffect(() => {
     loadTasks();
   }, [projectId]);
@@ -571,6 +608,8 @@ export const useProjectTasks = (projectId: string) => {
     addComment,
     assignTask,
     updateAssignmentStatus,
+    deleteTask,
+    checkIsProjectAdmin,
     refetch: loadTasks
   };
 };

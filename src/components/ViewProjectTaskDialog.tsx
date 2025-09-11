@@ -1,20 +1,64 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Calendar, Clock, User, Flag, Users, CheckCircle } from "lucide-react";
+import { Calendar, Clock, User, Flag, Users, CheckCircle, Trash2 } from "lucide-react";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { ProjectTask } from "@/types/project";
+import { useProjectTasks } from "@/hooks/useProjects";
+import { toast } from "@/hooks/use-toast";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface ViewProjectTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   task: ProjectTask | null;
+  onTaskDeleted?: () => void;
 }
 
-export function ViewProjectTaskDialog({ open, onOpenChange, task }: ViewProjectTaskDialogProps) {
+export function ViewProjectTaskDialog({ open, onOpenChange, task, onTaskDeleted }: ViewProjectTaskDialogProps) {
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { deleteTask, checkIsProjectAdmin } = useProjectTasks(task?.project_id || '');
+
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (task?.project_id) {
+        const adminStatus = await checkIsProjectAdmin(task.project_id);
+        setIsAdmin(adminStatus);
+      }
+    };
+    checkAdminStatus();
+  }, [task?.project_id, checkIsProjectAdmin]);
+
+  const handleDeleteTask = async () => {
+    if (!task) return;
+    
+    setIsDeleting(true);
+    try {
+      await deleteTask(task.id);
+      toast({
+        title: "Tâche supprimée",
+        description: "La tâche a été supprimée avec succès.",
+      });
+      setShowDeleteDialog(false);
+      onOpenChange(false);
+      onTaskDeleted?.();
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer la tâche. Vous n'avez peut-être pas les droits nécessaires.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
   if (!task) {
     return null;
   }
@@ -57,6 +101,17 @@ export function ViewProjectTaskDialog({ open, onOpenChange, task }: ViewProjectT
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <span>Détails de la tâche</span>
+            {isAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDeleteDialog(true)}
+                className="text-destructive hover:text-destructive"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Supprimer
+              </Button>
+            )}
           </DialogTitle>
         </DialogHeader>
         
@@ -240,6 +295,27 @@ export function ViewProjectTaskDialog({ open, onOpenChange, task }: ViewProjectT
           </div>
         </div>
       </DialogContent>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer la tâche</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer cette tâche ? Cette action est irréversible et supprimera également tous les commentaires et assignations liés à cette tâche.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Annuler</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteTask}
+              disabled={isDeleting}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Suppression...' : 'Supprimer'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

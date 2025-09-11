@@ -1,17 +1,15 @@
 import React, { useState } from 'react';
-import { Plus, Users, Calendar, Clock, Settings } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useProjects } from '@/hooks/useProjects';
 import { useNavigate } from 'react-router-dom';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Calendar, Users, Settings, Clock } from 'lucide-react';
+import { useProjects } from '@/hooks/useProjects';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { Project } from '@/types/project';
+import { EditProjectDialog } from '@/components/EditProjectDialog';
+import { CreateProjectTrigger } from '@/components/CreateProjectDialog';
 
 const statusLabels = {
   planning: { label: 'Planification', color: 'bg-blue-500' },
@@ -21,150 +19,14 @@ const statusLabels = {
   cancelled: { label: 'Annulé', color: 'bg-red-500' },
 };
 
-const CreateProjectDialog: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [status, setStatus] = useState<'planning' | 'active' | 'on_hold' | 'completed' | 'cancelled'>('planning');
-  const [color, setColor] = useState('#3b82f6');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const { createProject } = useProjects();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) return;
-
-    const success = await createProject({
-      name,
-      description: description.trim() || undefined,
-      status,
-      color,
-      start_date: startDate || undefined,
-      end_date: endDate || undefined,
-    });
-
-    if (success) {
-      setOpen(false);
-      setName('');
-      setDescription('');
-      setStatus('planning');
-      setColor('#3b82f6');
-      setStartDate('');
-      setEndDate('');
-      onSuccess();
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="w-4 h-4 mr-2" />
-          Nouveau projet
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Créer un nouveau projet</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="name">Nom du projet</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Mon nouveau projet"
-              required
-            />
-          </div>
-          
-          <div>
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Description du projet..."
-              rows={3}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="status">Statut</Label>
-              <Select value={status} onValueChange={(value: any) => setStatus(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(statusLabels).map(([key, { label }]) => (
-                    <SelectItem key={key} value={key}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="color">Couleur</Label>
-              <div className="flex items-center space-x-2">
-                <Input
-                  id="color"
-                  type="color"
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                  className="w-12 h-9 p-1 border rounded"
-                />
-                <Input
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                  placeholder="#3b82f6"
-                  className="flex-1"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="startDate">Date de début</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="endDate">Date de fin</Label>
-              <Input
-                id="endDate"
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end space-x-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Annuler
-            </Button>
-            <Button type="submit">Créer</Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-const ProjectCard: React.FC<{ project: any }> = ({ project }) => {
+const ProjectCard: React.FC<{ project: any; onEdit: (project: Project) => void }> = ({ project, onEdit }) => {
   const navigate = useNavigate();
   const statusInfo = statusLabels[project.status as keyof typeof statusLabels];
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onEdit(project);
+  };
 
   return (
     <Card 
@@ -179,10 +41,19 @@ const ProjectCard: React.FC<{ project: any }> = ({ project }) => {
               {project.description || 'Aucune description'}
             </CardDescription>
           </div>
-          <div 
-            className="w-4 h-4 rounded-full flex-shrink-0 ml-3"
-            style={{ backgroundColor: project.color }}
-          />
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleEdit}
+            >
+              <Settings className="w-4 h-4" />
+            </Button>
+            <div 
+              className="w-4 h-4 rounded-full flex-shrink-0"
+              style={{ backgroundColor: project.color }}
+            />
+          </div>
         </div>
       </CardHeader>
       
@@ -231,7 +102,31 @@ const ProjectCard: React.FC<{ project: any }> = ({ project }) => {
 };
 
 const ProjectsPage: React.FC = () => {
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const navigate = useNavigate();
   const { projects, loading, refetch } = useProjects();
+
+  const handleCreateProject = () => {
+    setShowCreateDialog(true);
+  };
+
+  const handleEditProject = (project: Project) => {
+    setEditingProject(project);
+    setShowEditDialog(true);
+  };
+
+  const handleProjectCreated = () => {
+    setShowCreateDialog(false);
+    refetch();
+  };
+
+  const handleProjectUpdated = () => {
+    setShowEditDialog(false);
+    setEditingProject(null);
+    refetch();
+  };
 
   if (loading) {
     return (
@@ -266,7 +161,7 @@ const ProjectsPage: React.FC = () => {
             Gérez vos projets collaboratifs
           </p>
         </div>
-        <CreateProjectDialog onSuccess={refetch} />
+        <CreateProjectTrigger onSuccess={refetch} />
       </div>
 
       {projects.length === 0 ? (
@@ -281,7 +176,7 @@ const ProjectsPage: React.FC = () => {
                 <p className="text-muted-foreground mb-4">
                   Créez votre premier projet pour commencer à collaborer
                 </p>
-                <CreateProjectDialog onSuccess={refetch} />
+        <CreateProjectTrigger onSuccess={refetch} />
               </div>
             </div>
           </CardContent>
@@ -289,10 +184,17 @@ const ProjectsPage: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {projects.map((project) => (
-            <ProjectCard key={project.id} project={project} />
+            <ProjectCard key={project.id} project={project} onEdit={handleEditProject} />
           ))}
         </div>
       )}
+
+      <EditProjectDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        project={editingProject}
+        onSuccess={handleProjectUpdated}
+      />
     </div>
   );
 };

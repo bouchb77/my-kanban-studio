@@ -563,7 +563,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      delete_project_task: {
+        Args: { task_uuid: string }
+        Returns: boolean
+      }
       user_has_project_access: {
+        Args: { project_uuid: string; user_uuid: string }
+        Returns: boolean
+      }
+      user_is_project_admin: {
         Args: { project_uuid: string; user_uuid: string }
         Returns: boolean
       }

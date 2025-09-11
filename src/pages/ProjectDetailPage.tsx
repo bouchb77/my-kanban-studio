@@ -738,6 +738,7 @@ const ProjectDetailPage: React.FC = () => {
         open={showViewDialog}
         onOpenChange={setShowViewDialog}
         task={viewingTask}
+        onTaskDeleted={refetchTasks}
       />
     </div>
   );

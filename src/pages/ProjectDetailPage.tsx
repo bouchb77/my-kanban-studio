@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Users, Plus, Calendar, MessageSquare, Clock, User } from 'lucide-react';
+import { ArrowLeft, Users, Plus, Calendar, MessageSquare, Clock, User, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -79,6 +79,10 @@ const GanttChart: React.FC<{ tasks: ProjectTask[] }> = ({ tasks }) => {
       <div className="space-y-3">
         {sortedTasks.map((task) => {
           const position = getTaskPosition(task);
+          const completedAssignees = task.assignments?.filter(assignment => 
+            assignment.status?.status === 'done'
+          ) || [];
+          
           return (
             <div key={task.id} className="flex items-center space-x-4">
               <div className="w-48 text-sm font-medium truncate">
@@ -132,6 +136,17 @@ const GanttChart: React.FC<{ tasks: ProjectTask[] }> = ({ tasks }) => {
               <div className="text-xs text-muted-foreground w-20">
                 {differenceInDays(new Date(task.end_date), new Date(task.start_date)) + 1}j
               </div>
+              
+              {completedAssignees.length > 0 && (
+                <div className="flex items-center space-x-2">
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <div className="text-xs text-green-600 font-medium">
+                    {completedAssignees.map(assignee => 
+                      assignee.profiles?.full_name || assignee.profiles?.email || 'Utilisateur'
+                    ).join(', ')}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}

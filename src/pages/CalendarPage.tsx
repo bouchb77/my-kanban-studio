@@ -1,13 +1,17 @@
 import { useState, useEffect } from "react";
-import { Calendar as CalendarIcon, Plus, Clock, MapPin, Users, Link, RefreshCw } from "lucide-react";
+import { Calendar as CalendarIcon, Plus, Clock, MapPin, Users, Link, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, addMonths, subMonths } from "date-fns";
+import { fr } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 interface CalendarEvent {
   id: string;
@@ -40,6 +44,8 @@ export function CalendarPage() {
   const [isConnected, setIsConnected] = useState(false);
   const [icsUrl, setIcsUrl] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const { toast } = useToast();
 
   // Load saved ICS URL on component mount
@@ -134,6 +140,104 @@ export function CalendarPage() {
         minute: '2-digit' 
       })
     };
+  };
+
+  const getEventsForDate = (date: Date) => {
+    return events.filter(event => 
+      isSameDay(new Date(event.start.dateTime), date)
+    );
+  };
+
+  const getEventsForSelectedDate = () => {
+    return getEventsForDate(selectedDate);
+  };
+
+  const navigateMonth = (direction: 'prev' | 'next') => {
+    setCurrentDate(prev => 
+      direction === 'prev' ? subMonths(prev, 1) : addMonths(prev, 1)
+    );
+  };
+
+  const renderCalendarGrid = () => {
+    const monthStart = startOfMonth(currentDate);
+    const monthEnd = endOfMonth(currentDate);
+    const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+    
+    // Add days from previous month to fill the first week
+    const startDay = monthStart.getDay();
+    const prevDays = [];
+    for (let i = startDay - 1; i >= 0; i--) {
+      const day = new Date(monthStart);
+      day.setDate(day.getDate() - i - 1);
+      prevDays.push(day);
+    }
+    
+    // Add days from next month to fill the last week
+    const endDay = monthEnd.getDay();
+    const nextDays = [];
+    for (let i = 1; i <= (6 - endDay); i++) {
+      const day = new Date(monthEnd);
+      day.setDate(day.getDate() + i);
+      nextDays.push(day);
+    }
+    
+    const allDays = [...prevDays, ...days, ...nextDays];
+    
+    return (
+      <div className="grid grid-cols-7 gap-px bg-border">
+        {/* Header row with day names */}
+        {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'].map(day => (
+          <div key={day} className="bg-muted p-2 text-center text-sm font-medium text-muted-foreground">
+            {day}
+          </div>
+        ))}
+        
+        {/* Calendar days */}
+        {allDays.map((day, index) => {
+          const dayEvents = getEventsForDate(day);
+          const isCurrentMonth = isSameMonth(day, currentDate);
+          const isToday = isSameDay(day, new Date());
+          const isSelected = isSameDay(day, selectedDate);
+          
+          return (
+            <div
+              key={index}
+              className={cn(
+                "bg-background p-1 min-h-[100px] cursor-pointer hover:bg-muted/50 transition-colors",
+                !isCurrentMonth && "opacity-50",
+                isToday && "bg-accent",
+                isSelected && "ring-2 ring-primary"
+              )}
+              onClick={() => setSelectedDate(day)}
+            >
+              <div className={cn(
+                "text-sm font-medium mb-1",
+                isToday && "text-primary font-bold"
+              )}>
+                {day.getDate()}
+              </div>
+              
+              <div className="space-y-1">
+                {dayEvents.slice(0, 3).map((event, eventIndex) => (
+                  <div
+                    key={eventIndex}
+                    className="text-xs p-1 bg-primary/10 text-primary rounded truncate"
+                    title={event.subject}
+                  >
+                    {format(new Date(event.start.dateTime), 'HH:mm', { locale: fr })} {event.subject}
+                  </div>
+                ))}
+                {dayEvents.length > 3 && (
+                  <div className="text-xs text-muted-foreground">
+                    +{dayEvents.length - 3} autres
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   if (isLoading) {
@@ -284,72 +388,113 @@ export function CalendarPage() {
         </Card>
       </div>
 
-      <div className="grid gap-4">
-        {events.length === 0 ? (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Calendrier principal */}
+        <div className="lg:col-span-2">
           <Card>
-            <CardContent className="flex flex-col items-center justify-center py-8">
-              <CalendarIcon className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Aucun événement à venir</h3>
-              <p className="text-muted-foreground text-center">
-                Aucun événement trouvé dans les 30 prochains jours.
-              </p>
-              <Button 
-                className="mt-4" 
-                variant="outline" 
-                onClick={syncCalendar}
-                disabled={isSyncing}
-              >
-                {isSyncing ? (
-                  <>
-                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                    Actualisation...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    Actualiser le calendrier
-                  </>
-                )}
-              </Button>
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xl">
+                  {format(currentDate, 'MMMM yyyy', { locale: fr })}
+                </CardTitle>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigateMonth('prev')}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentDate(new Date())}
+                  >
+                    Aujourd'hui
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigateMonth('next')}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {renderCalendarGrid()}
             </CardContent>
           </Card>
-        ) : (
-          events.map((event) => {
-            const startDateTime = formatDateTime(event.start.dateTime);
-            const endDateTime = formatDateTime(event.end.dateTime);
+        </div>
 
-            return (
-              <Card key={event.id}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <CardTitle className="text-lg">{event.subject}</CardTitle>
-                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                        <div className="flex items-center">
+        {/* Détails du jour sélectionné */}
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">
+                {format(selectedDate, 'EEEE d MMMM yyyy', { locale: fr })}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {getEventsForSelectedDate().length === 0 ? (
+                <div className="text-center py-8">
+                  <CalendarIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">Aucun événement ce jour</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {getEventsForSelectedDate().map((event, index) => {
+                    const startDateTime = formatDateTime(event.start.dateTime);
+                    const endDateTime = formatDateTime(event.end.dateTime);
+
+                    return (
+                      <div key={index} className="border rounded-lg p-3 space-y-2">
+                        <h4 className="font-medium text-sm">{event.subject}</h4>
+                        <div className="flex items-center text-xs text-muted-foreground">
                           <Clock className="mr-1 h-3 w-3" />
                           {startDateTime.time} - {endDateTime.time}
                         </div>
                         {event.location && (
-                          <div className="flex items-center">
+                          <div className="flex items-center text-xs text-muted-foreground">
                             <MapPin className="mr-1 h-3 w-3" />
                             {event.location.displayName}
                           </div>
                         )}
+                        {event.bodyPreview && (
+                          <p className="text-xs text-muted-foreground line-clamp-2">
+                            {event.bodyPreview}
+                          </p>
+                        )}
                       </div>
-                    </div>
-                  </div>
-                </CardHeader>
-                {event.bodyPreview && (
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                      {event.bodyPreview}
-                    </p>
-                  </CardContent>
-                )}
-              </Card>
-            );
-          })
-        )}
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Résumé des événements du mois */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Ce mois-ci</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span>Total d'événements:</span>
+                  <Badge variant="secondary">{events.length}</Badge>
+                </div>
+                <div className="flex justify-between">
+                  <span>Événements aujourd'hui:</span>
+                  <Badge variant="secondary">
+                    {getEventsForDate(new Date()).length}
+                  </Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

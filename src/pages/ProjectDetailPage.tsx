@@ -13,10 +13,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import { useProjects, useProjectCollaborators, useProjectTasks } from '@/hooks/useProjects';
 import { useAuth } from '@/contexts/AuthContext';
-import { EditProjectTaskDialog } from '@/components/EditProjectTaskDialog';
 import { Project, ProjectTask } from '@/types/project';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { EditProjectTaskDialog } from '@/components/EditProjectTaskDialog';
+import { InviteCollaboratorDialog } from '@/components/InviteCollaboratorDialog';
 
 const GanttChart: React.FC<{ tasks: ProjectTask[] }> = ({ tasks }) => {
   if (tasks.length === 0) {
@@ -444,14 +445,19 @@ const ProjectDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { projects } = useProjects();
-  const { collaborators } = useProjectCollaborators(id || '');
+  const { collaborators, refetch: refetchCollaborators } = useProjectCollaborators(id || '');
   const { tasks, refetch: refetchTasks } = useProjectTasks(id || '');
   const [editingTask, setEditingTask] = useState<ProjectTask | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showInviteDialog, setShowInviteDialog] = useState(false);
 
   const handleEditTask = (task: ProjectTask) => {
     setEditingTask(task);
     setShowEditDialog(true);
+  };
+
+  const handleInviteCollaborator = () => {
+    setShowInviteDialog(true);
   };
 
   const project = projects.find(p => p.id === id);
@@ -560,7 +566,7 @@ const ProjectDetailPage: React.FC = () => {
         <TabsContent value="collaborators" className="space-y-6">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold">Collaborateurs</h2>
-            <Button>
+            <Button onClick={handleInviteCollaborator}>
               <Plus className="w-4 h-4 mr-2" />
               Inviter
             </Button>
@@ -596,6 +602,13 @@ const ProjectDetailPage: React.FC = () => {
         task={editingTask}
         collaborators={collaborators}
         onSuccess={refetchTasks}
+      />
+
+      <InviteCollaboratorDialog
+        open={showInviteDialog}
+        onOpenChange={setShowInviteDialog}
+        projectId={project.id}
+        onSuccess={refetchCollaborators}
       />
     </div>
   );

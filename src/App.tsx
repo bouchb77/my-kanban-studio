@@ -16,7 +16,6 @@ import ReportingPage from "./pages/ReportingPage";
 import { CalendarPage } from "./pages/CalendarPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import NotFound from "./pages/NotFound";
-import ProfilePage from "./pages/ProfilePage";
 import ProjectsPage from "./pages/ProjectsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 

@@ -79,6 +79,14 @@ export const useUserViewPreferences = (viewType: 'table' | 'kanban' = 'table') =
           column_order: Array.isArray(data.column_order) ? (data.column_order as string[]) : [],
           column_widths: (typeof data.column_widths === 'object' && data.column_widths && !Array.isArray(data.column_widths)) ? (data.column_widths as Record<string, number>) : {},
         });
+        // Notify other hook instances in this tab immediately (no reload)
+        try {
+          window.dispatchEvent(
+            new CustomEvent('user-view-preferences-updated', {
+              detail: { userId: user.id, viewType },
+            })
+          );
+        } catch {}
       }
     } catch (error) {
       console.error('Error saving view preferences:', error);
@@ -123,6 +131,21 @@ export const useUserViewPreferences = (viewType: 'table' | 'kanban' = 'table') =
 
   useEffect(() => {
     loadPreferences();
+  }, [user, viewType]);
+
+  // Listen for local in-tab updates to sync instantly without waiting for realtime
+  useEffect(() => {
+    const handler = (e: Event) => {
+      try {
+        const ev = e as CustomEvent<{ userId: string; viewType: 'table' | 'kanban' }>;
+        if (!user) return;
+        if (ev.detail?.userId === user.id && ev.detail?.viewType === viewType) {
+          loadPreferences();
+        }
+      } catch {}
+    };
+    window.addEventListener('user-view-preferences-updated', handler as EventListener);
+    return () => window.removeEventListener('user-view-preferences-updated', handler as EventListener);
   }, [user, viewType]);
 
   // Set up real-time updates

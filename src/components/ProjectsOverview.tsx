@@ -16,6 +16,7 @@ interface ProjectTask {
   priority: string;
   start_date: string;
   end_date: string;
+  userStatus: string;
 }
 
 interface ProjectWithTasks {
@@ -51,23 +52,52 @@ export const ProjectsOverview: React.FC = () => {
           .filter(project => project.status === 'active' || project.status === 'planning')
           .slice(0, 3) // Limiter à 3 projets pour l'affichage
           .map(async (project) => {
-            const { data: tasks } = await supabase
-              .from('project_tasks')
-              .select('*')
-              .eq('project_id', project.id)
-              .order('start_date', { ascending: true });
+            // Récupérer les tâches assignées à l'utilisateur avec leur statut personnel
+            const { data: userAssignments } = await supabase
+              .from('project_task_assignments')
+              .select(`
+                task_id,
+                project_tasks!inner(*),
+                project_task_assignment_status!left(*)
+              `)
+              .eq('user_id', user.id)
+              .eq('project_tasks.project_id', project.id);
 
-            const currentTasks = (tasks || []).filter(task => 
-              task.status === 'in_progress' || task.status === 'todo'
+            if (!userAssignments?.length) {
+              return {
+                id: project.id,
+                name: project.name,
+                color: project.color,
+                status: project.status,
+                currentTasks: [],
+                nextTask: null,
+                progress: 0
+              };
+            }
+
+            // Filtrer les tâches selon le statut personnel de l'utilisateur
+            const userTasks = userAssignments
+              .map(assignment => {
+                const task = assignment.project_tasks;
+                const userStatus = assignment.project_task_assignment_status?.[0]?.status || 'todo';
+                return { ...task, userStatus };
+              })
+              .filter(task => task.userStatus !== 'done'); // Exclure les tâches terminées par l'utilisateur
+
+            const currentTasks = userTasks.filter(task => 
+              task.userStatus === 'in_progress' || task.userStatus === 'todo'
             );
 
-            const nextTask = (tasks || [])
-              .filter(task => task.status === 'todo')
+            const nextTask = userTasks
+              .filter(task => task.userStatus === 'todo')
               .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())[0] || null;
 
-            const completedTasks = (tasks || []).filter(task => task.status === 'done').length;
-            const totalTasks = (tasks || []).length;
-            const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+            // Calculer la progression basée sur les tâches de l'utilisateur
+            const completedByUser = userAssignments.filter(assignment => 
+              assignment.project_task_assignment_status?.[0]?.status === 'done'
+            ).length;
+            const totalUserTasks = userAssignments.length;
+            const progress = totalUserTasks > 0 ? Math.round((completedByUser / totalUserTasks) * 100) : 0;
 
             return {
               id: project.id,
@@ -180,8 +210,11 @@ export const ProjectsOverview: React.FC = () => {
                         project.currentTasks.map((task) => (
                           <div key={task.id} className="text-xs p-2 bg-orange-50 dark:bg-orange-900/20 rounded border border-orange-200 dark:border-orange-800">
                             <div className="font-medium truncate">{task.title}</div>
-                            <div className="text-muted-foreground">
-                              Priorité: {task.priority === 'high' ? '🔴' : task.priority === 'medium' ? '🟡' : '🔵'}
+                            <div className="text-muted-foreground flex items-center justify-between">
+                              <span>Priorité: {task.priority === 'high' ? '🔴' : task.priority === 'medium' ? '🟡' : '🔵'}</span>
+                              <span className="text-xs">
+                                {task.userStatus === 'in_progress' ? 'En cours' : 'À faire'}
+                              </span>
                             </div>
                           </div>
                         ))

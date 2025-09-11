@@ -89,8 +89,18 @@ function parseIcsContent(icsContent: string): IcsEvent[] {
           };
         } else if (property === 'DESCRIPTION') {
           currentEvent.bodyPreview = value.replace(/\\n/g, ' ').replace(/\\,/g, ',').substring(0, 200);
-        } else if (property === 'CATEGORIES') {
-          currentEvent.categories = value.split(',').map(cat => cat.trim()).filter(cat => cat.length > 0);
+        } else if (property === 'CATEGORIES' || property === 'X-MICROSOFT-CDO-CATEGORIES' || property === 'X-OUTLOOK-CATEGORY') {
+          // Handle different Outlook category formats
+          const categories = value.split(',').map(cat => cat.trim()).filter(cat => cat.length > 0);
+          if (!currentEvent.categories) {
+            currentEvent.categories = [];
+          }
+          // Merge categories from different properties, avoiding duplicates
+          categories.forEach(cat => {
+            if (!currentEvent.categories!.includes(cat)) {
+              currentEvent.categories!.push(cat);
+            }
+          });
         }
       }
     }

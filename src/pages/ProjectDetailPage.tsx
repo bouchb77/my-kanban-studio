@@ -106,7 +106,7 @@ const GanttChart: React.FC<{ tasks: ProjectTask[]; onTaskClick: (task: ProjectTa
             <div className="text-xs font-medium text-muted-foreground mb-2">Indicateurs temporels</div>
             <div className="space-y-1">
               <div className="flex items-center space-x-2">
-                <div className="w-4 h-3 bg-green-400 rounded"></div>
+                <div className="w-4 h-3 bg-purple-500 rounded"></div>
                 <span className="text-xs">Jour actuel</span>
               </div>
               <div className="flex items-center space-x-2">
@@ -167,7 +167,7 @@ const GanttChart: React.FC<{ tasks: ProjectTask[]; onTaskClick: (task: ProjectTa
                     let dayStyle = "h-4 border border-white/50 rounded-sm";
                     
                     if (isToday) {
-                      dayStyle += " bg-green-400";
+                      dayStyle += " bg-purple-500";
                     } else if (isPast) {
                       dayStyle += " bg-white/30 bg-stripe-pattern";
                     } else {

@@ -7,9 +7,10 @@ export interface Notification {
   id: string;
   title: string;
   message: string;
-  type: 'task_due' | 'task_overdue' | 'task_completed' | 'task_assigned';
+  type: 'task_due' | 'task_overdue' | 'task_completed' | 'task_assigned' | 'project_comment';
   read: boolean;
   task_id?: string;
+  project_id?: string;
   created_at: string;
 }
 
@@ -42,6 +43,93 @@ export const useNotifications = () => {
       }
     } catch (error) {
       console.error('Error loading read notifications:', error);
+    }
+  };
+
+  // Load comment notifications from database
+  const loadCommentNotifications = async () => {
+    if (!user) return [];
+    
+    try {
+      const { data, error } = await supabase
+        .from('user_notifications')
+        .select(`
+          id,
+          notification_id,
+          created_at,
+          read
+        `)
+        .eq('user_id', user.id)
+        .like('notification_id', 'comment_%')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error loading comment notifications:', error);
+        return [];
+      }
+      
+      if (!data) return [];
+      
+      // Pour chaque notification de commentaire, récupérer les détails
+      const commentNotifications: Notification[] = await Promise.all(
+        data.map(async (notif) => {
+          const commentId = notif.notification_id.replace('comment_', '');
+          
+          try {
+            const { data: commentData, error: commentError } = await supabase
+              .from('project_task_comments')
+              .select(`
+                id,
+                comment,
+                created_at,
+                user_id,
+                project_tasks!project_task_comments_task_id_fkey(
+                  title,
+                  project_id,
+                  projects!project_tasks_project_id_fkey(name)
+                )
+              `)
+              .eq('id', commentId)
+              .single();
+            
+            if (commentError || !commentData) {
+              return null;
+            }
+            
+            // Récupérer les informations du profil séparément
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('full_name, email')
+              .eq('id', commentData.user_id)
+              .single();
+            
+            const authorName = profileData?.full_name || 
+                             profileData?.email || 
+                             'Un utilisateur';
+            const taskTitle = commentData.project_tasks?.title || 'Tâche inconnue';
+            const projectName = commentData.project_tasks?.projects?.name || 'Projet inconnu';
+            
+            return {
+              id: notif.notification_id,
+              title: 'Nouveau commentaire',
+              message: `${authorName} a commenté la tâche "${taskTitle}" dans le projet "${projectName}"`,
+              type: 'project_comment' as const,
+              read: notif.read,
+              task_id: commentData.project_tasks ? undefined : undefined,
+              project_id: commentData.project_tasks?.project_id,
+              created_at: notif.created_at
+            };
+          } catch (error) {
+            console.error('Error loading comment details:', error);
+            return null;
+          }
+        })
+      );
+      
+      return commentNotifications.filter((notif): notif is Notification => notif !== null);
+    } catch (error) {
+      console.error('Error loading comment notifications:', error);
+      return [];
     }
   };
 
@@ -176,12 +264,62 @@ export const useNotifications = () => {
 
   // Generate notifications when tasks or read notifications change
   useEffect(() => {
-    if (tasks.length > 0) {
-      const generatedNotifications = generateNotificationsFromTasks();
-      setNotifications(generatedNotifications);
+    const generateAllNotifications = async () => {
+      const taskNotifications = generateNotificationsFromTasks();
+      const commentNotifications = await loadCommentNotifications();
+      
+      const allNotifications = [...taskNotifications, ...commentNotifications];
+      
+      // Trier par date de création (plus récent en premier)
+      allNotifications.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      
+      setNotifications(allNotifications);
       setLoading(false);
+    };
+    
+    if (tasks.length > 0 || user) {
+      generateAllNotifications();
     }
-  }, [tasks, readNotifications]);
+  }, [tasks, readNotifications, user]);
+
+  // Surveillance en temps réel des nouveaux commentaires
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('project-comment-notifications')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'user_notifications',
+          filter: `user_id=eq.${user.id}`
+        },
+        async (payload) => {
+          // Si c'est une notification de commentaire, recharger toutes les notifications
+          if (payload.new.notification_id?.startsWith('comment_')) {
+            const taskNotifications = generateNotificationsFromTasks();
+            const commentNotifications = await loadCommentNotifications();
+            
+            const allNotifications = [...taskNotifications, ...commentNotifications];
+            
+            allNotifications.sort((a, b) => 
+              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            );
+            
+            setNotifications(allNotifications);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   return {
     notifications,
@@ -189,6 +327,18 @@ export const useNotifications = () => {
     unreadCount,
     markAsRead,
     markAllAsRead,
-    refetch: loadReadNotifications
+    refetch: async () => {
+      await loadReadNotifications();
+      const taskNotifications = generateNotificationsFromTasks();
+      const commentNotifications = await loadCommentNotifications();
+      
+      const allNotifications = [...taskNotifications, ...commentNotifications];
+      
+      allNotifications.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      
+      setNotifications(allNotifications);
+    }
   };
 };

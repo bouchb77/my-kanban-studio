@@ -1,4 +1,4 @@
-import { Bell, Check, Clock, AlertCircle, CheckCircle, Calendar } from "lucide-react";
+import { Bell, Check, Clock, AlertCircle, CheckCircle, Calendar, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,8 @@ const NotificationsPage = () => {
         return CheckCircle;
       case 'task_assigned':
         return AlertCircle;
+      case 'project_comment':
+        return MessageSquare;
       default:
         return Bell;
     }
@@ -29,6 +31,8 @@ const NotificationsPage = () => {
         return 'destructive' as const;
       case 'task_completed':
         return 'secondary' as const;
+      case 'project_comment':
+        return 'outline' as const;
       default:
         return 'default' as const;
     }
@@ -92,6 +96,8 @@ const NotificationsPage = () => {
                         ? 'bg-destructive/10 text-destructive' 
                         : variant === 'secondary'
                         ? 'bg-secondary text-secondary-foreground'
+                        : variant === 'outline'
+                        ? 'bg-blue-50 text-blue-600'
                         : 'bg-primary/10 text-primary'
                     }`}>
                       <IconComponent className="w-4 h-4" />

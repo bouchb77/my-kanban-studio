@@ -117,20 +117,30 @@ const systemColumns = [
     return allAvailableColumns.map(col => col.id);
   };
 
-  const visibleColumns = getVisibleColumns();
-  const columnOrder = getColumnOrder();
+  const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
+  const [orderedVisibleColumns, setOrderedVisibleColumns] = useState<any[]>([]);
 
-  // Get ordered visible columns for rendering
-  const orderedVisibleColumns = allAvailableColumns
-    .filter(col => visibleColumns.includes(col.id))
-    .sort((a, b) => {
-      const aIndex = columnOrder.indexOf(a.id);
-      const bIndex = columnOrder.indexOf(b.id);
-      if (aIndex === -1 && bIndex === -1) return 0;
-      if (aIndex === -1) return 1;
-      if (bIndex === -1) return -1;
-      return aIndex - bIndex;
-    });
+  // Update visible columns when preferences change
+  useEffect(() => {
+    const visible = getVisibleColumns();
+    const order = getColumnOrder();
+    
+    setVisibleColumns(visible);
+    
+    // Get ordered visible columns for rendering
+    const orderedVisible = allAvailableColumns
+      .filter(col => visible.includes(col.id))
+      .sort((a, b) => {
+        const aIndex = order.indexOf(a.id);
+        const bIndex = order.indexOf(b.id);
+        if (aIndex === -1 && bIndex === -1) return 0;
+        if (aIndex === -1) return 1;
+        if (bIndex === -1) return -1;
+        return aIndex - bIndex;
+      });
+    
+    setOrderedVisibleColumns(orderedVisible);
+  }, [preferences, customFields.length]);
 
   // Default columns as fallback for status filter
   const defaultColumns = [

@@ -219,23 +219,31 @@ export function CalendarPage() {
               </div>
               
               <div className="space-y-1">
-                {dayEvents.slice(0, 3).map((event, eventIndex) => (
-                  <div
-                    key={eventIndex}
-                    className="text-xs p-1 bg-primary/10 text-primary rounded truncate space-y-1"
-                    title={`${event.subject} ${event.categories?.length ? '- ' + event.categories.join(', ') : ''}`}
-                  >
-                    <div className="font-medium">
-                      {format(new Date(event.start.dateTime), 'HH:mm', { locale: fr })} {event.subject}
-                    </div>
-                    {event.categories && event.categories.length > 0 && (
-                      <div className="text-[10px] opacity-75 truncate">
-                        {event.categories.slice(0, 2).join(', ')}
-                        {event.categories.length > 2 && '...'}
+                {dayEvents.slice(0, 3).map((event, eventIndex) => {
+                  console.log('Event for display:', event); // Debug log
+                  return (
+                    <div
+                      key={eventIndex}
+                      className="text-xs p-1 bg-primary/10 text-primary rounded space-y-1"
+                      title={`${event.subject} ${event.categories?.length ? '- ' + event.categories.join(', ') : ''}`}
+                    >
+                      <div className="font-medium truncate">
+                        {format(new Date(event.start.dateTime), 'HH:mm', { locale: fr })} {event.subject}
                       </div>
-                    )}
-                  </div>
-                ))}
+                      {event.categories && event.categories.length > 0 && (
+                        <div className="text-[10px] opacity-75 truncate bg-accent px-1 rounded">
+                          📂 {event.categories.slice(0, 2).join(', ')}
+                          {event.categories.length > 2 && '...'}
+                        </div>
+                      )}
+                      {(!event.categories || event.categories.length === 0) && (
+                        <div className="text-[10px] opacity-50 italic">
+                          Aucune catégorie
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
                 {dayEvents.length > 3 && (
                   <div className="text-xs text-muted-foreground">
                     +{dayEvents.length - 3} autres

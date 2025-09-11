@@ -148,6 +148,11 @@ serve(async (req) => {
     const events = parseIcsContent(icsContent);
     console.log('Événements parsés:', events.length);
     
+    // Log some events to debug categories
+    if (events.length > 0) {
+      console.log('Premier événement exemple:', JSON.stringify(events[0], null, 2));
+    }
+    
     // Filter events for today and future (next 30 days)
     const now = new Date();
     const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);

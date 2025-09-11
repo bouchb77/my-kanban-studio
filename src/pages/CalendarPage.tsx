@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Calendar as CalendarIcon, Plus, Clock, MapPin, Users, Link, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar as CalendarIcon, Plus, Clock, MapPin, Users, Link, RefreshCw, ChevronLeft, ChevronRight, Save, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -46,47 +46,47 @@ export function CalendarPage() {
   const [isConnected, setIsConnected] = useState(false);
   const [icsUrl, setIcsUrl] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Load saved ICS URL from database on component mount and auto-sync
+  // Load saved calendar URL on component mount and auto-sync
   useEffect(() => {
-    if (user) {
-      loadUserCalendarSettings();
-    }
-  }, [user]);
+    const loadSavedCalendarUrl = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('user_calendar_settings')
+          .select('ics_url')
+          .eq('user_id', user.id)
+          .single();
 
-  const loadUserCalendarSettings = async () => {
-    if (!user) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('user_calendar_settings')
-        .select('ics_url')
-        .eq('user_id', user.id)
-        .single();
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error loading calendar settings:', error);
+          return;
+        }
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+        if (data?.ics_url) {
+          setIcsUrl(data.ics_url);
+          setIsConnected(true);
+          // Auto-sync when loading the page
+          await syncCalendarWithUrl(data.ics_url);
+        }
+      } catch (error) {
         console.error('Error loading calendar settings:', error);
-        return;
       }
+    };
 
-      if (data?.ics_url) {
-        setIcsUrl(data.ics_url);
-        setIsConnected(true);
-        // Auto-sync when loading the page
-        await syncCalendarWithUrl(data.ics_url);
-      }
-    } catch (error) {
-      console.error('Error loading user calendar settings:', error);
-    }
-  };
+    loadSavedCalendarUrl();
+  }, [user]);
 
   const saveUserCalendarSettings = async (url: string) => {
     if (!user) return;
 
+    setIsSaving(true);
     try {
       const { error } = await supabase
         .from('user_calendar_settings')
@@ -97,9 +97,27 @@ export function CalendarPage() {
 
       if (error) {
         console.error('Error saving calendar settings:', error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de sauvegarder l'URL du calendrier.",
+          variant: "destructive"
+        });
+        return;
       }
+
+      toast({
+        title: "Sauvegardé",
+        description: "L'URL du calendrier a été sauvegardée.",
+      });
     } catch (error) {
-      console.error('Error saving user calendar settings:', error);
+      console.error('Error saving calendar settings:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de sauvegarder l'URL du calendrier.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -158,6 +176,11 @@ export function CalendarPage() {
     const trimmedUrl = icsUrl.trim();
     await saveUserCalendarSettings(trimmedUrl);
     await syncCalendarWithUrl(trimmedUrl);
+  };
+
+  const refreshCalendar = async () => {
+    if (!icsUrl.trim()) return;
+    await syncCalendarWithUrl(icsUrl.trim());
   };
 
   const handleDisconnect = async () => {
@@ -280,7 +303,6 @@ export function CalendarPage() {
               
               <div className="space-y-1">
                 {dayEvents.slice(0, 3).map((event, eventIndex) => {
-                  console.log('Event for display:', event); // Debug log
                   return (
                     <div
                       key={eventIndex}
@@ -291,14 +313,9 @@ export function CalendarPage() {
                         {format(new Date(event.start.dateTime), 'HH:mm', { locale: fr })} {event.subject}
                       </div>
                       {event.categories && event.categories.length > 0 && (
-                        <div className="text-[10px] opacity-75 truncate bg-accent px-1 rounded">
-                          📂 {event.categories.slice(0, 2).join(', ')}
-                          {event.categories.length > 2 && '...'}
-                        </div>
-                      )}
-                      {(!event.categories || event.categories.length === 0) && (
-                        <div className="text-[10px] opacity-50 italic">
-                          Aucune catégorie
+                        <div className="text-xs bg-muted/50 px-2 py-1 rounded inline-flex items-center gap-1">
+                          <span>📂</span>
+                          <span>{event.categories.join(', ')}</span>
                         </div>
                       )}
                     </div>
@@ -430,13 +447,13 @@ export function CalendarPage() {
           <Button 
             size="sm" 
             variant="outline"
-            onClick={syncCalendar}
+            onClick={refreshCalendar}
             disabled={isSyncing}
           >
             {isSyncing ? (
               <>
                 <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                Synchronisation...
+                Actualisation...
               </>
             ) : (
               <>
@@ -465,38 +482,32 @@ export function CalendarPage() {
         </Card>
       </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Calendrier principal */}
         <div className="lg:col-span-2">
           <Card>
-            <CardHeader className="pb-4">
+            <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-xl">
-                  {format(currentDate, 'MMMM yyyy', { locale: fr })}
-                </CardTitle>
-                <div className="flex items-center space-x-2">
+                <CardTitle className="flex items-center gap-2">
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     onClick={() => navigateMonth('prev')}
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
+                  {format(currentDate, 'MMMM yyyy', { locale: fr })}
                   <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentDate(new Date())}
-                  >
-                    Aujourd'hui
-                  </Button>
-                  <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     onClick={() => navigateMonth('next')}
                   >
                     <ChevronRight className="h-4 w-4" />
                   </Button>
-                </div>
+                </CardTitle>
+                <Badge variant="secondary">
+                  {events.length} événement{events.length > 1 ? 's' : ''}
+                </Badge>
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -505,76 +516,107 @@ export function CalendarPage() {
           </Card>
         </div>
 
-        {/* Détails du jour sélectionné */}
-        <div className="space-y-4">
+        {/* Panneau latéral droit */}
+        <div className="space-y-6">
+          {/* Événements du jour sélectionné */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">
                 {format(selectedDate, 'EEEE d MMMM yyyy', { locale: fr })}
               </CardTitle>
+              <CardDescription>
+                {getEventsForSelectedDate().length} événement{getEventsForSelectedDate().length > 1 ? 's' : ''}
+              </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               {getEventsForSelectedDate().length === 0 ? (
-                <div className="text-center py-8">
-                  <CalendarIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">Aucun événement ce jour</p>
-                </div>
+                <p className="text-sm text-muted-foreground">Aucun événement pour ce jour.</p>
               ) : (
-                <div className="space-y-3">
-                  {getEventsForSelectedDate().map((event, index) => {
-                    const startDateTime = formatDateTime(event.start.dateTime);
-                    const endDateTime = formatDateTime(event.end.dateTime);
-
-                    return (
-                      <div key={index} className="border rounded-lg p-3 space-y-2">
+                getEventsForSelectedDate().map((event, index) => {
+                  const startTime = formatDateTime(event.start.dateTime);
+                  const endTime = formatDateTime(event.end.dateTime);
+                  
+                  return (
+                    <div key={index} className="space-y-2 p-3 border rounded-lg">
+                      <div className="flex items-start justify-between">
                         <h4 className="font-medium text-sm">{event.subject}</h4>
-                        <div className="flex items-center text-xs text-muted-foreground">
-                          <Clock className="mr-1 h-3 w-3" />
-                          {startDateTime.time} - {endDateTime.time}
-                        </div>
-                        {event.location && (
-                          <div className="flex items-center text-xs text-muted-foreground">
-                            <MapPin className="mr-1 h-3 w-3" />
-                            {event.location.displayName}
-                          </div>
-                        )}
-                        {event.categories && event.categories.length > 0 && (
-                          <div className="text-xs bg-muted/50 px-2 py-1 rounded inline-flex items-center gap-1">
-                            <span>📂</span>
-                            <span>{event.categories.join(', ')}</span>
-                          </div>
-                        )}
-                        {event.bodyPreview && (
-                          <p className="text-xs text-muted-foreground line-clamp-2">
-                            {event.bodyPreview}
-                          </p>
-                        )}
                       </div>
-                    );
-                  })}
-                </div>
+                      
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        <span>{startTime.time} - {endTime.time}</span>
+                      </div>
+                      
+                      {event.location?.displayName && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <MapPin className="h-3 w-3" />
+                          <span>{event.location.displayName}</span>
+                        </div>
+                      )}
+                      
+                      {event.categories && event.categories.length > 0 && (
+                        <div className="text-xs bg-muted/50 px-2 py-1 rounded inline-flex items-center gap-1">
+                          <span>📂</span>
+                          <span>{event.categories.join(', ')}</span>
+                        </div>
+                      )}
+                      
+                      {event.bodyPreview && (
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {event.bodyPreview}
+                        </p>
+                      )}
+                      
+                      {event.attendees && event.attendees.length > 0 && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Users className="h-3 w-3" />
+                          <span>{event.attendees.length} participant{event.attendees.length > 1 ? 's' : ''}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
               )}
             </CardContent>
           </Card>
 
-          {/* Résumé des événements du mois */}
+          {/* Prochains événements */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Ce mois-ci</CardTitle>
+              <CardTitle className="text-lg">Prochains événements</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>Total d'événements:</span>
-                  <Badge variant="secondary">{events.length}</Badge>
-                </div>
-                <div className="flex justify-between">
-                  <span>Événements aujourd'hui:</span>
-                  <Badge variant="secondary">
-                    {getEventsForDate(new Date()).length}
-                  </Badge>
-                </div>
-              </div>
+            <CardContent className="space-y-3">
+              {events
+                .filter(event => new Date(event.start.dateTime) > new Date())
+                .slice(0, 5)
+                .map((event, index) => {
+                  const startTime = formatDateTime(event.start.dateTime);
+                  
+                  return (
+                    <div key={index} className="flex items-start space-x-3 text-sm">
+                      <div className="flex-shrink-0 w-12 text-center">
+                        <div className="text-xs text-muted-foreground">
+                          {format(new Date(event.start.dateTime), 'dd/MM', { locale: fr })}
+                        </div>
+                        <div className="text-xs font-medium">
+                          {startTime.time}
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{event.subject}</p>
+                        {event.location?.displayName && (
+                          <p className="text-xs text-muted-foreground truncate">
+                            {event.location.displayName}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              
+              {events.filter(event => new Date(event.start.dateTime) > new Date()).length === 0 && (
+                <p className="text-sm text-muted-foreground">Aucun événement à venir.</p>
+              )}
             </CardContent>
           </Card>
         </div>

@@ -65,37 +65,44 @@ function parseIcsContent(icsContent: string): IcsEvent[] {
       const colonIndex = line.indexOf(':');
       if (colonIndex > 0) {
         const property = line.substring(0, colonIndex);
+        const baseProp = property.split(';')[0].toUpperCase();
         const value = line.substring(colonIndex + 1);
         
-        if (property === 'UID') {
+        if (baseProp === 'UID') {
           currentEvent.id = value;
-        } else if (property === 'SUMMARY') {
+        } else if (baseProp === 'SUMMARY') {
           currentEvent.subject = value.replace(/\\n/g, ' ').replace(/\\,/g, ',');
-        } else if (property.startsWith('DTSTART')) {
+        } else if (baseProp === 'DTSTART') {
           const dateTime = parseIcsDate(value);
           currentEvent.start = {
             dateTime: dateTime,
             timeZone: 'UTC'
           };
-        } else if (property.startsWith('DTEND')) {
+        } else if (baseProp === 'DTEND') {
           const dateTime = parseIcsDate(value);
           currentEvent.end = {
             dateTime: dateTime,
             timeZone: 'UTC'
           };
-        } else if (property === 'LOCATION') {
+        } else if (baseProp === 'LOCATION') {
           currentEvent.location = {
             displayName: value.replace(/\\n/g, ' ').replace(/\\,/g, ',')
           };
-        } else if (property === 'DESCRIPTION') {
+        } else if (baseProp === 'DESCRIPTION') {
           currentEvent.bodyPreview = value.replace(/\\n/g, ' ').replace(/\\,/g, ',').substring(0, 200);
-        } else if (property === 'CATEGORIES' || property === 'X-MICROSOFT-CDO-CATEGORIES' || property === 'X-OUTLOOK-CATEGORY') {
-          // Handle different Outlook category formats
-          const categories = value.split(',').map(cat => cat.trim()).filter(cat => cat.length > 0);
+        } else if (
+          baseProp === 'CATEGORIES' || 
+          baseProp === 'X-MICROSOFT-CDO-CATEGORIES' || 
+          baseProp === 'X-OUTLOOK-CATEGORY'
+        ) {
+          // Handle different Outlook category formats and parameters
+          const categories = value
+            .split(',')
+            .map(cat => cat.replace(/\\,/g, ',').trim())
+            .filter(cat => cat.length > 0);
           if (!currentEvent.categories) {
             currentEvent.categories = [];
           }
-          // Merge categories from different properties, avoiding duplicates
           categories.forEach(cat => {
             if (!currentEvent.categories!.includes(cat)) {
               currentEvent.categories!.push(cat);

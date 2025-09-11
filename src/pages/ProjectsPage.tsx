@@ -198,9 +198,7 @@ const ProjectCard: React.FC<{ project: any }> = ({ project }) => {
           <div className="flex items-center space-x-3 text-sm text-muted-foreground">
             <div className="flex items-center space-x-1">
               <Users className="w-4 h-4" />
-              <span>
-                {project.project_collaborators?.length || 0}
-              </span>
+              <span>1</span>
             </div>
           </div>
         </div>

@@ -14,14 +14,19 @@ export const useProjects = () => {
     if (!user) return;
 
     try {
+      console.log('Loading projects for user:', user.id);
       // Récupérer d'abord les projets sans les collaborateurs
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (projectsError) throw projectsError;
+      if (projectsError) {
+        console.error('Projects query error:', projectsError);
+        throw projectsError;
+      }
       
+      console.log('Projects loaded:', projectsData?.length || 0);
       setProjects(projectsData as Project[] || []);
     } catch (error) {
       console.error('Error loading projects:', error);
@@ -39,6 +44,7 @@ export const useProjects = () => {
     if (!user) return;
 
     try {
+      console.log('Creating project:', projectData);
       const { data, error } = await supabase
         .from('projects')
         .insert({
@@ -48,16 +54,26 @@ export const useProjects = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Project creation error:', error);
+        throw error;
+      }
+
+      console.log('Project created:', data);
 
       // Add owner as collaborator
-      await supabase
+      const { error: collaboratorError } = await supabase
         .from('project_collaborators')
         .insert({
           project_id: data.id,
           user_id: user.id,
           role: 'owner'
         });
+
+      if (collaboratorError) {
+        console.error('Collaborator creation error:', collaboratorError);
+        // Don't throw here, project is still created
+      }
 
       await loadProjects();
       toast({

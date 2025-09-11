@@ -77,6 +77,51 @@ const GanttChart: React.FC<{ tasks: ProjectTask[]; onTaskClick: (task: ProjectTa
         <span>{format(latestEnd, 'dd MMM yyyy', { locale: fr })}</span>
       </div>
       
+      {/* Légende */}
+      <div className="bg-muted/50 rounded-lg p-4 mb-4">
+        <h4 className="text-sm font-semibold mb-3">Légende</h4>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <div className="text-xs font-medium text-muted-foreground mb-2">Statuts des tâches</div>
+            <div className="space-y-1">
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-3 bg-green-500 rounded"></div>
+                <span className="text-xs">Terminé</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-3 bg-blue-500 rounded"></div>
+                <span className="text-xs">En cours</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-3 bg-yellow-500 rounded"></div>
+                <span className="text-xs">En révision</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-3 bg-gray-400 rounded"></div>
+                <span className="text-xs">À faire</span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div className="text-xs font-medium text-muted-foreground mb-2">Indicateurs temporels</div>
+            <div className="space-y-1">
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-3 bg-green-400 rounded"></div>
+                <span className="text-xs">Jour actuel</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-3 bg-white/30 rounded" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,0.2) 2px, rgba(0,0,0,0.2) 3px)' }}></div>
+                <span className="text-xs">Jours passés</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-3 bg-white/30 rounded border border-gray-300"></div>
+                <span className="text-xs">Jours futurs</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
       <div className="space-y-3">
         {sortedTasks.map((task) => {
           const position = getTaskPosition(task);

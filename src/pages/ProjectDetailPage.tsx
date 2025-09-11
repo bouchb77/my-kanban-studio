@@ -47,8 +47,21 @@ const GanttChart: React.FC<{ tasks: ProjectTask[] }> = ({ tasks }) => {
     };
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
+  const getStatusColor = (task: ProjectTask) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const startDate = new Date(task.start_date);
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = new Date(task.end_date);
+    endDate.setHours(0, 0, 0, 0);
+    
+    // Si aujourd'hui est entre les dates de début et de fin, couleur bleue
+    if (today >= startDate && today <= endDate) {
+      return 'bg-blue-500';
+    }
+    
+    // Sinon, utiliser les couleurs basées sur le statut
+    switch (task.status) {
       case 'done': return 'bg-green-500';
       case 'in_progress': return 'bg-blue-500';
       case 'review': return 'bg-yellow-500';
@@ -70,11 +83,14 @@ const GanttChart: React.FC<{ tasks: ProjectTask[] }> = ({ tasks }) => {
             <div key={task.id} className="flex items-center space-x-4">
               <div className="w-48 text-sm font-medium truncate">
                 {task.title}
+                <div className="text-xs text-muted-foreground">
+                  {format(new Date(task.start_date), 'dd/MM', { locale: fr })} - {format(new Date(task.end_date), 'dd/MM', { locale: fr })}
+                </div>
               </div>
               
               <div className="flex-1 relative h-8 bg-muted rounded">
                 <div
-                  className={`absolute top-1 bottom-1 rounded ${getStatusColor(task.status)} flex items-center`}
+                  className={`absolute top-1 bottom-1 rounded ${getStatusColor(task)} flex items-center`}
                   style={position}
                 >
                   {Array.from({ length: differenceInDays(new Date(task.end_date), new Date(task.start_date)) + 1 }, (_, index) => {

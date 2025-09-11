@@ -22,11 +22,9 @@ import {
   Plus, 
   Trash2,
   Edit,
-  Save,
-  FileSpreadsheet
+  Save
 } from "lucide-react";
 import { DragDropList } from "@/components/DragDropList";
-import { CompanyImportSection } from "@/components/CompanyImportSection";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -416,10 +414,6 @@ const SettingsPage = () => {
             <Edit className="w-4 h-4" />
             Champs
           </TabsTrigger>
-          <TabsTrigger value="companies" className="flex items-center gap-2">
-            <FileSpreadsheet className="w-4 h-4" />
-            Entreprises
-          </TabsTrigger>
           <TabsTrigger value="cards" className="flex items-center gap-2">
             <Settings className="w-4 h-4" />
             Cartes
@@ -726,14 +720,9 @@ const SettingsPage = () => {
                </div>
              </CardContent>
            </Card>
-         </TabsContent>
+        </TabsContent>
 
-         {/* Entreprises */}
-         <TabsContent value="companies">
-           <CompanyImportSection />
-         </TabsContent>
-
-         {/* Configuration des cartes Kanban */}
+        {/* Configuration des cartes Kanban */}
          <TabsContent value="cards">
           <Card className="shadow-card border-0">
             <CardHeader>

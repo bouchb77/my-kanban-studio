@@ -207,7 +207,6 @@ export default function ProfilePage() {
       await supabase.from('user_columns').delete().eq('user_id', user.id);
       await supabase.from('user_categories').delete().eq('user_id', user.id);
       await supabase.from('tasks').delete().eq('user_id', user.id);
-      await supabase.from('companies').delete().eq('user_id', user.id);
       await supabase.from('profiles').delete().eq('id', user.id);
 
       toast({

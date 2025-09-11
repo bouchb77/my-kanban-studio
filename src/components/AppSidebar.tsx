@@ -20,7 +20,9 @@ import {
   User,
   Calendar,
   Folder,
+  Building2,
 } from "lucide-react";
+import { useUserRole } from "@/hooks/useUserRole";
 
 const navigationItems = [
   { title: "Tableau de bord", url: "/dashboard", icon: LayoutDashboard },
@@ -40,6 +42,7 @@ const settingsItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
+  const { isAdmin } = useUserRole();
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
 
@@ -100,6 +103,25 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Section Admin - Visible uniquement pour les administrateurs */}
+        {isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Administration</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive("/companies")}>
+                    <NavLink to="/companies">
+                      <Building2 className="w-4 h-4 flex-shrink-0" />
+                      {!collapsed && <span>Entreprises</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
     </Sidebar>
   );

@@ -18,6 +18,7 @@ import NotificationsPage from "./pages/NotificationsPage";
 import NotFound from "./pages/NotFound";
 import ProjectsPage from "./pages/ProjectsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
+import CompaniesPage from "./pages/CompaniesPage";
 
 const queryClient = new QueryClient();
 
@@ -108,6 +109,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <MainLayout><ProjectDetailPage /></MainLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/companies" 
+              element={
+                <ProtectedRoute>
+                  <MainLayout><CompaniesPage /></MainLayout>
                 </ProtectedRoute>
               } 
             />

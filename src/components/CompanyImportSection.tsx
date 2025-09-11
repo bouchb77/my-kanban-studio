@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Upload, FileSpreadsheet, Trash2, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import * as XLSX from 'xlsx';
 
 interface Company {
@@ -18,7 +17,6 @@ interface Company {
 
 export function CompanyImportSection() {
   const { toast } = useToast();
-  const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -72,15 +70,15 @@ export function CompanyImportSection() {
   };
 
   const handleImport = async () => {
-    if (!user || companies.length === 0) return;
+    if (companies.length === 0) return;
 
     setIsLoading(true);
     try {
-      // Supprimer toutes les entreprises existantes de l'utilisateur
+      // Supprimer toutes les entreprises existantes (admin uniquement)
       const { error: deleteError } = await supabase
         .from('companies')
         .delete()
-        .eq('user_id', user.id);
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
 
       if (deleteError) throw deleteError;
 
@@ -90,8 +88,7 @@ export function CompanyImportSection() {
         .insert(
           companies.map(company => ({
             sipi_number: company.sipi_number,
-            company_name: company.company_name,
-            user_id: user.id
+            company_name: company.company_name
           }))
         );
 

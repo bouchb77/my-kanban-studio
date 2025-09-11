@@ -16,6 +16,9 @@ import ReportingPage from "./pages/ReportingPage";
 import { CalendarPage } from "./pages/CalendarPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import NotFound from "./pages/NotFound";
+import ProfilePage from "./pages/ProfilePage";
+import ProjectsPage from "./pages/ProjectsPage";
+import ProjectDetailPage from "./pages/ProjectDetailPage";
 
 const queryClient = new QueryClient();
 
@@ -90,6 +93,22 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <MainLayout><NotificationsPage /></MainLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/projects" 
+              element={
+                <ProtectedRoute>
+                  <MainLayout><ProjectsPage /></MainLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/projects/:id" 
+              element={
+                <ProtectedRoute>
+                  <MainLayout><ProjectDetailPage /></MainLayout>
                 </ProtectedRoute>
               } 
             />

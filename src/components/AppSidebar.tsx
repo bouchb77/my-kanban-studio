@@ -19,12 +19,14 @@ import {
   CheckSquare,
   User,
   Calendar,
+  Folder,
 } from "lucide-react";
 
 const navigationItems = [
   { title: "Tableau de bord", url: "/dashboard", icon: LayoutDashboard },
   { title: "Kanban", url: "/kanban", icon: CheckSquare },
   { title: "Liste des tâches", url: "/tasks", icon: List },
+  { title: "Projets", url: "/projects", icon: Folder },
   { title: "Agenda Outlook", url: "/calendar", icon: Calendar },
   { title: "Reporting", url: "/reporting", icon: BarChart3 },
   { title: "Notifications", url: "/notifications", icon: Bell },

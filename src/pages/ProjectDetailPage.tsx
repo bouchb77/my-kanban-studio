@@ -499,9 +499,20 @@ const TaskCard: React.FC<{ task: ProjectTask; onUpdate: () => void; collaborator
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">Progression globale</span>
-            <span className="text-sm text-muted-foreground">{task.progress}%</span>
+            <span className="text-sm text-muted-foreground">
+              {task.assignments && task.assignments.length > 0 
+                ? Math.round(task.assignments.reduce((sum, assignment) => sum + (assignment.status?.progress || 0), 0) / task.assignments.length)
+                : task.progress
+              }%
+            </span>
           </div>
-          <Progress value={task.progress} className="h-2" />
+          <Progress 
+            value={task.assignments && task.assignments.length > 0 
+              ? task.assignments.reduce((sum, assignment) => sum + (assignment.status?.progress || 0), 0) / task.assignments.length
+              : task.progress
+            } 
+            className="h-2" 
+          />
         </div>
 
         {task.comments && task.comments.length > 0 && (

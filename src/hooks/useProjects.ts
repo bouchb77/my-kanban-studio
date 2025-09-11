@@ -14,19 +14,15 @@ export const useProjects = () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
+      // Récupérer d'abord les projets sans les collaborateurs
+      const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
-        .select(`
-          *,
-          project_collaborators!inner(
-            role,
-            profiles(full_name, email)
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setProjects(data as Project[] || []);
+      if (projectsError) throw projectsError;
+      
+      setProjects(projectsData as Project[] || []);
     } catch (error) {
       console.error('Error loading projects:', error);
       toast({
@@ -151,16 +147,36 @@ export const useProjectCollaborators = (projectId: string) => {
     if (!projectId) return;
 
     try {
-      const { data, error } = await supabase
+      // Récupérer les collaborateurs avec les profils associés
+      const { data: collaboratorsData, error: collaboratorsError } = await supabase
         .from('project_collaborators')
-        .select(`
-          *,
-          profiles(full_name, email)
-        `)
+        .select('*')
         .eq('project_id', projectId);
 
-      if (error) throw error;
-      setCollaborators(data as ProjectCollaborator[] || []);
+      if (collaboratorsError) throw collaboratorsError;
+
+      // Récupérer les profils des collaborateurs
+      if (collaboratorsData && collaboratorsData.length > 0) {
+        const userIds = collaboratorsData.map(c => c.user_id);
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('*')
+          .in('id', userIds);
+
+        if (profilesError) {
+          console.warn('Could not load profiles:', profilesError);
+        }
+
+        // Combiner collaborateurs et profils
+        const collaboratorsWithProfiles = collaboratorsData.map(collaborator => ({
+          ...collaborator,
+          profiles: profilesData?.find(profile => profile.id === collaborator.user_id)
+        }));
+
+        setCollaborators(collaboratorsWithProfiles as ProjectCollaborator[] || []);
+      } else {
+        setCollaborators([]);
+      }
     } catch (error) {
       console.error('Error loading collaborators:', error);
     } finally {
@@ -258,24 +274,71 @@ export const useProjectTasks = (projectId: string) => {
     if (!projectId) return;
 
     try {
-      const { data, error } = await supabase
+      // Récupérer les tâches d'abord
+      const { data: tasksData, error: tasksError } = await supabase
         .from('project_tasks')
-        .select(`
-          *,
-          project_task_assignments(
-            *,
-            profiles(full_name, email)
-          ),
-          project_task_comments(
-            *,
-            profiles(full_name, email)
-          )
-        `)
+        .select('*')
         .eq('project_id', projectId)
         .order('start_date', { ascending: true });
 
-      if (error) throw error;
-      setTasks(data as ProjectTask[] || []);
+      if (tasksError) throw tasksError;
+
+      if (!tasksData || tasksData.length === 0) {
+        setTasks([]);
+        setLoading(false);
+        return;
+      }
+
+      // Récupérer les affectations
+      const taskIds = tasksData.map(t => t.id);
+      const { data: assignmentsData, error: assignmentsError } = await supabase
+        .from('project_task_assignments')
+        .select('*')
+        .in('task_id', taskIds);
+
+      if (assignmentsError) {
+        console.warn('Could not load assignments:', assignmentsError);
+      }
+
+      // Récupérer les commentaires
+      const { data: commentsData, error: commentsError } = await supabase
+        .from('project_task_comments')
+        .select('*')
+        .in('task_id', taskIds)
+        .order('created_at', { ascending: true });
+
+      if (commentsError) {
+        console.warn('Could not load comments:', commentsError);
+      }
+
+      // Récupérer les profils des utilisateurs concernés
+      const allUserIds = new Set<string>();
+      assignmentsData?.forEach(a => allUserIds.add(a.user_id));
+      commentsData?.forEach(c => allUserIds.add(c.user_id));
+
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('id', Array.from(allUserIds));
+
+      if (profilesError) {
+        console.warn('Could not load profiles:', profilesError);
+      }
+
+      // Combiner toutes les données
+      const tasksWithDetails = tasksData.map(task => ({
+        ...task,
+        assignments: assignmentsData?.filter(a => a.task_id === task.id).map(assignment => ({
+          ...assignment,
+          profiles: profilesData?.find(p => p.id === assignment.user_id)
+        })) || [],
+        comments: commentsData?.filter(c => c.task_id === task.id).map(comment => ({
+          ...comment,
+          profiles: profilesData?.find(p => p.id === comment.user_id)
+        })) || []
+      }));
+
+      setTasks(tasksWithDetails as ProjectTask[] || []);
     } catch (error) {
       console.error('Error loading tasks:', error);
     } finally {

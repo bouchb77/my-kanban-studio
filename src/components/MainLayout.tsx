@@ -15,6 +15,7 @@ import { Bell, Search, User, LogOut, Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { CreateTaskDialog } from "./CreateTaskDialog";
 import { useNavigate } from "react-router-dom";
+import { useNotifications } from "@/hooks/useNotifications";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -24,6 +25,7 @@ export function MainLayout({ children }: MainLayoutProps) {
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const { unreadCount } = useNotifications();
 
   const handleSignOut = async () => {
     await signOut();
@@ -69,7 +71,11 @@ export function MainLayout({ children }: MainLayoutProps) {
                 onClick={() => navigate('/notifications')}
               >
                 <Bell className="w-5 h-5" />
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-destructive rounded-full"></span>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center min-w-[20px]">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
               </Button>
 
               {/* User Menu */}

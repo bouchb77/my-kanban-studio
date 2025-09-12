@@ -220,7 +220,7 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
               <SelectContent>
                 {categories.length > 0 ? (
                   categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.name}>
+                    <SelectItem key={cat.id} value={cat.name || cat.id}>
                       <div className="flex items-center gap-2">
                         <div 
                           className="w-2 h-2 rounded-full" 
@@ -321,8 +321,8 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
                     <SelectValue placeholder={`Sélectionner ${field.name.toLowerCase()}`} />
                   </SelectTrigger>
                   <SelectContent>
-                    {field.options.map((option: string) => (
-                      <SelectItem key={option} value={option}>
+                    {field.options.map((option: string, index: number) => (
+                      <SelectItem key={option} value={option || `option-${index}`}>
                         {option}
                       </SelectItem>
                     ))}

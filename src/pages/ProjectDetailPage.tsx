@@ -137,88 +137,116 @@ const GanttChart: React.FC<{ tasks: ProjectTask[]; onTaskClick: (task: ProjectTa
       </div>
       
       <div className="space-y-3">
-        {sortedTasks.map((task) => {
-          const position = getTaskPosition(task);
-          const completedAssignees = task.assignments?.filter(assignment => 
-            assignment.status?.status === 'done'
-          ) || [];
-          
-          return (
-            <div key={task.id} className="flex items-center space-x-4">
-              <div className="w-48 text-sm font-medium">
-                <div className="flex items-center space-x-2">
-                  {task.category && (
+        {(() => {
+          // Grouper les tâches par catégorie
+          const tasksByCategory = sortedTasks.reduce((groups, task) => {
+            const categoryKey = task.category ? task.category.name : 'Sans catégorie';
+            if (!groups[categoryKey]) {
+              groups[categoryKey] = [];
+            }
+            groups[categoryKey].push(task);
+            return groups;
+          }, {} as Record<string, typeof sortedTasks>);
+
+          return Object.entries(tasksByCategory).map(([categoryName, categoryTasks]) => (
+            <div key={categoryName} className="space-y-3">
+              {/* Séparateur avec nom de catégorie */}
+              <div className="flex items-center gap-3 py-2">
+                <div className="h-px bg-border flex-1"></div>
+                <div className="flex items-center gap-2 px-3 py-1 bg-muted rounded-full">
+                  {categoryTasks[0].category && (
                     <div 
-                      className="w-3 h-3 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: task.category.color }}
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: categoryTasks[0].category.color }}
                     />
                   )}
-                  <span className="truncate">{task.title}</span>
+                  <span className="text-sm font-medium text-muted-foreground">
+                    {categoryName} ({categoryTasks.length})
+                  </span>
                 </div>
-                {task.assignments && task.assignments.length > 0 && (
-                  <div className="text-xs text-blue-600 font-medium mt-1 flex items-center space-x-2">
-                    <span>{task.assignments.map(assignment => {
-                      const isCompleted = assignment.status?.status === 'done';
-                      const name = assignment.profiles?.full_name || assignment.profiles?.email || 'Utilisateur';
-                      return isCompleted ? `✓ ${name}` : name;
-                    }).join(', ')}</span>
-                  </div>
-                )}
-                <div className="text-xs text-muted-foreground">
-                  {format(new Date(task.start_date), 'dd/MM', { locale: fr })} - {format(new Date(task.end_date), 'dd/MM', { locale: fr })}
-                </div>
+                <div className="h-px bg-border flex-1"></div>
               </div>
-              
-              <div 
-                className="flex-1 relative h-8 bg-muted rounded cursor-pointer hover:opacity-80"
-                onClick={() => onTaskClick(task)}
-              >
-                <div
-                  className={`absolute top-1 bottom-1 rounded ${getStatusColor(task)} flex items-center`}
-                  style={position}
-                >
-                  {Array.from({ length: differenceInDays(new Date(task.end_date), new Date(task.start_date)) + 1 }, (_, index) => {
-                    const dayCount = differenceInDays(new Date(task.end_date), new Date(task.start_date)) + 1;
-                    const dayWidth = `calc((100% - 8px) / ${dayCount})`;
-                    const currentDay = new Date(new Date(task.start_date).getTime() + index * 24 * 60 * 60 * 1000);
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    currentDay.setHours(0, 0, 0, 0);
+
+              {/* Tâches de cette catégorie */}
+              {categoryTasks.map((task) => {
+                const position = getTaskPosition(task);
+                const completedAssignees = task.assignments?.filter(assignment => 
+                  assignment.status?.status === 'done'
+                ) || [];
+                
+                return (
+                  <div key={task.id} className="flex items-center space-x-4">
+                    <div className="w-48 text-sm font-medium">
+                      <div className="flex items-center space-x-2">
+                        <span className="truncate">{task.title}</span>
+                      </div>
+                      {task.assignments && task.assignments.length > 0 && (
+                        <div className="text-xs text-blue-600 font-medium mt-1 flex items-center space-x-2">
+                          <span>{task.assignments.map(assignment => {
+                            const isCompleted = assignment.status?.status === 'done';
+                            const name = assignment.profiles?.full_name || assignment.profiles?.email || 'Utilisateur';
+                            return isCompleted ? `✓ ${name}` : name;
+                          }).join(', ')}</span>
+                        </div>
+                      )}
+                      <div className="text-xs text-muted-foreground">
+                        {format(new Date(task.start_date), 'dd/MM', { locale: fr })} - {format(new Date(task.end_date), 'dd/MM', { locale: fr })}
+                      </div>
+                    </div>
                     
-                    const isToday = currentDay.getTime() === today.getTime();
-                    const isPast = currentDay.getTime() < today.getTime();
-                    
-                    let dayStyle = "h-4 border border-white/50 rounded-sm";
-                    
-                    if (isToday) {
-                      dayStyle += " bg-purple-500";
-                    } else if (isPast) {
-                      dayStyle += " bg-white/30 bg-stripe-pattern";
-                    } else {
-                      dayStyle += " bg-white/30";
-                    }
-                    
-                    return (
+                    <div 
+                      className="flex-1 relative h-8 bg-muted rounded cursor-pointer hover:opacity-80"
+                      onClick={() => onTaskClick(task)}
+                    >
                       <div
-                        key={index}
-                        className={dayStyle}
-                        style={{ 
-                          width: dayWidth,
-                          marginRight: index < dayCount - 1 ? '1px' : '0',
-                          backgroundImage: isPast ? 'repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.2) 2px, rgba(255,255,255,0.2) 4px)' : undefined
-                        }}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-              
-              <div className="text-xs text-muted-foreground w-20">
-                {differenceInDays(new Date(task.end_date), new Date(task.start_date)) + 1}j
-              </div>
+                        className={`absolute top-1 bottom-1 rounded ${getStatusColor(task)} flex items-center`}
+                        style={position}
+                      >
+                        {Array.from({ length: differenceInDays(new Date(task.end_date), new Date(task.start_date)) + 1 }, (_, index) => {
+                          const dayCount = differenceInDays(new Date(task.end_date), new Date(task.start_date)) + 1;
+                          const dayWidth = `calc((100% - 8px) / ${dayCount})`;
+                          const currentDay = new Date(new Date(task.start_date).getTime() + index * 24 * 60 * 60 * 1000);
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          currentDay.setHours(0, 0, 0, 0);
+                          
+                          const isToday = currentDay.getTime() === today.getTime();
+                          const isPast = currentDay.getTime() < today.getTime();
+                          
+                          let dayStyle = "h-4 border border-white/50 rounded-sm";
+                          
+                          if (isToday) {
+                            dayStyle += " bg-purple-500";
+                          } else if (isPast) {
+                            dayStyle += " bg-white/30 bg-stripe-pattern";
+                          } else {
+                            dayStyle += " bg-white/30";
+                          }
+                          
+                          return (
+                            <div
+                              key={index}
+                              className={dayStyle}
+                              style={{ 
+                                width: dayWidth,
+                                marginRight: index < dayCount - 1 ? '1px' : '0',
+                                backgroundImage: isPast ? 'repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.2) 2px, rgba(255,255,255,0.2) 4px)' : undefined
+                              }}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                    
+                    <div className="text-xs text-muted-foreground w-20">
+                      {differenceInDays(new Date(task.end_date), new Date(task.start_date)) + 1}j
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
+          ));
+        })()}
       </div>
     </div>
   );

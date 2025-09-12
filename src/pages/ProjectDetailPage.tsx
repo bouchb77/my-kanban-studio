@@ -696,17 +696,19 @@ const ProjectDetailPage: React.FC = () => {
   const { tasks, refetch: refetchTasks } = useProjectTasks(id || '');
   const { user } = useAuth();
 
-  const project = projects.find(p => p.id === id);
-  
-  // Check user permissions
-  const isOwner = project?.owner_id === user?.id;
-  const userCollaborator = collaborators.find(c => c.user_id === user?.id);
-  const isAdmin = userCollaborator?.role === 'admin';
+  // State hooks must be at the top
   const [editingTask, setEditingTask] = useState<ProjectTask | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [viewingTask, setViewingTask] = useState<ProjectTask | null>(null);
   const [showViewDialog, setShowViewDialog] = useState(false);
+
+  const project = projects.find(p => p.id === id);
+  
+  // Check user permissions - safely handle undefined values
+  const isOwner = project?.owner_id === user?.id;
+  const userCollaborator = collaborators.find(c => c.user_id === user?.id);
+  const isAdmin = userCollaborator?.role === 'admin';
 
   const handleEditTask = (task: ProjectTask) => {
     setEditingTask(task);

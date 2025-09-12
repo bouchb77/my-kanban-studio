@@ -49,7 +49,7 @@ export const EditProjectTaskDialog: React.FC<EditProjectTaskDialogProps> = ({
       setStatus(task.status);
       setProgress(task.progress);
       setAssignedUserIds(task.assignments?.map(a => a.user_id) || []);
-      setCategoryId(task.category_id || '');
+      setCategoryId(task.category_id || 'none');
     }
   }, [task, open]);
 
@@ -67,7 +67,7 @@ export const EditProjectTaskDialog: React.FC<EditProjectTaskDialogProps> = ({
         priority,
         status,
         progress,
-        category_id: categoryId || undefined
+        category_id: categoryId === 'none' ? undefined : categoryId || undefined
       });
 
       // Update assignments
@@ -179,7 +179,7 @@ export const EditProjectTaskDialog: React.FC<EditProjectTaskDialogProps> = ({
                 <SelectValue placeholder="Sélectionner une catégorie" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Aucune catégorie</SelectItem>
+                <SelectItem value="none">Aucune catégorie</SelectItem>
                 {categories.map((category) => (
                   <SelectItem key={category.id} value={category.id}>
                     <div className="flex items-center space-x-2">

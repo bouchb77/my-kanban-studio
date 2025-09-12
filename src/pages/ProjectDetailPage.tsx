@@ -237,7 +237,7 @@ const CreateTaskDialog: React.FC<{ projectId: string; collaborators: any[]; onSu
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [status, setStatus] = useState<'todo' | 'in_progress' | 'review' | 'done'>('todo');
   const [assignees, setAssignees] = useState<string[]>([]);
-  const [categoryId, setCategoryId] = useState<string>('');
+  const [categoryId, setCategoryId] = useState<string>('none');
   const { createTask, assignTask } = useProjectTasks(projectId);
   const { categories } = useProjectCategories(projectId);
 
@@ -255,7 +255,7 @@ const CreateTaskDialog: React.FC<{ projectId: string; collaborators: any[]; onSu
       status,
       progress: 0,
       dependencies: [],
-      category_id: categoryId || undefined
+      category_id: categoryId === 'none' ? undefined : categoryId || undefined
     });
 
     if (newTask && assignees.length > 0) {
@@ -271,7 +271,7 @@ const CreateTaskDialog: React.FC<{ projectId: string; collaborators: any[]; onSu
       setPriority('medium');
       setStatus('todo');
       setAssignees([]);
-      setCategoryId('');
+      setCategoryId('none');
       onSuccess();
     }
   };
@@ -381,7 +381,7 @@ const CreateTaskDialog: React.FC<{ projectId: string; collaborators: any[]; onSu
                 <SelectValue placeholder="Sélectionner une catégorie" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Aucune catégorie</SelectItem>
+                <SelectItem value="none">Aucune catégorie</SelectItem>
                 {categories.map((category) => (
                   <SelectItem key={category.id} value={category.id}>
                     <div className="flex items-center space-x-2">

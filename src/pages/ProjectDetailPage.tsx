@@ -427,9 +427,9 @@ const CreateTaskDialog: React.FC<{ projectId: string; collaborators: any[]; onSu
   );
 };
 
-const TaskCard: React.FC<{ task: ProjectTask; onUpdate: () => void; collaborators: any[]; onEdit: (task: ProjectTask) => void }> = ({ task, onUpdate, collaborators, onEdit }) => {
+const TaskCard: React.FC<{ task: ProjectTask; onUpdate: () => void; collaborators: any[]; onEdit: (task: ProjectTask) => void; isUserAdmin: boolean }> = ({ task, onUpdate, collaborators, onEdit, isUserAdmin }) => {
   const [comment, setComment] = useState('');
-  const [isCollapsed, setIsCollapsed] = useState(task.status === 'done');
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const { addComment, updateAssignmentStatus } = useProjectTasks(task.project_id);
   const { user } = useAuth();
 
@@ -467,9 +467,9 @@ const TaskCard: React.FC<{ task: ProjectTask; onUpdate: () => void; collaborator
     }
   };
 
-  if (isCollapsed && task.status === 'done') {
+  if (isCollapsed) {
     return (
-      <Card className="opacity-60">
+      <Card className="opacity-75">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2 flex-1">
@@ -480,8 +480,10 @@ const TaskCard: React.FC<{ task: ProjectTask; onUpdate: () => void; collaborator
                 />
               )}
               <CardTitle className="text-sm truncate">{task.title}</CardTitle>
-              <Badge className="text-white border-none bg-green-500 text-xs">
-                Terminé
+              <Badge className={`text-white border-none ${getStatusColor(task.status)} text-xs`}>
+                {task.status === 'todo' ? 'À faire' : 
+                 task.status === 'in_progress' ? 'En cours' :
+                 task.status === 'review' ? 'En révision' : 'Terminé'}
               </Badge>
             </div>
             <Button 
@@ -510,15 +512,13 @@ const TaskCard: React.FC<{ task: ProjectTask; onUpdate: () => void; collaborator
                 />
               )}
               <CardTitle className="text-lg">{task.title}</CardTitle>
-              {task.status === 'done' && (
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => setIsCollapsed(true)}
-                >
-                  Réduire
-                </Button>
-              )}
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setIsCollapsed(true)}
+              >
+                Réduire
+              </Button>
             </div>
             {task.description && (
               <CardDescription className="mt-1">
@@ -569,12 +569,14 @@ const TaskCard: React.FC<{ task: ProjectTask; onUpdate: () => void; collaborator
 
         {/* Affichage des assignations individuelles */}
         {task.assignments && task.assignments.length > 0 && (
-          <div className="space-y-3">
+            <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Assignations</span>
-              <Button size="sm" variant="outline" onClick={() => onEdit(task)}>
-                Modifier
-              </Button>
+              {(isUserAdmin || (user && task.assignments?.some(a => a.user_id === user.id))) && (
+                <Button size="sm" variant="outline" onClick={() => onEdit(task)}>
+                  Modifier
+                </Button>
+              )}
             </div>
             
             {task.assignments.map((assignment) => (
@@ -817,6 +819,7 @@ const ProjectDetailPage: React.FC = () => {
                   onUpdate={refetchTasks} 
                   collaborators={collaborators}
                   onEdit={handleEditTask}
+                  isUserAdmin={isOwner || isAdmin}
                 />
               ))}
             </div>

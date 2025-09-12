@@ -302,25 +302,44 @@ export function CalendarPage() {
               </div>
               
               <div className="space-y-1">
-                {dayEvents.slice(0, 3).map((event, eventIndex) => {
-                  return (
-                    <div
-                      key={eventIndex}
-                      className="text-xs p-1 bg-primary/10 text-primary rounded space-y-1"
-                      title={`${event.subject} ${event.categories?.length ? '- ' + event.categories.join(', ') : ''}`}
-                    >
-                      <div className="font-medium truncate">
-                        {format(new Date(event.start.dateTime), 'HH:mm', { locale: fr })} {event.subject}
+                {(() => {
+                  // Grouper les événements par catégorie
+                  const eventsByCategory = dayEvents.slice(0, 3).reduce((groups, event) => {
+                    const category = event.categories && event.categories.length > 0 
+                      ? event.categories[0] 
+                      : 'Sans catégorie';
+                    
+                    if (!groups[category]) {
+                      groups[category] = [];
+                    }
+                    groups[category].push(event);
+                    return groups;
+                  }, {} as Record<string, typeof dayEvents>);
+
+                  return Object.entries(eventsByCategory).map(([categoryName, categoryEvents]) => (
+                    <div key={categoryName} className="space-y-1">
+                      {/* Séparateur avec nom de catégorie */}
+                      <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                        <div className="h-px bg-muted flex-1"></div>
+                        <span className="px-1 bg-background">{categoryName}</span>
+                        <div className="h-px bg-muted flex-1"></div>
                       </div>
-                      {event.categories && event.categories.length > 0 && (
-                        <div className="text-xs bg-muted/50 px-2 py-1 rounded inline-flex items-center gap-1">
-                          <span>📂</span>
-                          <span>{event.categories.join(', ')}</span>
+                      
+                      {/* Événements de cette catégorie */}
+                      {categoryEvents.map((event, eventIndex) => (
+                        <div
+                          key={eventIndex}
+                          className="text-xs p-1 bg-primary/10 text-primary rounded"
+                          title={`${event.subject} ${event.categories?.length ? '- ' + event.categories.join(', ') : ''}`}
+                        >
+                          <div className="font-medium truncate">
+                            {format(new Date(event.start.dateTime), 'HH:mm', { locale: fr })} {event.subject}
+                          </div>
                         </div>
-                      )}
+                      ))}
                     </div>
-                  );
-                })}
+                  ));
+                })()}
                 {dayEvents.length > 3 && (
                   <div className="text-xs text-muted-foreground">
                     +{dayEvents.length - 3} autres

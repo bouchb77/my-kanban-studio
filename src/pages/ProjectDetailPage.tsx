@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { useProjects, useProjectCollaborators, useProjectTasks } from '@/hooks/useProjects';
+import { useProjectCategories } from '@/hooks/useProjectCategories';
 import { useAuth } from '@/contexts/AuthContext';
 import { Project, ProjectTask } from '@/types/project';
 import { format, parseISO, differenceInDays } from 'date-fns';
@@ -20,6 +21,7 @@ import { fr } from 'date-fns/locale';
 import { EditProjectTaskDialog } from '@/components/EditProjectTaskDialog';
 import { InviteCollaboratorDialog } from '@/components/InviteCollaboratorDialog';
 import { ViewProjectTaskDialog } from '@/components/ViewProjectTaskDialog';
+import { ProjectCategoriesManager } from '@/components/ProjectCategoriesManager';
 
 const GanttChart: React.FC<{ tasks: ProjectTask[]; onTaskClick: (task: ProjectTask) => void }> = ({ tasks, onTaskClick }) => {
   if (tasks.length === 0) {
@@ -30,9 +32,21 @@ const GanttChart: React.FC<{ tasks: ProjectTask[]; onTaskClick: (task: ProjectTa
     );
   }
 
-  const sortedTasks = [...tasks].sort((a, b) => 
-    new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
-  );
+  // Tri par catégorie puis par date de début
+  const sortedTasks = [...tasks].sort((a, b) => {
+    // Si les deux tâches ont une catégorie, trier par ordre de catégorie
+    if (a.category && b.category) {
+      if (a.category.order_index !== b.category.order_index) {
+        return a.category.order_index - b.category.order_index;
+      }
+    }
+    // Si une seule a une catégorie, celle avec catégorie vient en premier
+    if (a.category && !b.category) return -1;
+    if (!a.category && b.category) return 1;
+    
+    // Sinon, trier par date de début
+    return new Date(a.start_date).getTime() - new Date(b.start_date).getTime();
+  });
 
   const earliestStart = new Date(Math.min(...tasks.map(t => new Date(t.start_date).getTime())));
   const latestEnd = new Date(Math.max(...tasks.map(t => new Date(t.end_date).getTime())));
@@ -131,13 +145,23 @@ const GanttChart: React.FC<{ tasks: ProjectTask[]; onTaskClick: (task: ProjectTa
           
           return (
             <div key={task.id} className="flex items-center space-x-4">
-              <div className="w-48 text-sm font-medium truncate">
-                {task.title}
+              <div className="w-48 text-sm font-medium">
+                <div className="flex items-center space-x-2">
+                  {task.category && (
+                    <div 
+                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: task.category.color }}
+                    />
+                  )}
+                  <span className="truncate">{task.title}</span>
+                </div>
                 {task.assignments && task.assignments.length > 0 && (
-                  <div className="text-xs text-blue-600 font-medium">
-                    {task.assignments.map(assignment => 
-                      assignment.profiles?.full_name || assignment.profiles?.email || 'Utilisateur'
-                    ).join(', ')}
+                  <div className="text-xs text-blue-600 font-medium mt-1 flex items-center space-x-2">
+                    <span>{task.assignments.map(assignment => {
+                      const isCompleted = assignment.status?.status === 'done';
+                      const name = assignment.profiles?.full_name || assignment.profiles?.email || 'Utilisateur';
+                      return isCompleted ? `✓ ${name}` : name;
+                    }).join(', ')}</span>
                   </div>
                 )}
                 <div className="text-xs text-muted-foreground">
@@ -192,17 +216,6 @@ const GanttChart: React.FC<{ tasks: ProjectTask[]; onTaskClick: (task: ProjectTa
               <div className="text-xs text-muted-foreground w-20">
                 {differenceInDays(new Date(task.end_date), new Date(task.start_date)) + 1}j
               </div>
-              
-              {completedAssignees.length > 0 && (
-                <div className="flex items-center space-x-2">
-                  <CheckCircle className="w-4 h-4 text-green-500" />
-                  <div className="text-xs text-green-600 font-medium">
-                    {completedAssignees.map(assignee => 
-                      assignee.profiles?.full_name || assignee.profiles?.email || 'Utilisateur'
-                    ).join(', ')}
-                  </div>
-                </div>
-              )}
             </div>
           );
         })}
@@ -224,7 +237,9 @@ const CreateTaskDialog: React.FC<{ projectId: string; collaborators: any[]; onSu
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [status, setStatus] = useState<'todo' | 'in_progress' | 'review' | 'done'>('todo');
   const [assignees, setAssignees] = useState<string[]>([]);
+  const [categoryId, setCategoryId] = useState<string>('');
   const { createTask, assignTask } = useProjectTasks(projectId);
+  const { categories } = useProjectCategories(projectId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -239,7 +254,8 @@ const CreateTaskDialog: React.FC<{ projectId: string; collaborators: any[]; onSu
       priority,
       status,
       progress: 0,
-      dependencies: []
+      dependencies: [],
+      category_id: categoryId || undefined
     });
 
     if (newTask && assignees.length > 0) {
@@ -255,6 +271,7 @@ const CreateTaskDialog: React.FC<{ projectId: string; collaborators: any[]; onSu
       setPriority('medium');
       setStatus('todo');
       setAssignees([]);
+      setCategoryId('');
       onSuccess();
     }
   };
@@ -358,6 +375,29 @@ const CreateTaskDialog: React.FC<{ projectId: string; collaborators: any[]; onSu
           </div>
 
           <div>
+            <Label htmlFor="category">Catégorie</Label>
+            <Select value={categoryId} onValueChange={setCategoryId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner une catégorie" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Aucune catégorie</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    <div className="flex items-center space-x-2">
+                      <div 
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: category.color }}
+                      />
+                      <span>{category.name}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
             <Label>Assignés</Label>
             <div className="space-y-2 mt-2 max-h-32 overflow-y-auto">
               {collaborators.map((collaborator) => (
@@ -389,6 +429,7 @@ const CreateTaskDialog: React.FC<{ projectId: string; collaborators: any[]; onSu
 
 const TaskCard: React.FC<{ task: ProjectTask; onUpdate: () => void; collaborators: any[]; onEdit: (task: ProjectTask) => void }> = ({ task, onUpdate, collaborators, onEdit }) => {
   const [comment, setComment] = useState('');
+  const [isCollapsed, setIsCollapsed] = useState(task.status === 'done');
   const { addComment, updateAssignmentStatus } = useProjectTasks(task.project_id);
   const { user } = useAuth();
 
@@ -426,12 +467,59 @@ const TaskCard: React.FC<{ task: ProjectTask; onUpdate: () => void; collaborator
     }
   };
 
+  if (isCollapsed && task.status === 'done') {
+    return (
+      <Card className="opacity-60">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2 flex-1">
+              {task.category && (
+                <div 
+                  className="w-3 h-3 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: task.category.color }}
+                />
+              )}
+              <CardTitle className="text-sm truncate">{task.title}</CardTitle>
+              <Badge className="text-white border-none bg-green-500 text-xs">
+                Terminé
+              </Badge>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => setIsCollapsed(false)}
+            >
+              Développer
+            </Button>
+          </div>
+        </CardHeader>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <CardTitle className="text-lg">{task.title}</CardTitle>
+            <div className="flex items-center space-x-2 mb-1">
+              {task.category && (
+                <div 
+                  className="w-3 h-3 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: task.category.color }}
+                />
+              )}
+              <CardTitle className="text-lg">{task.title}</CardTitle>
+              {task.status === 'done' && (
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setIsCollapsed(true)}
+                >
+                  Réduire
+                </Button>
+              )}
+            </div>
             {task.description && (
               <CardDescription className="mt-1">
                 {task.description}
@@ -606,6 +694,14 @@ const ProjectDetailPage: React.FC = () => {
   const { projects } = useProjects();
   const { collaborators, refetch: refetchCollaborators } = useProjectCollaborators(id || '');
   const { tasks, refetch: refetchTasks } = useProjectTasks(id || '');
+  const { user } = useAuth();
+
+  const project = projects.find(p => p.id === id);
+  
+  // Check user permissions
+  const isOwner = project?.owner_id === user?.id;
+  const userCollaborator = collaborators.find(c => c.user_id === user?.id);
+  const isAdmin = userCollaborator?.role === 'admin';
   const [editingTask, setEditingTask] = useState<ProjectTask | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showInviteDialog, setShowInviteDialog] = useState(false);
@@ -626,7 +722,7 @@ const ProjectDetailPage: React.FC = () => {
     setShowViewDialog(true);
   };
 
-  const project = projects.find(p => p.id === id);
+  
 
   if (!project) {
     return (
@@ -672,6 +768,9 @@ const ProjectDetailPage: React.FC = () => {
           <TabsTrigger value="tasks">Tâches</TabsTrigger>
           <TabsTrigger value="gantt">Diagramme de Gantt</TabsTrigger>
           <TabsTrigger value="collaborators">Collaborateurs</TabsTrigger>
+          {(isOwner || isAdmin) && (
+            <TabsTrigger value="categories">Catégories</TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="tasks" className="space-y-6">
@@ -762,6 +861,15 @@ const ProjectDetailPage: React.FC = () => {
             ))}
           </div>
         </TabsContent>
+
+        {(isOwner || isAdmin) && (
+          <TabsContent value="categories" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Gestion des catégories</h2>
+            </div>
+            <ProjectCategoriesManager projectId={project.id} />
+          </TabsContent>
+        )}
       </Tabs>
 
       <EditProjectTaskDialog

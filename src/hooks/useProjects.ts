@@ -345,6 +345,16 @@ export const useProjectTasks = (projectId: string) => {
         return;
       }
 
+      // Récupérer les catégories
+      const { data: categoriesData, error: categoriesError } = await supabase
+        .from('project_categories')
+        .select('*')
+        .eq('project_id', projectId);
+
+      if (categoriesError) {
+        console.warn('Could not load categories:', categoriesError);
+      }
+
       // Récupérer les affectations
       const taskIds = tasksData.map(t => t.id);
       const { data: assignmentsData, error: assignmentsError } = await supabase
@@ -395,6 +405,7 @@ export const useProjectTasks = (projectId: string) => {
       // Combiner toutes les données
       const tasksWithDetails = tasksData.map(task => ({
         ...task,
+        category: categoriesData?.find(cat => cat.id === task.category_id),
         assignments: assignmentsData?.filter(a => a.task_id === task.id).map(assignment => ({
           ...assignment,
           profiles: profilesData?.find(p => p.id === assignment.user_id),

@@ -35,10 +35,17 @@ export interface ProjectTask {
   priority: 'low' | 'medium' | 'high';
   created_by: string;
   dependencies: string[];
+  category_id?: string;
   created_at: string;
   updated_at: string;
   assignments?: ProjectTaskAssignment[];
   comments?: ProjectTaskComment[];
+  category?: {
+    id: string;
+    name: string;
+    color: string;
+    order_index: number;
+  };
 }
 
 export interface ProjectTaskAssignment {

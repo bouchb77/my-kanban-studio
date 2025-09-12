@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { ProjectTask, ProjectCollaborator } from '@/types/project';
 import { useProjectTasks } from '@/hooks/useProjects';
+import { useProjectCategories } from '@/hooks/useProjectCategories';
 import { format } from 'date-fns';
 
 interface EditProjectTaskDialogProps {
@@ -33,8 +34,10 @@ export const EditProjectTaskDialog: React.FC<EditProjectTaskDialogProps> = ({
   const [status, setStatus] = useState<'todo' | 'in_progress' | 'review' | 'done'>('todo');
   const [assignedUserIds, setAssignedUserIds] = useState<string[]>([]);
   const [progress, setProgress] = useState(0);
-
+  const [categoryId, setCategoryId] = useState<string>('');
+  
   const { updateTask, assignTask } = useProjectTasks(task?.project_id || '');
+  const { categories } = useProjectCategories(task?.project_id || '');
 
   useEffect(() => {
     if (task && open) {
@@ -46,6 +49,7 @@ export const EditProjectTaskDialog: React.FC<EditProjectTaskDialogProps> = ({
       setStatus(task.status);
       setProgress(task.progress);
       setAssignedUserIds(task.assignments?.map(a => a.user_id) || []);
+      setCategoryId(task.category_id || '');
     }
   }, [task, open]);
 
@@ -62,7 +66,8 @@ export const EditProjectTaskDialog: React.FC<EditProjectTaskDialogProps> = ({
         end_date: endDate,
         priority,
         status,
-        progress
+        progress,
+        category_id: categoryId || undefined
       });
 
       // Update assignments
@@ -168,15 +173,26 @@ export const EditProjectTaskDialog: React.FC<EditProjectTaskDialogProps> = ({
           </div>
 
           <div>
-            <Label htmlFor="progress">Progression globale (%)</Label>
-            <Input
-              id="progress"
-              type="number"
-              min="0"
-              max="100"
-              value={progress}
-              onChange={(e) => setProgress(Number(e.target.value))}
-            />
+            <Label htmlFor="category">Catégorie</Label>
+            <Select value={categoryId} onValueChange={setCategoryId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner une catégorie" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Aucune catégorie</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    <div className="flex items-center space-x-2">
+                      <div 
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: category.color }}
+                      />
+                      <span>{category.name}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div>

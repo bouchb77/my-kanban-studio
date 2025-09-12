@@ -567,14 +567,23 @@ const TaskCard: React.FC<{ task: ProjectTask; onUpdate: () => void; collaborator
           )}
         </div>
 
+        {/* Bouton de modification toujours visible pour les propriétaires/admins */}
+        {(isOwner || isAdmin) && (
+          <div className="flex justify-end mb-4">
+            <Button size="sm" variant="outline" onClick={() => onEdit(task)}>
+              Modifier
+            </Button>
+          </div>
+        )}
+
         {/* Affichage des assignations individuelles */}
         {task.assignments && task.assignments.length > 0 && (
             <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Assignations</span>
-              {(isOwner || isAdmin || (user && task.assignments?.some(a => a.user_id === user.id))) && (
+              {(user && task.assignments?.some(a => a.user_id === user.id)) && (
                 <Button size="sm" variant="outline" onClick={() => onEdit(task)}>
-                  Modifier
+                  Modifier mon assignation
                 </Button>
               )}
             </div>
@@ -711,16 +720,6 @@ const ProjectDetailPage: React.FC = () => {
   const isOwner = project?.owner_id === user?.id;
   const userCollaborator = collaborators.find(c => c.user_id === user?.id);
   const isAdmin = userCollaborator?.role === 'admin';
-  
-  // Debug logging
-  console.log('Debug permissions:', {
-    projectOwnerId: project?.owner_id,
-    userId: user?.id,
-    isOwner,
-    userCollaborator,
-    isAdmin,
-    collaborators
-  });
 
   const handleEditTask = (task: ProjectTask) => {
     setEditingTask(task);

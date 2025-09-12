@@ -457,7 +457,7 @@ const CreateTaskDialog: React.FC<{ projectId: string; collaborators: any[]; onSu
 
 const TaskCard: React.FC<{ task: ProjectTask; onUpdate: () => void; collaborators: any[]; onEdit: (task: ProjectTask) => void; isOwner: boolean; isAdmin: boolean }> = ({ task, onUpdate, collaborators, onEdit, isOwner, isAdmin }) => {
   const [comment, setComment] = useState('');
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(task.status === 'done'); // Réduit par défaut si terminé
   const { addComment, updateAssignmentStatus } = useProjectTasks(task.project_id);
   const { user } = useAuth();
 
@@ -502,10 +502,13 @@ const TaskCard: React.FC<{ task: ProjectTask; onUpdate: () => void; collaborator
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2 flex-1">
               {task.category && (
-                <div 
-                  className="w-3 h-3 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: task.category.color }}
-                />
+                <div className="flex items-center space-x-1">
+                  <div 
+                    className="w-3 h-3 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: task.category.color }}
+                  />
+                  <span className="text-xs text-muted-foreground">{task.category.name}</span>
+                </div>
               )}
               <CardTitle className="text-sm truncate">{task.title}</CardTitle>
               <Badge className={`text-white border-none ${getStatusColor(task.status)} text-xs`}>
@@ -534,10 +537,13 @@ const TaskCard: React.FC<{ task: ProjectTask; onUpdate: () => void; collaborator
           <div className="flex-1">
             <div className="flex items-center space-x-2 mb-1">
               {task.category && (
-                <div 
-                  className="w-3 h-3 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: task.category.color }}
-                />
+                <div className="flex items-center space-x-1">
+                  <div 
+                    className="w-3 h-3 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: task.category.color }}
+                  />
+                  <span className="text-sm text-muted-foreground">{task.category.name}</span>
+                </div>
               )}
               <CardTitle className="text-lg">{task.title}</CardTitle>
               <Button 

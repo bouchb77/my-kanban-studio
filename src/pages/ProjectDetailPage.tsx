@@ -427,7 +427,7 @@ const CreateTaskDialog: React.FC<{ projectId: string; collaborators: any[]; onSu
   );
 };
 
-const TaskCard: React.FC<{ task: ProjectTask; onUpdate: () => void; collaborators: any[]; onEdit: (task: ProjectTask) => void; isUserAdmin: boolean }> = ({ task, onUpdate, collaborators, onEdit, isUserAdmin }) => {
+const TaskCard: React.FC<{ task: ProjectTask; onUpdate: () => void; collaborators: any[]; onEdit: (task: ProjectTask) => void; isOwner: boolean; isAdmin: boolean }> = ({ task, onUpdate, collaborators, onEdit, isOwner, isAdmin }) => {
   const [comment, setComment] = useState('');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { addComment, updateAssignmentStatus } = useProjectTasks(task.project_id);
@@ -572,7 +572,7 @@ const TaskCard: React.FC<{ task: ProjectTask; onUpdate: () => void; collaborator
             <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Assignations</span>
-              {(isUserAdmin || (user && task.assignments?.some(a => a.user_id === user.id))) && (
+              {(isOwner || isAdmin || (user && task.assignments?.some(a => a.user_id === user.id))) && (
                 <Button size="sm" variant="outline" onClick={() => onEdit(task)}>
                   Modifier
                 </Button>
@@ -819,7 +819,8 @@ const ProjectDetailPage: React.FC = () => {
                   onUpdate={refetchTasks} 
                   collaborators={collaborators}
                   onEdit={handleEditTask}
-                  isUserAdmin={isOwner || isAdmin}
+                  isOwner={isOwner}
+                  isAdmin={isAdmin}
                 />
               ))}
             </div>

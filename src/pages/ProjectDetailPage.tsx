@@ -711,6 +711,16 @@ const ProjectDetailPage: React.FC = () => {
   const isOwner = project?.owner_id === user?.id;
   const userCollaborator = collaborators.find(c => c.user_id === user?.id);
   const isAdmin = userCollaborator?.role === 'admin';
+  
+  // Debug logging
+  console.log('Debug permissions:', {
+    projectOwnerId: project?.owner_id,
+    userId: user?.id,
+    isOwner,
+    userCollaborator,
+    isAdmin,
+    collaborators
+  });
 
   const handleEditTask = (task: ProjectTask) => {
     setEditingTask(task);

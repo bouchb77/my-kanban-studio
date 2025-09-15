@@ -77,22 +77,23 @@ export const OrderImportSection: React.FC = () => {
     try {
       // Use the import_orders function to handle the import
       const { data, error } = await supabase.rpc('import_orders', {
-        orders_data: JSON.stringify(orders.map(order => ({
+        orders_data: orders.map(order => ({
           order_number: order.order_number,
           company_name: order.company_name,
           amount: order.amount,
           order_date: order.order_date,
           status: order.status
-        })))
+        }))
       });
 
       if (error) {
         throw error;
       }
 
+      const result = data as { total?: number } | null;
       toast({
         title: "Import réussi",
-        description: `${orders.length} commandes ont été importées avec succès.`,
+        description: `${result?.total || orders.length} commandes ont été importées avec succès.`,
       });
       
       setOrders([]);

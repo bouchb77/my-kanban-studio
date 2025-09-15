@@ -23,8 +23,12 @@ export type Database = {
           company_name: string
           created_at: string
           general_department: string | null
+          geocoded_address: string | null
+          geocoding_date: string | null
           id: string
           last_order_date: string | null
+          latitude: number | null
+          longitude: number | null
           postal_code: string | null
           quality: string | null
           report_creation_date: string | null
@@ -40,8 +44,12 @@ export type Database = {
           company_name: string
           created_at?: string
           general_department?: string | null
+          geocoded_address?: string | null
+          geocoding_date?: string | null
           id?: string
           last_order_date?: string | null
+          latitude?: number | null
+          longitude?: number | null
           postal_code?: string | null
           quality?: string | null
           report_creation_date?: string | null
@@ -57,8 +65,12 @@ export type Database = {
           company_name?: string
           created_at?: string
           general_department?: string | null
+          geocoded_address?: string | null
+          geocoding_date?: string | null
           id?: string
           last_order_date?: string | null
+          latitude?: number | null
+          longitude?: number | null
           postal_code?: string | null
           quality?: string | null
           report_creation_date?: string | null

@@ -23,6 +23,9 @@ interface Company {
   client_blocked_date?: string;
   training_date?: string;
   report_creation_date?: string;
+  latitude?: number;
+  longitude?: number;
+  geocoded_address?: string;
 }
 
 export function CompanyImportSection() {
@@ -89,6 +92,52 @@ export function CompanyImportSection() {
     }
   };
 
+  const geocodeAddress = async (company: Company): Promise<{latitude?: number, longitude?: number, geocoded_address?: string}> => {
+    const addressParts = [
+      company.address1,
+      company.address2,
+      company.city,
+      company.general_department
+    ].filter(Boolean);
+    
+    if (addressParts.length === 0) {
+      return {};
+    }
+
+    const address = addressParts.join(', ');
+    
+    try {
+      // Using Nominatim API (OpenStreetMap) for geocoding - free service
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&countrycodes=fr`,
+        {
+          headers: {
+            'User-Agent': 'TaskFlow-App'
+          }
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error('Geocoding failed');
+      }
+      
+      const data = await response.json();
+      
+      if (data && data.length > 0) {
+        const result = data[0];
+        return {
+          latitude: parseFloat(result.lat),
+          longitude: parseFloat(result.lon),
+          geocoded_address: result.display_name
+        };
+      }
+    } catch (error) {
+      console.warn('Geocoding failed for:', address, error);
+    }
+    
+    return {};
+  };
+
   const handleImport = async () => {
     if (companies.length === 0) return;
 
@@ -102,31 +151,56 @@ export function CompanyImportSection() {
 
       if (deleteError) throw deleteError;
 
-      // Insérer les nouvelles entreprises
+      // Geocode and insert companies with GPS coordinates
+      const companiesWithGPS = [];
+      let processed = 0;
+      
+      for (const company of companies) {
+        // Update progress in UI
+        toast({
+          title: "Géolocalisation en cours...",
+          description: `Traitement ${processed + 1}/${companies.length}: ${company.company_name}`,
+        });
+        
+        const gpsData = await geocodeAddress(company);
+        companiesWithGPS.push({
+          sipi_number: company.sipi_number,
+          company_name: company.company_name,
+          address1: company.address1 || null,
+          address2: company.address2 || null,
+          city: company.city || null,
+          postal_code: company.postal_code || null,
+          general_department: company.general_department || null,
+          quality: company.quality || null,
+          last_order_date: company.last_order_date || null,
+          client_blocked_date: company.client_blocked_date || null,
+          training_date: company.training_date || null,
+          report_creation_date: company.report_creation_date || null,
+          latitude: gpsData.latitude || null,
+          longitude: gpsData.longitude || null,
+          geocoded_address: gpsData.geocoded_address || null,
+          geocoding_date: gpsData.latitude ? new Date().toISOString() : null
+        });
+        
+        processed++;
+        
+        // Add delay to respect API limits
+        if (processed < companies.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+        }
+      }
+
+      // Insert all companies at once
       const { error: insertError } = await supabase
         .from('companies')
-        .insert(
-          companies.map(company => ({
-            sipi_number: company.sipi_number,
-            company_name: company.company_name,
-            address1: company.address1 || null,
-            address2: company.address2 || null,
-            city: company.city || null,
-            postal_code: company.postal_code || null,
-            general_department: company.general_department || null,
-            quality: company.quality || null,
-            last_order_date: company.last_order_date || null,
-            client_blocked_date: company.client_blocked_date || null,
-            training_date: company.training_date || null,
-            report_creation_date: company.report_creation_date || null
-          }))
-        );
+        .insert(companiesWithGPS);
 
       if (insertError) throw insertError;
 
+      const geocodedCount = companiesWithGPS.filter(c => c.latitude && c.longitude).length;
       toast({
         title: "Import réussi",
-        description: `${companies.length} entreprises importées avec succès`,
+        description: `${companies.length} entreprises importées avec succès. ${geocodedCount} géolocalisées.`,
       });
       setCompanies([]);
     } catch (error) {

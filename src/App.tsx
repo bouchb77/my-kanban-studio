@@ -20,6 +20,7 @@ import ProjectsPage from "./pages/ProjectsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import CompaniesPage from "./pages/CompaniesPage";
 import ImportReportingPage from "./pages/ImportReportingPage";
+import PublicReportingPage from "./pages/PublicReportingPage";
 
 const queryClient = new QueryClient();
 
@@ -85,7 +86,15 @@ const App = () => (
               path="/reporting" 
               element={
                 <ProtectedRoute>
-                  <MainLayout><ReportingPage /></MainLayout>
+                  <MainLayout><PublicReportingPage /></MainLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/public-reporting" 
+              element={
+                <ProtectedRoute>
+                  <MainLayout><PublicReportingPage /></MainLayout>
                 </ProtectedRoute>
               } 
             />

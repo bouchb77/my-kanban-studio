@@ -673,6 +673,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      import_orders: {
+        Args: { orders_data: Json }
+        Returns: Json
+      }
       is_current_user_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean

@@ -75,20 +75,15 @@ export const OrderImportSection: React.FC = () => {
 
     setImporting(true);
     try {
-      // Import orders using direct SQL since types aren't updated yet
-      const { error } = await supabase.rpc('exec_sql', {
-        sql: `
-          INSERT INTO orders (order_number, company_name, amount, order_date, status)
-          VALUES ${orders.map(order => 
-            `('${order.order_number}', '${order.company_name}', ${order.amount}, '${order.order_date}', '${order.status}')`
-          ).join(', ')}
-          ON CONFLICT (order_number) 
-          DO UPDATE SET 
-            company_name = EXCLUDED.company_name,
-            amount = EXCLUDED.amount,
-            order_date = EXCLUDED.order_date,
-            status = EXCLUDED.status
-        `
+      // Use the import_orders function to handle the import
+      const { data, error } = await supabase.rpc('import_orders', {
+        orders_data: JSON.stringify(orders.map(order => ({
+          order_number: order.order_number,
+          company_name: order.company_name,
+          amount: order.amount,
+          order_date: order.order_date,
+          status: order.status
+        })))
       });
 
       if (error) {

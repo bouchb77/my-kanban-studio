@@ -172,9 +172,12 @@ export function CompanyImportSection() {
       const { error: deleteError } = await supabase
         .from('companies')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+        .gte('created_at', '1900-01-01'); // Delete all
 
-      if (deleteError) throw deleteError;
+      if (deleteError) {
+        console.error('Error deleting existing companies:', deleteError);
+        throw deleteError;
+      }
 
       // Geocode and insert companies with GPS coordinates
       const companiesWithGPS = [];
@@ -216,11 +219,18 @@ export function CompanyImportSection() {
       }
 
       // Insert all companies at once
-      const { error: insertError } = await supabase
+      console.log('Tentative d\'insertion de', companiesWithGPS.length, 'entreprises');
+      const { data: insertedData, error: insertError } = await supabase
         .from('companies')
-        .insert(companiesWithGPS);
+        .insert(companiesWithGPS)
+        .select();
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('Erreur insertion:', insertError);
+        throw insertError;
+      }
+
+      console.log('Insertion réussie:', insertedData?.length, 'entreprises insérées');
 
       const geocodedCount = companiesWithGPS.filter(c => c.latitude && c.longitude).length;
       toast({

@@ -16,24 +16,54 @@ export type Database = {
     Tables: {
       companies: {
         Row: {
+          address1: string | null
+          address2: string | null
+          city: string | null
+          client_blocked_date: string | null
           company_name: string
           created_at: string
+          general_department: string | null
           id: string
+          last_order_date: string | null
+          postal_code: string | null
+          quality: string | null
+          report_creation_date: string | null
           sipi_number: string
+          training_date: string | null
           updated_at: string
         }
         Insert: {
+          address1?: string | null
+          address2?: string | null
+          city?: string | null
+          client_blocked_date?: string | null
           company_name: string
           created_at?: string
+          general_department?: string | null
           id?: string
+          last_order_date?: string | null
+          postal_code?: string | null
+          quality?: string | null
+          report_creation_date?: string | null
           sipi_number: string
+          training_date?: string | null
           updated_at?: string
         }
         Update: {
+          address1?: string | null
+          address2?: string | null
+          city?: string | null
+          client_blocked_date?: string | null
           company_name?: string
           created_at?: string
+          general_department?: string | null
           id?: string
+          last_order_date?: string | null
+          postal_code?: string | null
+          quality?: string | null
+          report_creation_date?: string | null
           sipi_number?: string
+          training_date?: string | null
           updated_at?: string
         }
         Relationships: []

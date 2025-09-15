@@ -35,6 +35,30 @@ export function CompanyImportSection() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Fonction pour convertir les dates Excel
+  const parseExcelDate = (excelDate: any): string | undefined => {
+    if (!excelDate) return undefined;
+    
+    // Si c'est déjà une chaîne de date valide
+    if (typeof excelDate === 'string' && excelDate.includes('-')) {
+      return excelDate;
+    }
+    
+    // Si c'est un nombre (format Excel)
+    if (typeof excelDate === 'number') {
+      try {
+        const date = XLSX.SSF.parse_date_code(excelDate);
+        if (date && date.y && date.m && date.d) {
+          return `${date.y}-${String(date.m).padStart(2, '0')}-${String(date.d).padStart(2, '0')}`;
+        }
+      } catch (e) {
+        console.warn('Erreur conversion date Excel:', excelDate);
+      }
+    }
+    
+    return undefined;
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -42,7 +66,7 @@ export function CompanyImportSection() {
     setIsUploading(true);
     try {
       const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
+      const workbook = XLSX.read(data, { cellDates: true });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
@@ -57,10 +81,10 @@ export function CompanyImportSection() {
         postal_code: String(row['CP'] || row['Code Postal'] || ''),
         general_department: String(row['Département général'] || row['Département'] || ''),
         quality: String(row['Qualité'] || ''),
-        last_order_date: row['Date de dernière cmd'] ? String(row['Date de dernière cmd']) : undefined,
-        client_blocked_date: row['Date de client bloqué'] ? String(row['Date de client bloqué']) : undefined,
-        training_date: row['Date de formation'] ? String(row['Date de formation']) : undefined,
-        report_creation_date: row['Date de création du rapport'] ? String(row['Date de création du rapport']) : undefined
+        last_order_date: parseExcelDate(row['Date de dernière cmd']),
+        client_blocked_date: parseExcelDate(row['Date de client bloqué']),
+        training_date: parseExcelDate(row['Date de formation']),
+        report_creation_date: parseExcelDate(row['Date de création du rapport'])
       })).filter(company => company.sipi_number && company.company_name);
 
       if (parsedCompanies.length === 0) {
@@ -118,7 +142,8 @@ export function CompanyImportSection() {
       );
       
       if (!response.ok) {
-        throw new Error('Geocoding failed');
+        console.warn('Geocoding API error for:', address);
+        return {};
       }
       
       const data = await response.json();

@@ -19,6 +19,7 @@ import NotFound from "./pages/NotFound";
 import ProjectsPage from "./pages/ProjectsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import CompaniesPage from "./pages/CompaniesPage";
+import ImportReportingPage from "./pages/ImportReportingPage";
 
 const queryClient = new QueryClient();
 
@@ -117,6 +118,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <MainLayout><CompaniesPage /></MainLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/import-reporting" 
+              element={
+                <ProtectedRoute>
+                  <MainLayout><ImportReportingPage /></MainLayout>
                 </ProtectedRoute>
               } 
             />

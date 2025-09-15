@@ -21,6 +21,7 @@ import {
   Calendar,
   Folder,
   Building2,
+  Upload,
 } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 
@@ -115,6 +116,14 @@ export function AppSidebar() {
                     <NavLink to="/companies">
                       <Building2 className="w-4 h-4 flex-shrink-0" />
                       {!collapsed && <span>Entreprises</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive("/import-reporting")}>
+                    <NavLink to="/import-reporting">
+                      <Upload className="w-4 h-4 flex-shrink-0" />
+                      {!collapsed && <span>Import Reporting</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

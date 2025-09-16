@@ -33,9 +33,11 @@ const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
     // Create map
     map.current = L.map(mapRef.current).setView([46.603354, 1.888334], 6);
 
-    // Add tile layer
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
+    // Add minimalist tile layer
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '© OpenStreetMap contributors © CARTO',
+      subdomains: 'abcd',
+      maxZoom: 19
     }).addTo(map.current);
 
     return () => {
@@ -141,12 +143,6 @@ const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
 
   return (
     <div className="space-y-4">
-      <div className="text-sm text-muted-foreground text-center p-3 bg-muted/30 rounded-lg">
-        Carte à bulles interactive - {companies.length} entreprises
-        <br />
-        <span className="text-xs">Taille des bulles = Moyenne de commandes par an</span>
-      </div>
-      
       <div className="h-[500px] w-full rounded-lg border shadow-lg overflow-hidden">
         <div ref={mapRef} className="w-full h-full" />
       </div>

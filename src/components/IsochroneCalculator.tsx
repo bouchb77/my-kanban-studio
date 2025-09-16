@@ -30,68 +30,77 @@ const IsochroneCalculator = () => {
   const { toast } = useToast();
 
   const handleCalculateIsochrone = async () => {
-    if (!centerLocation.trim()) {
+    if (!centerLocation.trim() || !maxThreshold || !travelTime) {
       toast({
         title: "Erreur",
-        description: "Veuillez saisir une adresse de départ",
-        variant: "destructive"
+        description: "Veuillez remplir tous les champs requis.",
+        variant: "destructive",
       });
       return;
     }
 
     setIsCalculating(true);
-    
     try {
-      // D'abord récupérer les entreprises avec le seuil
+      // 1. Récupérer les données des entreprises
       await fetchCompanyOrderStats(maxThreshold);
-      
-      // Géocoder l'adresse de départ
-      const geocodeResponse = await supabase.functions.invoke('get-google-maps-key');
-      if (geocodeResponse.error) throw geocodeResponse.error;
-      
-      const { apiKey } = geocodeResponse.data;
-      
-      const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(centerLocation)}&key=${apiKey}`;
-      const geocodeResult = await fetch(geocodeUrl);
-      const geocodeData = await geocodeResult.json();
-      
-      if (geocodeData.status !== 'OK' || !geocodeData.results.length) {
-        throw new Error('Impossible de géocoder l\'adresse de départ');
-      }
-      
-      const centerCoords = geocodeData.results[0].geometry.location;
-      
-      // Calculer l'isochrone (approximation basique avec un cercle)
-      // Pour une vraie implémentation, utilisez l'API Google Maps Directions
-      const approximateRadius = travelTime * (transportMode === 'driving' ? 1.5 : 0.5); // km approximatifs
-      const polygon = generateCirclePolygon(centerCoords.lat, centerCoords.lng, approximateRadius);
-      setIsochronePolygon(polygon);
-      
-      // Filtrer les entreprises dans la zone
-      const companiesInPolygon = companyStats.filter(company => 
-        company.latitude && company.longitude &&
-        isPointInCircle(
-          company.latitude, 
-          company.longitude, 
-          centerCoords.lat, 
-          centerCoords.lng, 
-          approximateRadius
-        )
+
+      // 2. Géocoder l'adresse de départ
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(centerLocation)}&limit=1`
       );
+      const geocodeData = await response.json();
       
-      setCompaniesInZone(companiesInPolygon);
-      
+      if (geocodeData.length === 0) {
+        throw new Error("Impossible de géocoder l'adresse fournie");
+      }
+
+      const centerCoords = {
+        lat: parseFloat(geocodeData[0].lat),
+        lng: parseFloat(geocodeData[0].lon)
+      };
+
+      // 3. Calculer l'isochrone via OpenRouteService
+      const profileMapping: Record<string, string> = {
+        'driving': 'driving-car',
+        'walking': 'foot-walking',
+        'cycling': 'cycling-regular'
+      };
+
+      const isochroneResponse = await supabase.functions.invoke('calculate-isochrone', {
+        body: {
+          lat: centerCoords.lat,
+          lng: centerCoords.lng,
+          time: travelTime,
+          profile: profileMapping[transportMode] || 'driving-car'
+        }
+      });
+
+      if (isochroneResponse.error) {
+        throw new Error(`Erreur API isochrone: ${isochroneResponse.error.message}`);
+      }
+
+      const isochroneData = isochroneResponse.data;
+      setIsochronePolygon(isochroneData.polygon);
+
+      // 4. Filtrer les entreprises dans la zone en utilisant la géométrie exacte
+      const companiesInZone = companyStats.filter(company => {
+        if (!company.latitude || !company.longitude) return false;
+        return isPointInPolygon(company.latitude, company.longitude, isochroneData.polygon);
+      });
+
+      setCompaniesInZone(companiesInZone);
+
       toast({
         title: "Calcul terminé",
-        description: `${companiesInPolygon.length} entreprises trouvées dans la zone`,
+        description: `${companiesInZone.length} entreprises trouvées dans la zone isochrone.`,
       });
-      
-    } catch (err) {
-      console.error('Erreur lors du calcul de l\'isochrone:', err);
+
+    } catch (error) {
+      console.error('Erreur lors du calcul de l\'isochrone:', error);
       toast({
         title: "Erreur",
-        description: err instanceof Error ? err.message : "Erreur lors du calcul",
-        variant: "destructive"
+        description: error instanceof Error ? error.message : "Erreur lors du calcul",
+        variant: "destructive",
       });
     } finally {
       setIsCalculating(false);
@@ -116,15 +125,21 @@ const IsochroneCalculator = () => {
     return points;
   };
 
-  const isPointInCircle = (
-    pointLat: number, 
-    pointLng: number, 
-    centerLat: number, 
-    centerLng: number, 
-    radiusKm: number
-  ): boolean => {
-    const distance = calculateDistance(pointLat, pointLng, centerLat, centerLng);
-    return distance <= radiusKm;
+  // Helper function to check if a point is within a polygon using ray casting algorithm
+  const isPointInPolygon = (pointLat: number, pointLng: number, polygon: IsochronePoint[]): boolean => {
+    let inside = false;
+    
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const xi = polygon[i].lat, yi = polygon[i].lng;
+      const xj = polygon[j].lat, yj = polygon[j].lng;
+      
+      if (((yi > pointLng) !== (yj > pointLng)) && 
+          (pointLat < (xj - xi) * (pointLng - yi) / (yj - yi) + xi)) {
+        inside = !inside;
+      }
+    }
+    
+    return inside;
   };
 
   const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
@@ -270,7 +285,7 @@ const IsochroneCalculator = () => {
                 <SelectContent>
                   <SelectItem value="driving">Voiture</SelectItem>
                   <SelectItem value="walking">À pied</SelectItem>
-                  <SelectItem value="transit">Transport en commun</SelectItem>
+                  <SelectItem value="cycling">Vélo</SelectItem>
                 </SelectContent>
               </Select>
             </div>

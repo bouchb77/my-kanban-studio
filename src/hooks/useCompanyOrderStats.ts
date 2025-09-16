@@ -124,7 +124,7 @@ export const useCompanyOrderStats = () => {
         console.log('Exemple SIPI commande:', Array.from(orderSipis)[0]);
       }
 
-      // Calculer les périodes de 2 années consécutives pour chaque entreprise
+      // Calculer les périodes spécifiques pour chaque entreprise
       const companyPeriods: CompanyOrderPeriod[] = [];
 
       console.log(`Début du traitement pour ${allCompanies?.length || 0} entreprises`);
@@ -140,62 +140,52 @@ export const useCompanyOrderStats = () => {
         
         companiesWithOrders++;
 
-        // Chercher toutes les paires d'années consécutives
-        const years = Array.from(companyOrders.keys()).sort((a, b) => a - b);
+        // Calculer les sommes pour les périodes spécifiques 2023+2024 et 2024+2025
+        const amount2023 = companyOrders.get(2023) || 0;
+        const amount2024 = companyOrders.get(2024) || 0;
+        const amount2025 = companyOrders.get(2025) || 0;
         
-        console.log(`Entreprise ${company.sipi_number} (${company.company_name}): années disponibles [${years.join(', ')}]`);
+        const sum2023_2024 = amount2023 + amount2024;
+        const sum2024_2025 = amount2024 + amount2025;
         
-        for (let i = 0; i < years.length - 1; i++) {
-          const year1 = years[i];
-          const year2 = years[i + 1];
-          
-          // Vérifier si les années sont consécutives
-          if (year2 - year1 === 1) {
-            const amount1 = companyOrders.get(year1) || 0;
-            const amount2 = companyOrders.get(year2) || 0;
-            const maxAmount = Math.max(amount1, amount2);
-            
-            totalPeriods++;
-            console.log(`  Période ${year1}-${year2}: ${amount1}€ / ${amount2}€, max: ${maxAmount}€, seuil: ${maxThreshold}€, OK: ${maxAmount <= maxThreshold}`);
-
-            // Vérifier si le montant maximum est inférieur ou égal au seuil
-            if (maxAmount <= maxThreshold) {
-              companyPeriods.push({
-                company_id: company.id,
-                sipi_number: company.sipi_number,
-                company_name: company.company_name,
-                year1,
-                year2,
-                amount1,
-                amount2,
-                maxAmount,
-                latitude: company.latitude,
-                longitude: company.longitude,
-                address1: company.address1,
-                city: company.city,
-                general_department: company.general_department
-              });
-            }
-          }
-        }
+        console.log(`Entreprise ${company.sipi_number} (${company.company_name}): 2023=${amount2023}€, 2024=${amount2024}€, 2025=${amount2025}€`);
+        console.log(`  Sommes: 2023+2024=${sum2023_2024}€, 2024+2025=${sum2024_2025}€, seuil=${maxThreshold}€`);
         
-        // Si pas de paires consécutives, vérifier les années individuelles
-        if (years.length === 1) {
-          const year = years[0];
-          const amount = companyOrders.get(year) || 0;
+        // Vérifier si les deux sommes sont inférieures au seuil ET qu'au moins une période a des données
+        if ((sum2023_2024 > 0 || sum2024_2025 > 0) && 
+            sum2023_2024 <= maxThreshold && 
+            sum2024_2025 <= maxThreshold) {
           
-          console.log(`  Année unique ${year}: ${amount}€, seuil: ${maxThreshold}€, OK: ${amount <= maxThreshold}`);
+          totalPeriods++;
+          console.log(`  ✓ Critères respectés`);
           
-          if (amount <= maxThreshold) {
+          // Choisir la période avec la somme la plus élevée
+          if (sum2023_2024 >= sum2024_2025) {
             companyPeriods.push({
               company_id: company.id,
               sipi_number: company.sipi_number,
               company_name: company.company_name,
-              year1: year,
-              year2: year,
-              amount1: amount,
-              amount2: amount,
-              maxAmount: amount,
+              year1: 2023,
+              year2: 2024,
+              amount1: amount2023,
+              amount2: amount2024,
+              maxAmount: sum2023_2024,
+              latitude: company.latitude,
+              longitude: company.longitude,
+              address1: company.address1,
+              city: company.city,
+              general_department: company.general_department
+            });
+          } else {
+            companyPeriods.push({
+              company_id: company.id,
+              sipi_number: company.sipi_number,
+              company_name: company.company_name,
+              year1: 2024,
+              year2: 2025,
+              amount1: amount2024,
+              amount2: amount2025,
+              maxAmount: sum2024_2025,
               latitude: company.latitude,
               longitude: company.longitude,
               address1: company.address1,
@@ -203,24 +193,17 @@ export const useCompanyOrderStats = () => {
               general_department: company.general_department
             });
           }
+        } else {
+          console.log(`  ✗ Critères non respectés`);
         }
       });
 
       console.log(`Entreprises avec commandes: ${companiesWithOrders}`);
-      console.log(`Périodes consécutives trouvées: ${totalPeriods}`);
-      console.log(`Périodes répondant au critère: ${companyPeriods.length}`);
+      console.log(`Périodes trouvées répondant aux critères: ${totalPeriods}`);
+      console.log(`Entreprises finales: ${companyPeriods.length}`);
 
-      // Garder seulement la période avec le montant maximum le plus élevé pour chaque entreprise
-      const companyMaxPeriods = new Map<string, CompanyOrderPeriod>();
-      
-      companyPeriods.forEach(period => {
-        const existing = companyMaxPeriods.get(period.sipi_number);
-        if (!existing || period.maxAmount > existing.maxAmount) {
-          companyMaxPeriods.set(period.sipi_number, period);
-        }
-      });
-
-      const finalResults = Array.from(companyMaxPeriods.values());
+      // Pas besoin de filtrer par montant max ici car c'est déjà fait
+      const finalResults = companyPeriods;
       console.log(`Entreprises trouvées avec seuil ${maxThreshold}€:`, finalResults.length);
       console.log('Échantillon des résultats:', finalResults.slice(0, 5));
       

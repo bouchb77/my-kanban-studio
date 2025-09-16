@@ -110,29 +110,26 @@ const IsochroneMap: React.FC<IsochroneMapProps> = ({
       return R * c;
     };
 
-    // Vérifier quelle entreprise est dans la zone (utilise la même logique que le calculateur)
+    // Vérifier quelle entreprise est dans la zone en utilisant l'algorithme point-in-polygon
     const isInZone = (company: CompanyOrderPeriod): boolean => {
       if (!centerLocation || !company.latitude || !company.longitude) return false;
       
       if (isochronePolygon.length === 0) return false;
       
-      // Calculer le rayon approximatif basé sur la distance au premier point du polygone
-      const radiusKm = calculateDistance(
-        centerLocation.lat, 
-        centerLocation.lng, 
-        isochronePolygon[0].lat, 
-        isochronePolygon[0].lng
-      );
+      // Utilise l'algorithme ray casting pour vérifier si le point est dans le polygone
+      let inside = false;
       
-      // Calculer la distance de l'entreprise au centre
-      const distance = calculateDistance(
-        company.latitude, 
-        company.longitude, 
-        centerLocation.lat, 
-        centerLocation.lng
-      );
+      for (let i = 0, j = isochronePolygon.length - 1; i < isochronePolygon.length; j = i++) {
+        const xi = isochronePolygon[i].lat, yi = isochronePolygon[i].lng;
+        const xj = isochronePolygon[j].lat, yj = isochronePolygon[j].lng;
+        
+        if (((yi > company.longitude) !== (yj > company.longitude)) && 
+            (company.latitude < (xj - xi) * (company.longitude - yi) / (yj - yi) + xi)) {
+          inside = !inside;
+        }
+      }
       
-      return distance <= radiusKm;
+      return inside;
     };
 
     // Ajouter les marqueurs pour les entreprises

@@ -344,24 +344,33 @@ export function CompanyImportSection() {
         console.log(`Traitement du lot ${Math.floor(i/batchSize) + 1}/${Math.ceil(companies.length/batchSize)}`);
         
         // Traiter le lot actuel sans géolocalisation d'abord (plus rapide)
-        const batchWithoutGPS = batch.map(company => ({
-          sipi_number: company.sipi_number,
-          company_name: company.company_name,
-          address1: company.address1 || null,
-          address2: company.address2 || null,
-          city: company.city || null,
-          postal_code: company.postal_code || null,
-          general_department: company.general_department || null,
-          quality: company.quality || null,
-          last_order_date: company.last_order_date || null,
-          client_blocked_date: company.client_blocked_date || null,
-          training_date: company.training_date || null,
-          report_creation_date: company.report_creation_date || null,
-          latitude: null,
-          longitude: null,
-          geocoded_address: null,
-          geocoding_date: null
-        }));
+        const batchWithoutGPS = batch.map(company => {
+          console.log('Dates avant insertion:', {
+            last_order_date: company.last_order_date,
+            client_blocked_date: company.client_blocked_date,
+            training_date: company.training_date,
+            report_creation_date: company.report_creation_date
+          });
+          
+          return {
+            sipi_number: company.sipi_number,
+            company_name: company.company_name,
+            address1: company.address1 || null,
+            address2: company.address2 || null,
+            city: company.city || null,
+            postal_code: company.postal_code || null,
+            general_department: company.general_department || null,
+            quality: company.quality || null,
+            last_order_date: company.last_order_date ? company.last_order_date : null,
+            client_blocked_date: company.client_blocked_date ? company.client_blocked_date : null,
+            training_date: company.training_date ? company.training_date : null,
+            report_creation_date: company.report_creation_date ? company.report_creation_date : null,
+            latitude: null,
+            longitude: null,
+            geocoded_address: null,
+            geocoding_date: null
+          };
+        });
         
         companiesWithGPS.push(...batchWithoutGPS);
         
@@ -387,16 +396,22 @@ export function CompanyImportSection() {
         }
         
         // Insérer le lot actuel
-        const { error: insertError } = await supabase
+        console.log('Insertion du lot avec données:', batchWithoutGPS.slice(0, 2)); // Log des 2 premières entreprises
+        const { data: insertData, error: insertError } = await supabase
           .from('companies')
-          .insert(batchWithoutGPS);
+          .insert(batchWithoutGPS)
+          .select('sipi_number, last_order_date, client_blocked_date, training_date, report_creation_date');
         
         if (insertError) {
           console.error('Erreur insertion lot:', insertError);
+          console.error('Données qui ont causé l\'erreur:', batchWithoutGPS.slice(0, 2));
           throw insertError;
         }
         
         console.log(`Lot ${Math.floor(i/batchSize) + 1} inséré avec succès`);
+        if (insertData && insertData.length > 0) {
+          console.log('Données insérées avec dates:', insertData.slice(0, 2));
+        }
       }
 
       console.log('Import terminé avec succès');

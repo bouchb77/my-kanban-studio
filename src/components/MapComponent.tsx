@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
-import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import React, { useEffect, useRef, useMemo, useState } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 interface Company {
   id: string;
@@ -21,107 +22,148 @@ interface MapComponentProps {
   companies: Company[];
 }
 
-interface BubbleData {
-  id: string;
-  name: string;
-  x: number;
-  y: number;
-  z: number;
-  department: string;
-  city: string;
-  sipi: string;
-  totalOrders: number;
-  totalAmount: number;
-}
-
 const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const map = useRef<L.Map | null>(null);
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
 
-  // Transform companies data into bubble chart data
-  const bubbleData = useMemo(() => {
-    const departments = [...new Set(companies.map(c => c.general_department).filter(Boolean))];
-    const departmentColors = [
-      'hsl(var(--primary))',
-      'hsl(var(--secondary))',
-      'hsl(var(--accent))',
-      'hsl(var(--destructive))',
-      'hsl(var(--warning))',
-      'hsl(var(--success))',
-    ];
+  // Filter companies by department
+  const filteredCompanies = useMemo(() => {
+    return selectedDepartment 
+      ? companies.filter(c => c.general_department === selectedDepartment)
+      : companies;
+  }, [companies, selectedDepartment]);
 
-    return companies.map((company, index) => {
-      const totalOrders = company.orderStats?.reduce((sum, stat) => sum + stat.totalOrders, 0) || 0;
-      const totalAmount = company.orderStats?.reduce((sum, stat) => sum + stat.totalAmount, 0) || 0;
-      const avgOrderValue = totalOrders > 0 ? totalAmount / totalOrders : 0;
-      
-      const departmentIndex = departments.indexOf(company.general_department || '');
-      
-      return {
-        id: company.id,
-        name: company.company_name,
-        x: departmentIndex >= 0 ? departmentIndex : 0,
-        y: totalOrders,
-        z: Math.max(avgOrderValue / 1000, 10), // Taille de bulle basée sur valeur moyenne
-        department: company.general_department || 'Non défini',
-        city: company.city || 'Non définie',
-        sipi: company.sipi_number,
-        totalOrders,
-        totalAmount,
-        color: departmentColors[departmentIndex % departmentColors.length] || 'hsl(var(--muted-foreground))',
-      };
-    });
-  }, [companies]);
-
+  // Get departments for filter
   const departments = useMemo(() => {
     return [...new Set(companies.map(c => c.general_department).filter(Boolean))];
   }, [companies]);
 
-  const filteredData = selectedDepartment 
-    ? bubbleData.filter(d => d.department === selectedDepartment)
-    : bubbleData;
+  // Initialize map
+  useEffect(() => {
+    if (!mapRef.current) return;
 
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload as BubbleData;
-      return (
-        <div className="bg-background/95 backdrop-blur-sm border rounded-lg p-3 shadow-lg">
-          <p className="font-semibold">{data.name}</p>
-          <p className="text-sm text-muted-foreground">SIPI: {data.sipi}</p>
-          <p className="text-sm">Ville: {data.city}</p>
-          <p className="text-sm">Département: {data.department}</p>
-          <p className="text-sm">Commandes totales: {data.totalOrders}</p>
-          <p className="text-sm">Montant total: {data.totalAmount.toLocaleString('fr-FR')} €</p>
-          <p className="text-sm">Valeur moyenne: {data.totalOrders > 0 ? (data.totalAmount / data.totalOrders).toLocaleString('fr-FR') : '0'} €</p>
-        </div>
-      );
+    // Create map
+    map.current = L.map(mapRef.current).setView([46.603354, 1.888334], 6);
+
+    // Add tile layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map.current);
+
+    return () => {
+      if (map.current) {
+        map.current.remove();
+        map.current = null;
+      }
+    };
+  }, []);
+
+  // Add bubbles to map
+  useEffect(() => {
+    if (!map.current || !filteredCompanies.length) return;
+
+    // Clear existing layers
+    map.current.eachLayer((layer) => {
+      if (layer instanceof L.CircleMarker) {
+        map.current?.removeLayer(layer);
+      }
+    });
+
+    // Calculate bubble sizes
+    const orderCounts = filteredCompanies.map(company => {
+      return company.orderStats?.reduce((sum, stat) => sum + stat.totalOrders, 0) || 0;
+    });
+    const maxOrders = Math.max(...orderCounts, 1);
+    const minOrders = Math.min(...orderCounts.filter(count => count > 0), 0);
+
+    // Add bubbles for each company
+    filteredCompanies.forEach((company) => {
+      if (company.latitude && company.longitude) {
+        const totalOrders = company.orderStats?.reduce((sum, stat) => sum + stat.totalOrders, 0) || 0;
+        const totalAmount = company.orderStats?.reduce((sum, stat) => sum + stat.totalAmount, 0) || 0;
+        
+        // Calculate bubble size (between 5 and 50 pixels)
+        const normalizedSize = totalOrders > 0 
+          ? ((totalOrders - minOrders) / (maxOrders - minOrders)) * 45 + 5
+          : 5;
+
+        // Department colors
+        const departmentColors: { [key: string]: string } = {
+          'Ain': '#3b82f6',
+          'Aisne': '#ef4444',
+          'Allier': '#10b981',
+          'Alpes-de-Haute-Provence': '#f59e0b',
+          'Hautes-Alpes': '#8b5cf6',
+          'Alpes-Maritimes': '#ec4899',
+          'Ardèche': '#06b6d4',
+          'Ardennes': '#84cc16',
+        };
+
+        const color = departmentColors[company.general_department || ''] || '#6b7280';
+
+        // Create bubble
+        const bubble = L.circleMarker([company.latitude, company.longitude], {
+          radius: normalizedSize,
+          fillColor: color,
+          color: color,
+          weight: 2,
+          opacity: 0.8,
+          fillOpacity: 0.6
+        });
+
+        // Create popup content
+        const popupContent = `
+          <div class="p-2">
+            <h3 class="font-semibold text-sm mb-1">${company.company_name}</h3>
+            <p class="text-xs text-gray-600">SIPI: ${company.sipi_number}</p>
+            ${company.city ? `<p class="text-xs">Ville: ${company.city}</p>` : ''}
+            ${company.general_department ? `<p class="text-xs">Département: ${company.general_department}</p>` : ''}
+            <p class="text-xs mt-1"><strong>Commandes totales:</strong> ${totalOrders}</p>
+            <p class="text-xs"><strong>Montant total:</strong> ${totalAmount.toLocaleString('fr-FR')} €</p>
+            ${totalOrders > 0 ? `<p class="text-xs"><strong>Valeur moyenne:</strong> ${(totalAmount / totalOrders).toLocaleString('fr-FR')} €</p>` : ''}
+          </div>
+        `;
+
+        bubble.bindPopup(popupContent);
+        
+        // Add hover effects
+        bubble.on('mouseover', function() {
+          this.setStyle({
+            weight: 3,
+            fillOpacity: 0.8
+          });
+        });
+
+        bubble.on('mouseout', function() {
+          this.setStyle({
+            weight: 2,
+            fillOpacity: 0.6
+          });
+        });
+
+        bubble.addTo(map.current!);
+      }
+    });
+
+    // Fit map to show all bubbles
+    if (filteredCompanies.length > 0) {
+      const validCompanies = filteredCompanies.filter(c => c.latitude && c.longitude);
+      if (validCompanies.length > 0) {
+        const bounds = L.latLngBounds(
+          validCompanies.map(c => [c.latitude, c.longitude])
+        );
+        map.current.fitBounds(bounds, { padding: [20, 20] });
+      }
     }
-    return null;
-  };
-
-  const CustomDot = (props: any) => {
-    const { cx, cy, payload } = props;
-    const radius = Math.min(Math.max(payload.z, 8), 30);
-    
-    return (
-      <circle 
-        cx={cx} 
-        cy={cy} 
-        r={radius} 
-        fill={payload.color}
-        fillOpacity={0.7}
-        stroke={payload.color}
-        strokeWidth={2}
-        className="cursor-pointer hover:fill-opacity-90 transition-all duration-200"
-      />
-    );
-  };
+  }, [filteredCompanies]);
 
   return (
     <div className="space-y-4">
       <div className="text-sm text-muted-foreground text-center p-3 bg-muted/30 rounded-lg">
-        Visualisation en bulles - {companies.length} entreprises
+        Carte à bulles interactive - {companies.length} entreprises
         <br />
-        <span className="text-xs">Taille des bulles = Valeur moyenne des commandes</span>
+        <span className="text-xs">Taille des bulles = Nombre total de commandes</span>
       </div>
 
       {/* Filtres par département */}
@@ -154,53 +196,19 @@ const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
         })}
       </div>
       
-      <div className="h-[500px] w-full rounded-lg border shadow-lg bg-background p-4">
-        <ResponsiveContainer width="100%" height="100%">
-          <ScatterChart
-            data={filteredData}
-            margin={{ top: 20, right: 20, bottom: 60, left: 60 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis 
-              type="number" 
-              dataKey="x" 
-              name="Département"
-              domain={[0, Math.max(departments.length - 1, 1)]}
-              ticks={departments.map((_, i) => i)}
-              tickFormatter={(value) => departments[value] || ''}
-              angle={-45}
-              textAnchor="end"
-              height={80}
-              fontSize={12}
-            />
-            <YAxis 
-              type="number" 
-              dataKey="y" 
-              name="Nombre de commandes"
-              fontSize={12}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Scatter 
-              data={filteredData} 
-              fill="hsl(var(--primary))"
-              shape={<CustomDot />}
-            />
-          </ScatterChart>
-        </ResponsiveContainer>
+      <div className="h-[500px] w-full rounded-lg border shadow-lg overflow-hidden">
+        <div ref={mapRef} className="w-full h-full" />
       </div>
       
       {/* Légende */}
       <div className="bg-muted/20 rounded-lg p-4">
         <h4 className="font-semibold mb-2">Légende</h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <div>
-            <strong>Axe X :</strong> Départements
+            <strong>Taille des bulles :</strong> Proportionnelle au nombre total de commandes
           </div>
           <div>
-            <strong>Axe Y :</strong> Nombre total de commandes
-          </div>
-          <div>
-            <strong>Taille des bulles :</strong> Valeur moyenne des commandes
+            <strong>Couleurs :</strong> Différenciation par département
           </div>
         </div>
       </div>
@@ -208,20 +216,25 @@ const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
       {/* Liste des entreprises */}
       <div className="max-h-60 overflow-y-auto bg-muted/20 rounded-lg p-4">
         <h4 className="font-semibold mb-2">
-          Entreprises {selectedDepartment ? `- ${selectedDepartment}` : ''} ({filteredData.length})
+          Entreprises {selectedDepartment ? `- ${selectedDepartment}` : ''} ({filteredCompanies.length})
         </h4>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
-          {filteredData.map((company) => (
-            <div key={company.id} className="p-2 bg-background rounded border">
-              <div className="font-medium truncate">{company.name}</div>
-              <div className="text-muted-foreground text-xs">
-                {company.city} • SIPI: {company.sipi}
+          {filteredCompanies.map((company) => {
+            const totalOrders = company.orderStats?.reduce((sum, stat) => sum + stat.totalOrders, 0) || 0;
+            const totalAmount = company.orderStats?.reduce((sum, stat) => sum + stat.totalAmount, 0) || 0;
+            
+            return (
+              <div key={company.id} className="p-2 bg-background rounded border">
+                <div className="font-medium truncate">{company.company_name}</div>
+                <div className="text-muted-foreground text-xs">
+                  {company.city && `${company.city} • `}SIPI: {company.sipi_number}
+                </div>
+                <div className="text-xs mt-1">
+                  {totalOrders} commandes • {totalAmount.toLocaleString('fr-FR')} €
+                </div>
               </div>
-              <div className="text-xs mt-1">
-                {company.totalOrders} commandes • {company.totalAmount.toLocaleString('fr-FR')} €
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

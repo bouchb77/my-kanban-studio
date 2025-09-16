@@ -100,7 +100,7 @@ const IsochroneMap: React.FC<IsochroneMapProps> = ({
       }
     }
 
-    // Ajouter les marqueurs pour les entreprises - Utiliser Google Maps geometry
+    // Ajouter les marqueurs pour les entreprises - Utiliser Google Maps geometry avec logs détaillés
     companies.forEach((company) => {
       if (!company.latitude || !company.longitude) return;
 
@@ -117,8 +117,16 @@ const IsochroneMap: React.FC<IsochroneMapProps> = ({
           // Utiliser l'API geometry native de Google Maps
           const testPoint = new google.maps.LatLng(company.latitude, company.longitude);
           inZone = google.maps.geometry.poly.containsLocation(testPoint, polygon);
+          
+          // Debug pour les coordonnées problématiques
+          if (company.latitude > 49.43 && company.latitude < 49.44 && 
+              company.longitude > 1.07 && company.longitude < 1.09) {
+            console.log(`DEBUG ${company.company_name}: (${company.latitude}, ${company.longitude}) = ${inZone ? 'DANS' : 'HORS'} zone`);
+            console.log('Premier point du polygone:', isochronePolygon[0]);
+            console.log('Nombre de points dans le polygone:', isochronePolygon.length);
+          }
         } catch (error) {
-          console.error('Erreur détection géométrie:', error);
+          console.error('Erreur détection géométrie:', error, 'pour entreprise:', company.company_name);
           // Fallback sur calcul de distance
           if (centerLocation) {
             const distance = google.maps.geometry.spherical.computeDistanceBetween(
@@ -127,6 +135,7 @@ const IsochroneMap: React.FC<IsochroneMapProps> = ({
             );
             // Approximation: considérer dans la zone si distance < 50km (peut être ajusté)
             inZone = distance < 50000; // 50km en mètres
+            console.log(`Fallback distance pour ${company.company_name}: ${distance}m = ${inZone ? 'DANS' : 'HORS'}`);
           }
         }
       }

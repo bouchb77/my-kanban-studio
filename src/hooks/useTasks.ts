@@ -115,7 +115,7 @@ export const useTasks = () => {
 
   const getOverdueTasks = (limit: number = 5) => {
     const now = new Date();
-    return tasks
+    const overdueTasks = tasks
       .filter(task => {
         // Vérifier que due_date existe et est valide
         if (!task.due_date) return false;
@@ -125,10 +125,17 @@ export const useTasks = () => {
         if (isNaN(dueDate.getTime())) return false;
         
         // Exclure explicitement les tâches terminées (done)
-        if (task.status === 'done') return false;
+        if (task.status === 'done') {
+          console.log(`Tâche terminée exclue: ${task.title} (statut: ${task.status})`);
+          return false;
+        }
         
         // Retourner seulement les tâches en retard non terminées
-        return dueDate < now;
+        const isOverdue = dueDate < now;
+        if (isOverdue) {
+          console.log(`Tâche en retard incluse: ${task.title} (statut: ${task.status}, échéance: ${dueDate.toLocaleDateString()})`);
+        }
+        return isOverdue;
       })
       .sort((a, b) => {
         const dateA = new Date(a.due_date);
@@ -136,6 +143,9 @@ export const useTasks = () => {
         return dateA.getTime() - dateB.getTime();
       })
       .slice(0, limit);
+    
+    console.log(`Nombre total de tâches: ${tasks.length}, Tâches en retard: ${overdueTasks.length}`);
+    return overdueTasks;
   };
 
   return { 

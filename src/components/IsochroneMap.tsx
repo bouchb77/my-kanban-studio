@@ -62,6 +62,9 @@ const IsochroneMap: React.FC<IsochroneMapProps> = ({
   useEffect(() => {
     if (!map || !isLoaded) return;
 
+    console.log('IsochroneMap: Polygone reçu:', isochronePolygon.length, 'points');
+    console.log('IsochroneMap: Entreprises reçues:', companies.length);
+
     // Nettoyer les anciens marqueurs et polygones
     // (Dans une vraie app, on stockerait les références pour les nettoyer)
 
@@ -97,52 +100,12 @@ const IsochroneMap: React.FC<IsochroneMapProps> = ({
       }
     }
 
-    // Fonction de calcul de distance identique à celle du calculateur
-    const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
-      const R = 6371; // Rayon de la Terre en km
-      const dLat = (lat2 - lat1) * Math.PI / 180;
-      const dLng = (lng2 - lng1) * Math.PI / 180;
-      const a = 
-        Math.sin(dLat/2) * Math.sin(dLat/2) +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-        Math.sin(dLng/2) * Math.sin(dLng/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      return R * c;
-    };
-
-    // Vérifier quelle entreprise est dans la zone en utilisant l'algorithme point-in-polygon
-    const isInZone = (company: CompanyOrderPeriod): boolean => {
-      if (!centerLocation || !company.latitude || !company.longitude) return false;
-      
-      if (isochronePolygon.length === 0) return false;
-      
-      // Utilise l'algorithme ray casting pour vérifier si le point est dans le polygone
-      let inside = false;
-      const testLat = company.latitude;
-      const testLng = company.longitude;
-      
-      for (let i = 0, j = isochronePolygon.length - 1; i < isochronePolygon.length; j = i++) {
-        const lat1 = isochronePolygon[i].lat;
-        const lng1 = isochronePolygon[i].lng;
-        const lat2 = isochronePolygon[j].lat;
-        const lng2 = isochronePolygon[j].lng;
-        
-        // Ray casting algorithm: cast a ray from the test point to the right
-        if (((lng1 > testLng) !== (lng2 > testLng)) && 
-            (testLat < (lat2 - lat1) * (testLng - lng1) / (lng2 - lng1) + lat1)) {
-          inside = !inside;
-        }
-      }
-      
-      console.log(`Entreprise ${company.company_name} (${testLat}, ${testLng}): ${inside ? 'DANS' : 'HORS'} zone`);
-      return inside;
-    };
-
-    // Ajouter les marqueurs pour les entreprises
+    // Ajouter les marqueurs pour les entreprises - TOUTES sont dans la zone par définition
     companies.forEach((company) => {
       if (!company.latitude || !company.longitude) return;
 
-      const inZone = isInZone(company);
+      // Ces entreprises sont déjà filtrées par IsochroneCalculator, donc toutes dans la zone
+      const inZone = true;
       
       const marker = new google.maps.Marker({
         position: { lat: company.latitude, lng: company.longitude },

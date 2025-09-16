@@ -1,7 +1,8 @@
-import React, { useEffect, useState, Suspense } from 'react';
+import React, { useEffect, useState, Suspense, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { MapPin, Building2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MapPin, Building2, Filter } from "lucide-react";
 
 const MapComponent = React.lazy(() => import('./MapComponent'));
 
@@ -21,6 +22,24 @@ const CompaniesMap = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showMap, setShowMap] = useState(true);
+  const [selectedDepartment, setSelectedDepartment] = useState<string>("all");
+
+  // Get unique departments for filter
+  const departments = useMemo(() => {
+    const uniqueDepartments = [...new Set(companies
+      .map(company => company.general_department)
+      .filter(dept => dept)
+    )].sort();
+    return uniqueDepartments;
+  }, [companies]);
+
+  // Filter companies based on selected department
+  const filteredCompanies = useMemo(() => {
+    if (selectedDepartment === "all") {
+      return companies;
+    }
+    return companies.filter(company => company.general_department === selectedDepartment);
+  }, [companies, selectedDepartment]);
 
   // Fetch companies with GPS coordinates
   useEffect(() => {
@@ -102,7 +121,7 @@ const CompaniesMap = () => {
           <span>Localisation géographique des entreprises</span>
           <div className="flex items-center gap-2 text-sm">
             <Building2 className="w-4 h-4" />
-            <span>{companies.length} entreprises géolocalisées</span>
+            <span>{filteredCompanies.length} entreprise{filteredCompanies.length > 1 ? 's' : ''} affichée{filteredCompanies.length > 1 ? 's' : ''}</span>
           </div>
         </CardDescription>
       </CardHeader>
@@ -133,16 +152,38 @@ const CompaniesMap = () => {
             </div>
             
             {showMap ? (
-              <Suspense fallback={
-                <div className="h-[500px] w-3/4 mx-auto flex items-center justify-center bg-muted/30 rounded-lg border">
-                  <div className="text-muted-foreground">Chargement de la carte...</div>
+              <>
+                <Suspense fallback={
+                  <div className="h-[500px] w-3/4 mx-auto flex items-center justify-center bg-muted/30 rounded-lg border">
+                    <div className="text-muted-foreground">Chargement de la carte...</div>
+                  </div>
+                }>
+                  <MapComponent companies={filteredCompanies} />
+                </Suspense>
+                
+                <div className="flex items-center gap-4 pt-4 border-t">
+                  <div className="flex items-center gap-2">
+                    <Filter className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Filtrer par département :</span>
+                  </div>
+                  <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Tous les départements" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border shadow-md z-50">
+                      <SelectItem value="all">Tous les départements</SelectItem>
+                      {departments.map((department) => (
+                        <SelectItem key={department} value={department}>
+                          {department}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              }>
-                <MapComponent companies={companies} />
-              </Suspense>
+              </>
             ) : (
               <div className="space-y-2 max-h-96 overflow-y-auto">
-                {companies.map((company) => (
+                {filteredCompanies.map((company) => (
                   <div key={company.id} className="p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                     <div className="flex justify-between items-start">
                       <div>

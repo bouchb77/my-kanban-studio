@@ -124,7 +124,11 @@ export const useTasks = () => {
         // Vérifier que la date est valide
         if (isNaN(dueDate.getTime())) return false;
         
-        return dueDate < now && task.status !== 'done';
+        // Exclure explicitement les tâches terminées (done)
+        if (task.status === 'done') return false;
+        
+        // Retourner seulement les tâches en retard non terminées
+        return dueDate < now;
       })
       .sort((a, b) => {
         const dateA = new Date(a.due_date);

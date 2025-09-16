@@ -142,33 +142,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
   }, [companies]);
 
   return (
-    <div className="space-y-4">
-      <div className="h-[500px] w-full rounded-lg border shadow-lg overflow-hidden">
-        <div ref={mapRef} className="w-full h-full" />
-      </div>
-
-      {/* Liste des entreprises */}
-      <div className="max-h-60 overflow-y-auto bg-muted/20 rounded-lg p-4">
-        <h4 className="font-semibold mb-2">Liste des entreprises ({companies.length})</h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
-          {companies.map((company) => {
-            const totalOrders = company.orderStats?.reduce((sum, stat) => sum + stat.totalOrders, 0) || 0;
-            const totalAmount = company.orderStats?.reduce((sum, stat) => sum + stat.totalAmount, 0) || 0;
-            
-            return (
-              <div key={company.id} className="p-2 bg-background rounded border">
-                <div className="font-medium truncate">{company.company_name}</div>
-                <div className="text-muted-foreground text-xs">
-                  {company.city && `${company.city} • `}SIPI: {company.sipi_number}
-                </div>
-                <div className="text-xs mt-1">
-                  {totalOrders} commandes • {totalAmount.toLocaleString('fr-FR')} €
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+    <div className="h-[500px] w-full rounded-lg border shadow-lg overflow-hidden">
+      <div ref={mapRef} className="w-full h-full" />
     </div>
   );
 };

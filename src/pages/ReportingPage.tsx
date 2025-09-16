@@ -39,7 +39,6 @@ import { useTasks } from "@/hooks/useTasks";
 import { useOrders } from "@/hooks/useOrders";
 import { useMemo } from "react";
 import CompaniesMap from "@/components/CompaniesMap";
-import DepartmentImportSection from '@/components/DepartmentImportSection';
 
 // Mock data
 const weeklyData = [
@@ -126,9 +125,6 @@ const ReportingPage = () => {
           Exporter
         </Button>
       </div>
-
-      {/* Department Management Import */}
-      <DepartmentImportSection />
 
       {/* Statistiques des commandes */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

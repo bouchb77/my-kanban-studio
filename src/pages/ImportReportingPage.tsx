@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ShieldAlert } from 'lucide-react';
 import { CompanyImportSection } from '@/components/CompanyImportSection';
 import { OrderImportSection } from '@/components/OrderImportSection';
+import DepartmentImportSection from '@/components/DepartmentImportSection';
 
 const ImportReportingPage: React.FC = () => {
   const { isAdmin, loading } = useUserRole();
@@ -46,6 +47,12 @@ const ImportReportingPage: React.FC = () => {
       </div>
 
       <div className="space-y-8">
+        {/* Import des départements */}
+        <div>
+          <h2 className="text-2xl font-semibold mb-4">Import des Départements</h2>
+          <DepartmentImportSection />
+        </div>
+
         {/* Import des entreprises */}
         <div>
           <h2 className="text-2xl font-semibold mb-4">Import des Entreprises</h2>

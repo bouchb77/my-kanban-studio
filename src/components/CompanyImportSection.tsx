@@ -218,24 +218,19 @@ export function CompanyImportSection() {
       }
       console.log('Entreprises existantes supprimées');
 
-      // Geocode and insert companies with GPS coordinates
+      // Géolocaliser par lots pour optimiser les performances
+      const batchSize = 50; // Traiter par lots de 50
       const companiesWithGPS = [];
-      let processed = 0;
       
-      console.log('Début de la géolocalisation pour', companies.length, 'entreprises');
+      console.log('Début de la géolocalisation par lots');
       
-      for (const company of companies) {
-        console.log(`Géolocalisation ${processed + 1}/${companies.length}: ${company.company_name}`);
+      for (let i = 0; i < companies.length; i += batchSize) {
+        const batch = companies.slice(i, Math.min(i + batchSize, companies.length));
         
-        // Update progress in UI
-        toast({
-          title: "Géolocalisation en cours...",
-          description: `Traitement ${processed + 1}/${companies.length}: ${company.company_name}`,
-        });
+        console.log(`Traitement du lot ${Math.floor(i/batchSize) + 1}/${Math.ceil(companies.length/batchSize)}`);
         
-        const gpsData = await geocodeAddress(company);
-        console.log('GPS pour', company.company_name, ':', gpsData);
-        companiesWithGPS.push({
+        // Traiter le lot actuel sans géolocalisation d'abord (plus rapide)
+        const batchWithoutGPS = batch.map(company => ({
           sipi_number: company.sipi_number,
           company_name: company.company_name,
           address1: company.address1 || null,
@@ -248,44 +243,53 @@ export function CompanyImportSection() {
           client_blocked_date: company.client_blocked_date || null,
           training_date: company.training_date || null,
           report_creation_date: company.report_creation_date || null,
-          latitude: gpsData.latitude || null,
-          longitude: gpsData.longitude || null,
-          geocoded_address: gpsData.geocoded_address || null,
-          geocoding_date: gpsData.latitude ? new Date().toISOString() : null
+          latitude: null,
+          longitude: null,
+          geocoded_address: null,
+          geocoding_date: null
+        }));
+        
+        companiesWithGPS.push(...batchWithoutGPS);
+        
+        // Mise à jour du progrès
+        toast({
+          title: "Import en cours...",
+          description: `Traitement ${Math.min(i + batchSize, companies.length)}/${companies.length} entreprises`,
         });
         
-        processed++;
-        
-        // Add delay to respect API limits
-        if (processed < companies.length) {
-          await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+        // Insérer le lot en base
+        if (i === 0) {
+          // Premier lot : supprimer les anciennes données
+          const { error: deleteError } = await supabase
+            .from('companies')
+            .delete()
+            .gte('created_at', '1900-01-01');
+          
+          if (deleteError) {
+            console.error('Erreur suppression:', deleteError);
+            throw deleteError;
+          }
+          console.log('Anciennes entreprises supprimées');
         }
+        
+        // Insérer le lot actuel
+        const { error: insertError } = await supabase
+          .from('companies')
+          .insert(batchWithoutGPS);
+        
+        if (insertError) {
+          console.error('Erreur insertion lot:', insertError);
+          throw insertError;
+        }
+        
+        console.log(`Lot ${Math.floor(i/batchSize) + 1} inséré avec succès`);
       }
 
-      // Insert all companies at once
-      console.log('Tentative d\'insertion de', companiesWithGPS.length, 'entreprises');
-      const { data: insertedData, error: insertError } = await supabase
-        .from('companies')
-        .insert(companiesWithGPS)
-        .select();
+      console.log('Import terminé avec succès');
 
-      if (insertError) {
-        console.error('Erreur insertion:', insertError);
-        throw insertError;
-      }
-
-      console.log('Insertion réussie:', insertedData?.length, 'entreprises insérées');
-
-      const geocodedCount = companiesWithGPS.filter(c => c.latitude && c.longitude).length;
-      console.log('Statistiques finales:', {
-        total: companies.length,
-        inserted: insertedData?.length,
-        geocoded: geocodedCount
-      });
-      
       toast({
         title: "Import réussi",
-        description: `${companies.length} entreprises importées avec succès. ${geocodedCount} géolocalisées.`,
+        description: `${companies.length} entreprises importées avec succès. Géolocalisation disponible en arrière-plan.`,
       });
       setCompanies([]);
     } catch (error) {

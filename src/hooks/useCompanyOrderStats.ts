@@ -27,23 +27,57 @@ export const useCompanyOrderStats = () => {
       setLoading(true);
       setError(null);
 
-      // Récupérer toutes les entreprises avec leurs coordonnées
-      const { data: companies, error: companiesError } = await supabase
-        .from('companies')
-        .select('id, sipi_number, company_name, latitude, longitude, address1, city, general_department')
-        .not('latitude', 'is', null)
-        .not('longitude', 'is', null);
+      // Récupérer toutes les entreprises avec leurs coordonnées (avec pagination)
+      let allCompanies: any[] = [];
+      let companiesFrom = 0;
+      const companiesBatchSize = 1000;
+      let hasMoreCompanies = true;
 
-      if (companiesError) throw companiesError;
-      console.log(`Entreprises avec coordonnées trouvées: ${companies?.length || 0}`);
+      while (hasMoreCompanies) {
+        const { data: companiesBatch, error: companiesError } = await supabase
+          .from('companies')
+          .select('id, sipi_number, company_name, latitude, longitude, address1, city, general_department')
+          .not('latitude', 'is', null)
+          .not('longitude', 'is', null)
+          .range(companiesFrom, companiesFrom + companiesBatchSize - 1);
 
-      // Récupérer toutes les commandes
-      const { data: orders, error: ordersError } = await supabase
-        .from('orders')
-        .select('sipi_number, amount, order_date');
+        if (companiesError) throw companiesError;
 
-      if (ordersError) throw ordersError;
-      console.log(`Commandes trouvées: ${orders?.length || 0}`);
+        if (companiesBatch && companiesBatch.length > 0) {
+          allCompanies = [...allCompanies, ...companiesBatch];
+          companiesFrom += companiesBatchSize;
+          hasMoreCompanies = companiesBatch.length === companiesBatchSize;
+        } else {
+          hasMoreCompanies = false;
+        }
+      }
+
+      console.log(`Entreprises avec coordonnées trouvées: ${allCompanies.length}`);
+
+      // Récupérer toutes les commandes (avec pagination)
+      let allOrders: any[] = [];
+      let ordersFrom = 0;
+      const ordersBatchSize = 1000;
+      let hasMoreOrders = true;
+
+      while (hasMoreOrders) {
+        const { data: ordersBatch, error: ordersError } = await supabase
+          .from('orders')
+          .select('sipi_number, amount, order_date')
+          .range(ordersFrom, ordersFrom + ordersBatchSize - 1);
+
+        if (ordersError) throw ordersError;
+
+        if (ordersBatch && ordersBatch.length > 0) {
+          allOrders = [...allOrders, ...ordersBatch];
+          ordersFrom += ordersBatchSize;
+          hasMoreOrders = ordersBatch.length === ordersBatchSize;
+        } else {
+          hasMoreOrders = false;
+        }
+      }
+
+      console.log(`Commandes trouvées: ${allOrders.length}`);
 
       // Grouper les commandes par SIPI et par année
       const ordersByCompany = new Map<string, Map<number, number>>();
@@ -51,7 +85,7 @@ export const useCompanyOrderStats = () => {
       console.log('Début du groupement des commandes...');
       let processedOrders = 0;
       
-      orders?.forEach(order => {
+      allOrders?.forEach(order => {
         const year = new Date(order.order_date).getFullYear();
         processedOrders++;
         
@@ -75,7 +109,7 @@ export const useCompanyOrderStats = () => {
       })));
 
       // Vérifier le matching entre entreprises et commandes
-      const companySipis = new Set(companies?.map(c => c.sipi_number) || []);
+      const companySipis = new Set(allCompanies?.map(c => c.sipi_number) || []);
       const orderSipis = new Set(Array.from(ordersByCompany.keys()));
       
       console.log(`SIPI des entreprises (échantillon):`, Array.from(companySipis).slice(0, 10));
@@ -93,12 +127,12 @@ export const useCompanyOrderStats = () => {
       // Calculer les périodes de 2 années consécutives pour chaque entreprise
       const companyPeriods: CompanyOrderPeriod[] = [];
 
-      console.log(`Début du traitement pour ${companies?.length || 0} entreprises`);
+      console.log(`Début du traitement pour ${allCompanies?.length || 0} entreprises`);
       
       let companiesWithOrders = 0;
       let totalPeriods = 0;
       
-      companies?.forEach(company => {
+      allCompanies?.forEach(company => {
         const companyOrders = ordersByCompany.get(company.sipi_number);
         if (!companyOrders) {
           return;

@@ -28,6 +28,27 @@ export const OrderImportSection: React.FC = () => {
   const parseExcelDate = (excelDate: any): string => {
     if (!excelDate) return '';
     
+    // Si c'est un objet Date spécial d'Excel (format XLSX)
+    if (typeof excelDate === 'object' && excelDate._type === 'Date' && excelDate.value) {
+      try {
+        // Utiliser la valeur ISO si disponible
+        if (excelDate.value.iso) {
+          return new Date(excelDate.value.iso).toISOString().split('T')[0];
+        }
+        // Sinon utiliser la valeur timestamp
+        if (excelDate.value.value) {
+          return new Date(excelDate.value.value).toISOString().split('T')[0];
+        }
+      } catch (e) {
+        console.warn('Erreur conversion objet date Excel:', excelDate, e);
+      }
+    }
+    
+    // Si c'est un objet Date normal
+    if (excelDate instanceof Date) {
+      return excelDate.toISOString().split('T')[0];
+    }
+    
     // Si c'est déjà une chaîne de date valide au format ISO
     if (typeof excelDate === 'string' && /^\d{4}-\d{2}-\d{2}/.test(excelDate)) {
       return excelDate.split('T')[0]; // Prendre seulement la partie date

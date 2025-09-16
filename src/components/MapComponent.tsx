@@ -23,22 +23,18 @@ interface MapComponentProps {
 const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
-  const markerClusterGroupRef = useRef<any>(null);
 
-  // Optimiser les données des entreprises avec useMemo
+  // Optimiser les données des entreprises avec useMemo pour limiter à 1000 pour de meilleures performances
   const optimizedCompanies = useMemo(() => {
-    return companies.slice(0, 2000); // Limiter à 2000 entreprises pour éviter les ralentissements
+    return companies.slice(0, 1000); // Limiter à 1000 entreprises pour éviter les ralentissements
   }, [companies]);
 
   useEffect(() => {
     const initMap = async () => {
       try {
-        // Import dynamique de Leaflet et MarkerCluster
+        // Import dynamique de Leaflet seulement
         const L = await import('leaflet');
-        const MarkerClusterGroup = (await import('leaflet.markercluster')).default;
         await import('leaflet/dist/leaflet.css');
-        await import('leaflet.markercluster/dist/MarkerCluster.css');
-        await import('leaflet.markercluster/dist/MarkerCluster.Default.css');
 
         if (!mapRef.current) return;
 
@@ -59,7 +55,6 @@ const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
         // Créer la carte avec des options de performance
         const map = L.map(mapRef.current, {
           preferCanvas: true, // Utilise Canvas pour de meilleures performances
-          renderer: L.canvas()
         }).setView([46.603354, 1.888334], 6);
         mapInstanceRef.current = map;
 
@@ -69,20 +64,9 @@ const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
           maxZoom: 18
         }).addTo(map);
 
-        // Créer un groupe de clustering pour les marqueurs
-        const markerClusterGroup = (L as any).markerClusterGroup({
-          chunkedLoading: true, // Chargement par chunks pour de meilleures performances
-          chunkInterval: 200,   // Intervalle entre les chunks
-          chunkDelay: 50,       // Délai entre les chunks
-          maxClusterRadius: 80, // Rayon de clustering
-          spiderfyOnMaxZoom: true,
-          showCoverageOnHover: false,
-          zoomToBoundsOnClick: true
-        });
+        // Créer les marqueurs en batch pour de meilleures performances
+        const markers: any[] = [];
         
-        markerClusterGroupRef.current = markerClusterGroup;
-
-        // Créer les marqueurs avec clustering
         optimizedCompanies.forEach((company) => {
           const marker = L.marker([company.latitude, company.longitude]);
           
@@ -113,18 +97,15 @@ const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
           `;
           
           marker.bindPopup(popupContent);
-          markerClusterGroup.addLayer(marker);
+          marker.addTo(map);
+          markers.push(marker);
         });
 
-        // Ajouter le groupe de clustering à la carte
-        map.addLayer(markerClusterGroup);
-
-        // Ajuster la vue pour inclure tous les marqueurs avec un léger délai
-        setTimeout(() => {
-          if (optimizedCompanies.length > 0 && markerClusterGroup.getBounds().isValid()) {
-            map.fitBounds(markerClusterGroup.getBounds(), { padding: [20, 20] });
-          }
-        }, 100);
+        // Ajuster la vue pour inclure tous les marqueurs
+        if (markers.length > 0) {
+          const group = L.featureGroup(markers);
+          map.fitBounds(group.getBounds().pad(0.1));
+        }
 
       } catch (error) {
         console.error('Erreur lors du chargement de la carte:', error);
@@ -135,10 +116,6 @@ const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
 
     // Cleanup lors du démontage
     return () => {
-      if (markerClusterGroupRef.current) {
-        markerClusterGroupRef.current.clearLayers();
-        markerClusterGroupRef.current = null;
-      }
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
@@ -148,9 +125,9 @@ const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
 
   return (
     <div className="space-y-2">
-      {companies.length > 2000 && (
+      {companies.length > 1000 && (
         <div className="text-sm text-muted-foreground text-center p-2 bg-muted/30 rounded-lg">
-          Affichage de 2000 entreprises sur {companies.length} pour optimiser les performances
+          Affichage de 1000 entreprises sur {companies.length} pour optimiser les performances
         </div>
       )}
       <div 

@@ -144,6 +144,32 @@ export const useCompanyOrderStats = () => {
             }
           }
         }
+        
+        // Si pas de paires consécutives, vérifier les années individuelles
+        if (years.length === 1) {
+          const year = years[0];
+          const amount = companyOrders.get(year) || 0;
+          
+          console.log(`  Année unique ${year}: ${amount}€, seuil: ${maxThreshold}€, OK: ${amount <= maxThreshold}`);
+          
+          if (amount <= maxThreshold) {
+            companyPeriods.push({
+              company_id: company.id,
+              sipi_number: company.sipi_number,
+              company_name: company.company_name,
+              year1: year,
+              year2: year,
+              amount1: amount,
+              amount2: amount,
+              maxAmount: amount,
+              latitude: company.latitude,
+              longitude: company.longitude,
+              address1: company.address1,
+              city: company.city,
+              general_department: company.general_department
+            });
+          }
+        }
       });
 
       console.log(`Entreprises avec commandes: ${companiesWithOrders}`);

@@ -29,14 +29,44 @@ const IncompleteGeocodingTable: React.FC = () => {
   const fetchIncompleteCompanies = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // Récupérer toutes les entreprises avec géolocalisation
+      const { data: allCompanies, error } = await supabase
         .from('companies')
         .select('id, company_name, sipi_number, address1, address2, city, postal_code, geocoded_address, latitude, longitude')
-        .or('geocoded_address.ilike.%France%,geocoded_address.ilike.%Région%')
+        .not('geocoded_address', 'is', null)
         .order('company_name');
 
       if (error) throw error;
-      setCompanies(data || []);
+
+      // Filtrer les entreprises avec géolocalisation incomplète ou incorrecte
+      const filteredCompanies = (allCompanies || []).filter(company => {
+        if (!company.geocoded_address || !company.postal_code) return false;
+        
+        // Cas 1: Adresse géocodée trop générale (contient "France" ou "Région")
+        if (company.geocoded_address.includes('France') && !company.geocoded_address.includes(',')) {
+          return true;
+        }
+        if (company.geocoded_address.includes('Région')) {
+          return true;
+        }
+        
+        // Cas 2: Vérifier l'incohérence du département
+        const expectedDept = company.postal_code.substring(0, 2);
+        const geocodedMatch = company.geocoded_address.match(/(\d{5})/);
+        if (geocodedMatch) {
+          const geocodedPostal = geocodedMatch[1];
+          const geocodedDept = geocodedPostal.substring(0, 2);
+          
+          // Si les départements ne correspondent pas, c'est une erreur
+          if (expectedDept !== geocodedDept) {
+            return true;
+          }
+        }
+        
+        return false;
+      });
+      
+      setCompanies(filteredCompanies);
     } catch (error) {
       console.error('Erreur lors du chargement des entreprises:', error);
       toast({

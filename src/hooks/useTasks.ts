@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUserColumns } from '@/hooks/useUserSettings';
 
 export interface Task {
   id: string;
   title: string;
   description?: string;
-  status: 'todo' | 'in-progress' | 'review' | 'done';
+  status: 'todo' | 'in-progress' | 'review' | 'done' | string;
   priority: 'low' | 'medium' | 'high';
   due_date?: string;
   tags: string[];
@@ -21,6 +22,24 @@ export const useTasks = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const { columns } = useUserColumns();
+
+  // Identifier les statuts de colonnes qui correspondent à des tâches terminées
+  const getCompletedStatuses = () => {
+    const completedStatuses = ['done'];
+    
+    // Ajouter les colonnes personnalisées qui contiennent "terminé", "fini", "fait", etc.
+    const completedKeywords = ['terminé', 'terminée', 'fini', 'fait', 'complete', 'achevé', 'réalisé'];
+    columns.forEach(column => {
+      const columnTitle = column.title.toLowerCase();
+      if (completedKeywords.some(keyword => columnTitle.includes(keyword))) {
+        completedStatuses.push(column.status);
+        console.log(`Statut terminé trouvé: ${column.title} -> ${column.status}`);
+      }
+    });
+    
+    return completedStatuses;
+  };
 
   const loadTasks = async () => {
     if (!user) return;
@@ -75,7 +94,8 @@ export const useTasks = () => {
   }, [user]);
 
   const getTaskStats = () => {
-    const completed = tasks.filter(task => task.status === 'done').length;
+    const completedStatuses = getCompletedStatuses();
+    const completed = tasks.filter(task => completedStatuses.includes(task.status)).length;
     const inProgress = tasks.filter(task => task.status === 'in-progress').length;
     const inReview = tasks.filter(task => task.status === 'review').length;
     const todo = tasks.filter(task => task.status === 'todo').length;
@@ -87,7 +107,8 @@ export const useTasks = () => {
       const dueDate = new Date(task.due_date);
       if (isNaN(dueDate.getTime())) return false;
       
-      return dueDate < now && task.status !== 'done';
+      // Utiliser la liste des statuts terminés
+      return dueDate < now && !completedStatuses.includes(task.status);
     }).length;
 
     return {
@@ -115,6 +136,8 @@ export const useTasks = () => {
 
   const getOverdueTasks = (limit: number = 5) => {
     const now = new Date();
+    const completedStatuses = getCompletedStatuses();
+    
     const overdueTasks = tasks
       .filter(task => {
         // Vérifier que due_date existe et est valide
@@ -124,8 +147,8 @@ export const useTasks = () => {
         // Vérifier que la date est valide
         if (isNaN(dueDate.getTime())) return false;
         
-        // Exclure explicitement les tâches terminées (done)
-        if (task.status === 'done') {
+        // Exclure les tâches terminées (done + statuts personnalisés terminés)
+        if (completedStatuses.includes(task.status)) {
           console.log(`Tâche terminée exclue: ${task.title} (statut: ${task.status})`);
           return false;
         }
@@ -145,6 +168,7 @@ export const useTasks = () => {
       .slice(0, limit);
     
     console.log(`Nombre total de tâches: ${tasks.length}, Tâches en retard: ${overdueTasks.length}`);
+    console.log(`Statuts terminés reconnus:`, completedStatuses);
     return overdueTasks;
   };
 

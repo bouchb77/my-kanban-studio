@@ -16,6 +16,7 @@ import { ViewTaskDialog } from "@/components/ViewTaskDialog";
 import { ProjectsOverview } from "@/components/ProjectsOverview";
 import { useState } from "react";
 import { useTasks } from "@/hooks/useTasks";
+import { useUserColumns } from "@/hooks/useUserSettings";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -24,10 +25,24 @@ const DashboardPage = () => {
   const [isViewTaskOpen, setIsViewTaskOpen] = useState(false);
   const [viewingTask, setViewingTask] = useState<any>(null);
   const { getTaskStats, getRecentTasks, getOverdueTasks, tasks, loading } = useTasks();
+  const { columns } = useUserColumns();
   
   const stats = getTaskStats();
   const recentTasks = getRecentTasks();
   const overdueTasks = getOverdueTasks();
+
+  // Identifier les statuts de colonnes terminées (même logique que dans useTasks)
+  const getCompletedStatuses = () => {
+    const completedStatuses = ['done'];
+    const completedKeywords = ['terminé', 'terminée', 'fini', 'fait', 'complete', 'achevé', 'réalisé'];
+    columns.forEach(column => {
+      const columnTitle = column.title.toLowerCase();
+      if (completedKeywords.some(keyword => columnTitle.includes(keyword))) {
+        completedStatuses.push(column.status);
+      }
+    });
+    return completedStatuses;
+  };
 
   const mapToViewTask = (t: any) => {
     const parseDate = (d: any) => {
@@ -216,7 +231,8 @@ const DashboardPage = () => {
                     
                     // Exclure les tâches terminées si elles sont en retard
                     const isOverdue = taskDate < today;
-                    if (isOverdue && task.status === 'done') return false;
+                    const completedStatuses = getCompletedStatuses();
+                    if (isOverdue && completedStatuses.includes(task.status)) return false;
                     
                     return taskDate.toDateString() === date.toDateString();
                   });
@@ -330,9 +346,10 @@ const DashboardPage = () => {
                                       {tasks.length > 0 && (
                                         <div className="absolute bottom-0 left-0 right-0 space-y-0.5">
                                           {tasks.slice(0, 2).map((task) => {
-                                            const taskDate = new Date(task.due_date);
-                                            const isOverdue = taskDate < today && task.status !== 'done';
-                                            const isCompleted = task.status === 'done';
+                                             const taskDate = new Date(task.due_date);
+                                             const isOverdue = taskDate < today;
+                                             const completedStatuses = getCompletedStatuses();
+                                             const isCompleted = completedStatuses.includes(task.status);
                                             
                                             return (
                                               <div 

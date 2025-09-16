@@ -67,6 +67,17 @@ const CompaniesMap = () => {
     return uniqueDepartments;
   }, [companies]);
 
+  // Get all unique years from order statistics
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    companies.forEach(company => {
+      if (company.orderStats) {
+        company.orderStats.forEach(stat => years.add(stat.year));
+      }
+    });
+    return Array.from(years).sort((a, b) => b - a); // Sort descending
+  }, [companies]);
+
   // Filter companies based on all filters (date filtering is now done server-side)
   const filteredCompanies = useMemo(() => {
     let filtered = companies.filter(company => {
@@ -134,7 +145,16 @@ const CompaniesMap = () => {
             bValue = b.averageOrderPerYear || 0;
             break;
           default:
-            return 0;
+            // For year columns (format: "year_YYYY")
+            if (sortColumn.startsWith('year_')) {
+              const year = parseInt(sortColumn.replace('year_', ''));
+              const aData = a.orderStats?.find(stat => stat.year === year);
+              const bData = b.orderStats?.find(stat => stat.year === year);
+              aValue = aData?.totalAmount || 0;
+              bValue = bData?.totalAmount || 0;
+            } else {
+              return 0;
+            }
         }
         
         if (typeof aValue === 'string' && typeof bValue === 'string') {
@@ -728,10 +748,32 @@ const CompaniesMap = () => {
                           {getSortIcon('averageOrderPerYear')}
                         </div>
                       </TableHead>
+                      {availableYears.map(year => (
+                        <TableHead 
+                          key={year} 
+                          className="min-w-[150px] text-center cursor-pointer hover:bg-muted/50 select-none"
+                          onClick={() => handleSort(`year_${year}`)}
+                        >
+                          <div className="flex items-center justify-center gap-2">
+                            <div>
+                              {year}
+                              <div className="text-xs text-muted-foreground font-normal">
+                                Détail par année
+                              </div>
+                            </div>
+                            {getSortIcon(`year_${year}`)}
+                          </div>
+                        </TableHead>
+                      ))}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredCompanies.map((company) => {
+                      // Create a map for quick lookup of year data
+                      const yearDataMap = new Map(
+                        company.orderStats?.map(stat => [stat.year, stat]) || []
+                      );
+                      
                       return (
                         <TableRow key={company.id}>
                           <TableCell className="font-medium">{company.company_name}</TableCell>
@@ -744,6 +786,25 @@ const CompaniesMap = () => {
                               "-"
                             }
                           </TableCell>
+                          {availableYears.map(year => {
+                            const yearData = yearDataMap.get(year);
+                            return (
+                              <TableCell key={year} className="text-center">
+                                {yearData ? (
+                                  <div className="space-y-1">
+                                    <div className="font-medium text-primary">
+                                      {yearData.totalOrders}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                      {yearData.totalAmount.toLocaleString()} €
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </TableCell>
+                            );
+                          })}
                         </TableRow>
                       );
                     })}

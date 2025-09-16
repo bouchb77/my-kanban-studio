@@ -100,12 +100,29 @@ const IsochroneMap: React.FC<IsochroneMapProps> = ({
       }
     }
 
-    // Ajouter les marqueurs pour les entreprises - TOUTES sont dans la zone par définition
+    // Ajouter les marqueurs pour les entreprises - Montrer TOUTES les entreprises avec distinction visuelle
     companies.forEach((company) => {
       if (!company.latitude || !company.longitude) return;
 
-      // Ces entreprises sont déjà filtrées par IsochroneCalculator, donc toutes dans la zone
-      const inZone = true;
+      // Utiliser l'algorithme point-in-polygon pour déterminer si dans la zone
+      let inZone = false;
+      if (isochronePolygon.length > 0) {
+        const testLat = company.latitude;
+        const testLng = company.longitude;
+        
+        for (let i = 0, j = isochronePolygon.length - 1; i < isochronePolygon.length; j = i++) {
+          const lat1 = isochronePolygon[i].lat;
+          const lng1 = isochronePolygon[i].lng;
+          const lat2 = isochronePolygon[j].lat;
+          const lng2 = isochronePolygon[j].lng;
+          
+          // Ray casting algorithm: cast a ray from the test point to the right
+          if (((lng1 > testLng) !== (lng2 > testLng)) && 
+              (testLat < (lat2 - lat1) * (testLng - lng1) / (lng2 - lng1) + lat1)) {
+            inZone = !inZone;
+          }
+        }
+      }
       
       const marker = new google.maps.Marker({
         position: { lat: company.latitude, lng: company.longitude },

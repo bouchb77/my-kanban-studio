@@ -17,6 +17,7 @@ interface MapComponentProps {
 
 const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
   const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<any>(null);
 
   useEffect(() => {
     const initMap = async () => {
@@ -35,8 +36,15 @@ const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
           shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
         });
 
+        // Supprimer la carte existante si elle existe
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.remove();
+          mapInstanceRef.current = null;
+        }
+
         // Créer la carte
         const map = L.map(mapRef.current).setView([46.603354, 1.888334], 6);
+        mapInstanceRef.current = map;
 
         // Ajouter les tuiles OpenStreetMap
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -67,17 +75,21 @@ const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
           const group = L.featureGroup(markers);
           map.fitBounds(group.getBounds().pad(0.1));
         }
-
-        return () => {
-          map.remove();
-        };
       } catch (error) {
         console.error('Erreur lors du chargement de la carte:', error);
       }
     };
 
     initMap();
-  }, [companies]);
+
+    // Cleanup lors du démontage
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, [companies]); // Dépendance sur companies pour re-rendre quand elles changent
 
   return (
     <div 

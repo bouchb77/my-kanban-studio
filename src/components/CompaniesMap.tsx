@@ -170,7 +170,7 @@ const CompaniesMap = () => {
                     <SelectTrigger className="w-48">
                       <SelectValue placeholder="Tous les départements" />
                     </SelectTrigger>
-                    <SelectContent className="bg-background border shadow-md z-50">
+                    <SelectContent className="bg-background border shadow-lg z-[9999] max-h-48 overflow-y-auto">
                       <SelectItem value="all">Tous les départements</SelectItem>
                       {departments.map((department) => (
                         <SelectItem key={department} value={department}>

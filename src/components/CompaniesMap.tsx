@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import MapComponent from './MapComponent';
+import CompanyDetailDialog from './CompanyDetailDialog';
 
 interface Company {
   id: string;
@@ -40,6 +41,10 @@ const CompaniesMap = () => {
   const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
   const [totalCompanies, setTotalCompanies] = useState(0);
   const [geocoding, setGeocoding] = useState(false);
+  
+  // Company detail dialog state
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const [companyDetailOpen, setCompanyDetailOpen] = useState(false);
   
   // Filtres
   const [sipiFilter, setSipiFilter] = useState('');
@@ -176,6 +181,27 @@ const CompaniesMap = () => {
     } else {
       setSortColumn(column);
       setSortDirection('asc');
+    }
+  };
+
+  const handleCompanyClick = async (company: Company) => {
+    // Fetch complete company data
+    try {
+      const { data: fullCompanyData, error } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('id', company.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching company details:', error);
+        return;
+      }
+
+      setSelectedCompany(fullCompanyData);
+      setCompanyDetailOpen(true);
+    } catch (error) {
+      console.error('Error fetching company details:', error);
     }
   };
 
@@ -776,7 +802,12 @@ const CompaniesMap = () => {
                       
                       return (
                         <TableRow key={company.id}>
-                          <TableCell className="font-medium">{company.company_name}</TableCell>
+                          <TableCell 
+                            className="font-medium cursor-pointer hover:text-primary hover:underline"
+                            onClick={() => handleCompanyClick(company)}
+                          >
+                            {company.company_name}
+                          </TableCell>
                           <TableCell>{company.sipi_number}</TableCell>
                           <TableCell>{company.city || "-"}</TableCell>
                           <TableCell>{company.general_department || "-"}</TableCell>
@@ -815,6 +846,13 @@ const CompaniesMap = () => {
           </div>
         )}
       </CardContent>
+
+      {/* Company Detail Dialog */}
+      <CompanyDetailDialog
+        company={selectedCompany}
+        open={companyDetailOpen}
+        onOpenChange={setCompanyDetailOpen}
+      />
     </Card>
   );
 };

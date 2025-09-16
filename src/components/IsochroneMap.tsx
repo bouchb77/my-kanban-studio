@@ -97,25 +97,42 @@ const IsochroneMap: React.FC<IsochroneMapProps> = ({
       }
     }
 
-    // Vérifier quelle entreprise est dans la zone
+    // Fonction de calcul de distance identique à celle du calculateur
+    const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+      const R = 6371; // Rayon de la Terre en km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLng = (lng2 - lng1) * Math.PI / 180;
+      const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLng/2) * Math.sin(dLng/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    };
+
+    // Vérifier quelle entreprise est dans la zone (utilise la même logique que le calculateur)
     const isInZone = (company: CompanyOrderPeriod): boolean => {
       if (!centerLocation || !company.latitude || !company.longitude) return false;
       
       if (isochronePolygon.length === 0) return false;
       
-      // Calculer la distance (approximation simple)
-      const distance = google.maps.geometry.spherical.computeDistanceBetween(
-        new google.maps.LatLng(centerLocation.lat, centerLocation.lng),
-        new google.maps.LatLng(company.latitude, company.longitude)
+      // Calculer le rayon approximatif basé sur la distance au premier point du polygone
+      const radiusKm = calculateDistance(
+        centerLocation.lat, 
+        centerLocation.lng, 
+        isochronePolygon[0].lat, 
+        isochronePolygon[0].lng
       );
       
-      // Rayon approximatif basé sur le premier point du polygone
-      const radiusMeters = google.maps.geometry.spherical.computeDistanceBetween(
-        new google.maps.LatLng(centerLocation.lat, centerLocation.lng),
-        new google.maps.LatLng(isochronePolygon[0].lat, isochronePolygon[0].lng)
+      // Calculer la distance de l'entreprise au centre
+      const distance = calculateDistance(
+        company.latitude, 
+        company.longitude, 
+        centerLocation.lat, 
+        centerLocation.lng
       );
       
-      return distance <= radiusMeters;
+      return distance <= radiusKm;
     };
 
     // Ajouter les marqueurs pour les entreprises

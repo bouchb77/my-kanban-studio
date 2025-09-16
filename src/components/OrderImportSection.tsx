@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 interface Order {
   id: string;
   order_number: string;
-  company_name: string;
+  sipi_number: string;
   amount: number;
   order_date: string;
   status: string;
@@ -89,7 +89,7 @@ export const OrderImportSection: React.FC = () => {
       const parsedOrders: Order[] = jsonData.slice(1).map((row, index) => ({
         id: `temp-${index}`,
         order_number: String(row[0] || ''),
-        company_name: String(row[1] || ''),
+        sipi_number: String(row[1] || ''),
         amount: parseFloat(row[2]) || 0,
         order_date: parseExcelDate(row[3]),
         status: String(row[4] || 'pending')
@@ -128,7 +128,7 @@ export const OrderImportSection: React.FC = () => {
       const { data, error } = await supabase.rpc('import_orders', {
         orders_data: orders.map(order => ({
           order_number: order.order_number,
-          company_name: order.company_name,
+          sipi_number: order.sipi_number,
           amount: order.amount,
           order_date: order.order_date,
           status: order.status
@@ -160,10 +160,10 @@ export const OrderImportSection: React.FC = () => {
 
   const downloadTemplate = () => {
     const templateData = [
-      ['N° Commande', 'Nom Entreprise', 'Montant', 'Date Commande', 'Statut'],
-      ['CMD001', 'Entreprise Example', 1500.50, '2024-01-15', 'pending'],
-      ['CMD002', 'Autre Entreprise', 2300.00, '2024-01-16', 'completed'],
-      ['CMD003', 'Test SARL', 999.99, '2024-02-01', 'pending']
+      ['N° Commande', 'SIPI', 'Montant', 'Date Commande', 'Statut'],
+      ['CMD001', '123456789', 1500.50, '2024-01-15', 'pending'],
+      ['CMD002', '987654321', 2300.00, '2024-01-16', 'completed'],
+      ['CMD003', '456789123', 999.99, '2024-02-01', 'pending']
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(templateData);
@@ -206,7 +206,7 @@ export const OrderImportSection: React.FC = () => {
             disabled={uploading}
           />
           <p className="text-sm text-muted-foreground">
-            Format attendu: N° Commande, Nom Entreprise, Montant, Date Commande (YYYY-MM-DD), Statut
+            Format attendu: N° Commande, SIPI, Montant, Date Commande (YYYY-MM-DD), Statut
           </p>
         </div>
 
@@ -242,7 +242,7 @@ export const OrderImportSection: React.FC = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>N° Commande</TableHead>
-                    <TableHead>Entreprise</TableHead>
+                    <TableHead>SIPI</TableHead>
                     <TableHead>Montant</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Statut</TableHead>
@@ -252,7 +252,7 @@ export const OrderImportSection: React.FC = () => {
                   {orders.slice(0, 10).map((order, index) => (
                     <TableRow key={index}>
                       <TableCell className="font-medium">{order.order_number}</TableCell>
-                      <TableCell>{order.company_name}</TableCell>
+                      <TableCell>{order.sipi_number}</TableCell>
                       <TableCell>{order.amount.toFixed(2)} €</TableCell>
                       <TableCell>{order.order_date}</TableCell>
                       <TableCell>{order.status}</TableCell>

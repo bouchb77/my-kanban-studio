@@ -151,17 +151,17 @@ export const useCompanyOrderStats = () => {
         console.log(`Entreprise ${company.sipi_number} (${company.company_name}): 2023=${amount2023}€, 2024=${amount2024}€, 2025=${amount2025}€`);
         console.log(`  Sommes: 2023+2024=${sum2023_2024}€, 2024+2025=${sum2024_2025}€, seuil=${maxThreshold}€`);
         
-        // Vérifier si les deux sommes sont inférieures au seuil ET qu'au moins une période a des données
-        if ((sum2023_2024 > 0 || sum2024_2025 > 0) && 
-            sum2023_2024 <= maxThreshold && 
-            sum2024_2025 <= maxThreshold) {
+        // Vérifier si au moins une période respecte le critère ET qu'il y a des données
+        if ((sum2023_2024 > 0 || sum2024_2025 > 0)) {
           
-          totalPeriods++;
-          console.log(`  ✓ Critères respectés`);
+          console.log(`  Sommes: 2023+2024=${sum2023_2024}€, 2024+2025=${sum2024_2025}€, seuil=${maxThreshold}€`);
           
-          // Choisir la période avec la somme la plus élevée
-          if (sum2023_2024 >= sum2024_2025) {
-            companyPeriods.push({
+          // Prendre la période avec le montant le plus élevé qui respecte le critère
+          let selectedPeriod: CompanyOrderPeriod | null = null;
+          
+          // Vérifier la période 2023+2024
+          if (sum2023_2024 <= maxThreshold && sum2023_2024 > 0) {
+            selectedPeriod = {
               company_id: company.id,
               sipi_number: company.sipi_number,
               company_name: company.company_name,
@@ -175,26 +175,39 @@ export const useCompanyOrderStats = () => {
               address1: company.address1,
               city: company.city,
               general_department: company.general_department
-            });
+            };
+          }
+          
+          // Vérifier la période 2024+2025 (prendre celle-ci si elle est meilleure ou si l'autre ne respecte pas le critère)
+          if (sum2024_2025 <= maxThreshold && sum2024_2025 > 0) {
+            if (!selectedPeriod || sum2024_2025 > selectedPeriod.maxAmount) {
+              selectedPeriod = {
+                company_id: company.id,
+                sipi_number: company.sipi_number,
+                company_name: company.company_name,
+                year1: 2024,
+                year2: 2025,
+                amount1: amount2024,
+                amount2: amount2025,
+                maxAmount: sum2024_2025,
+                latitude: company.latitude,
+                longitude: company.longitude,
+                address1: company.address1,
+                city: company.city,
+                general_department: company.general_department
+              };
+            }
+          }
+          
+          if (selectedPeriod) {
+            totalPeriods++;
+            console.log(`  ✓ Critères respectés - Période sélectionnée: ${selectedPeriod.year1}-${selectedPeriod.year2} avec ${selectedPeriod.maxAmount}€`);
+            companyPeriods.push(selectedPeriod);
           } else {
-            companyPeriods.push({
-              company_id: company.id,
-              sipi_number: company.sipi_number,
-              company_name: company.company_name,
-              year1: 2024,
-              year2: 2025,
-              amount1: amount2024,
-              amount2: amount2025,
-              maxAmount: sum2024_2025,
-              latitude: company.latitude,
-              longitude: company.longitude,
-              address1: company.address1,
-              city: company.city,
-              general_department: company.general_department
-            });
+            console.log(`  ✗ Critères non respectés - Aucune période sous le seuil de ${maxThreshold}€`);
           }
         } else {
-          console.log(`  ✗ Critères non respectés`);
+          console.log(`  ✗ Aucune donnée de commande`);
         }
       });
 

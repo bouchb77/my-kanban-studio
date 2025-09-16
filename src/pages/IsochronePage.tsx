@@ -46,27 +46,33 @@ const IsochronePage = () => {
       // D'abord récupérer les entreprises avec le seuil
       await fetchCompanyOrderStats(maxThreshold);
       
-      // Géocoder l'adresse de départ
-      const geocodeResponse = await supabase.functions.invoke('get-google-maps-key');
-      if (geocodeResponse.error) throw geocodeResponse.error;
+      // Géocoder l'adresse avec OpenRouteService
+      const geocodeResponse = await supabase.functions.invoke('geocode-address', {
+        body: { address: centerLocation }
+      });
       
-      const { apiKey } = geocodeResponse.data;
-      
-      const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(centerLocation)}&key=${apiKey}`;
-      const geocodeResult = await fetch(geocodeUrl);
-      const geocodeData = await geocodeResult.json();
-      
-      if (geocodeData.status !== 'OK' || !geocodeData.results.length) {
-        throw new Error('Impossible de géocoder l\'adresse de départ');
+      if (geocodeResponse.error) {
+        throw new Error('Erreur lors du géocodage: ' + geocodeResponse.error.message);
       }
       
-      const centerCoordResult = geocodeData.results[0].geometry.location;
-      setCenterCoords(centerCoordResult);
+      const { coordinates } = geocodeResponse.data;
+      setCenterCoords({ lat: coordinates[1], lng: coordinates[0] });
       
-      // Calculer l'isochrone (approximation basique avec un cercle)
-      // Pour une vraie implémentation, utilisez l'API Google Maps Directions
-      const approximateRadius = travelTime * (transportMode === 'driving' ? 1.5 : 0.5); // km approximatifs
-      const polygon = generateCirclePolygon(centerCoordResult.lat, centerCoordResult.lng, approximateRadius);
+      // Calculer l'isochrone avec OpenRouteService
+      const isochroneResponse = await supabase.functions.invoke('calculate-isochrone', {
+        body: {
+          lat: coordinates[1],
+          lng: coordinates[0], 
+          time: travelTime,
+          profile: transportMode === 'driving' ? 'driving-car' : 'foot-walking'
+        }
+      });
+      
+      if (isochroneResponse.error) {
+        throw new Error('Erreur lors du calcul de l\'isochrone: ' + isochroneResponse.error.message);
+      }
+      
+      const { polygon } = isochroneResponse.data;
       setIsochronePolygon(polygon);
       
     } catch (err) {

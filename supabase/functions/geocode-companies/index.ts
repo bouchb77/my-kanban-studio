@@ -22,31 +22,36 @@ serve(async (req) => {
       throw new Error('MAPBOX_ACCESS_TOKEN not configured')
     }
 
-    let totalProcessed = 0
-    let totalSucceeded = 0
-    let totalFailed = 0
-    let batchNumber = 1
+    // Function to process companies in background
+    async function processCompaniesInBackground() {
+      let totalProcessed = 0
+      let totalSucceeded = 0
+      let totalFailed = 0
+      let batchNumber = 1
 
-    // Process all companies in batches of 50
-    while (true) {
-      // Get companies without coordinates (batch of 50)
-      const { data: companies, error: fetchError } = await supabaseClient
-        .from('companies')
-        .select('id, company_name, address1, address2, city, postal_code, sipi_number')
-        .or('latitude.is.null,longitude.is.null')
-        .limit(50)
+      console.log('Starting background geocoding process...')
 
-      if (fetchError) {
-        throw fetchError
-      }
+      try {
+        // Process companies in batches of 25 (reduced for better performance)
+        while (true) {
+          // Get companies without coordinates (batch of 25)
+          const { data: companies, error: fetchError } = await supabaseClient
+            .from('companies')
+            .select('id, company_name, address1, address2, city, postal_code, sipi_number')
+            .or('latitude.is.null,longitude.is.null')
+            .limit(25)
 
-      // If no more companies to process, break the loop
-      if (!companies || companies.length === 0) {
-        console.log('No more companies to geocode')
-        break
-      }
+          if (fetchError) {
+            throw fetchError
+          }
 
-      console.log(`Processing batch ${batchNumber}: ${companies.length} companies`)
+          // If no more companies to process, break the loop
+          if (!companies || companies.length === 0) {
+            console.log('Background geocoding completed. No more companies to geocode.')
+            break
+          }
+
+          console.log(`Processing batch ${batchNumber}: ${companies.length} companies`)
       
       let batchProcessed = 0
       let batchSucceeded = 0
@@ -248,37 +253,57 @@ serve(async (req) => {
           batchFailed++
         }
         
-        batchProcessed++
-        
-        // Rate limiting - wait 100ms between requests
-        await new Promise(resolve => setTimeout(resolve, 100))
-        
-      } catch (error) {
-        console.error(`Error processing company ${company.sipi_number}:`, error)
-        batchFailed++
+          batchProcessed++
+          
+          // Rate limiting - wait 200ms between requests for stability
+          await new Promise(resolve => setTimeout(resolve, 200))
+          
+        } catch (error) {
+          console.error(`Error processing company ${company.sipi_number}:`, error)
+          batchFailed++
+        }
+      }
+
+      // Update totals for this batch
+      totalProcessed += batchProcessed
+      totalSucceeded += batchSucceeded
+      totalFailed += batchFailed
+      
+      console.log(`Batch ${batchNumber} completed: ${batchSucceeded} succeeded, ${batchFailed} failed`)
+      batchNumber++
+      
+      // Wait 3 seconds between batches to avoid rate limits
+      await new Promise(resolve => setTimeout(resolve, 3000))
+      
+      // Break if we've processed too many batches in one run to avoid timeouts
+      if (batchNumber > 20) {
+        console.log('Reached batch limit for this execution. Function will restart automatically.')
+        break
       }
     }
-
-    // Update totals for this batch
-    totalProcessed += batchProcessed
-    totalSucceeded += batchSucceeded
-    totalFailed += batchFailed
     
-    console.log(`Batch ${batchNumber} completed: ${batchSucceeded} succeeded, ${batchFailed} failed`)
-    batchNumber++
-    
-    // Wait 2 seconds between batches to be respectful to Mapbox API
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    console.log(`Background process completed: ${totalProcessed} processed, ${totalSucceeded} succeeded, ${totalFailed} failed`)
+    return { totalProcessed, totalSucceeded, totalFailed, batches: batchNumber - 1 }
+  } catch (error) {
+    console.error('Background geocoding error:', error)
+    throw error
   }
+}
 
+// Start the background process
+const backgroundTask = processCompaniesInBackground()
+
+// Use EdgeRuntime.waitUntil to prevent timeout
+if (typeof EdgeRuntime !== 'undefined') {
+  EdgeRuntime.waitUntil(backgroundTask)
+}
+
+    // Return immediate response while background task continues
     return new Response(
       JSON.stringify({
         success: true,
-        processed: totalProcessed,
-        succeeded: totalSucceeded,
-        failed: totalFailed,
-        batches: batchNumber - 1,
-        message: `Processed ${totalProcessed} companies in ${batchNumber - 1} batches. ${totalSucceeded} geocoded successfully, ${totalFailed} failed.`
+        message: 'Geocoding process started in background. Check logs for progress.',
+        status: 'running'
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

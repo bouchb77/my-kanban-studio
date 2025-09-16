@@ -68,23 +68,31 @@ const CompaniesMap = () => {
   const handleGeocodeCompanies = async () => {
     setGeocoding(true);
     try {
+      toast({
+        title: "Géolocalisation démarrée",
+        description: "Le processus s'exécute en arrière-plan. Consultez les logs pour le suivi.",
+      });
+      
       const { data, error } = await supabase.functions.invoke('geocode-companies');
       
       if (error) throw error;
       
       toast({
-        title: "✅ Géolocalisation terminée",
-        description: data.message,
+        title: "✅ Processus lancé",
+        description: data.message || "La géolocalisation continue en arrière-plan.",
       });
       
-      // Refresh companies data
-      fetchCompaniesData();
-      fetchTotalCompanies();
+      // Refresh companies data after a delay to show progress
+      setTimeout(() => {
+        fetchCompaniesData();
+        fetchTotalCompanies();
+      }, 10000);
+      
     } catch (error) {
       console.error('Error geocoding companies:', error);
       toast({
         title: "❌ Erreur",
-        description: "Erreur lors de la géolocalisation des entreprises",
+        description: "Erreur lors du lancement de la géolocalisation",
         variant: "destructive"
       });
     } finally {
@@ -204,7 +212,7 @@ const CompaniesMap = () => {
               className="ml-auto"
             >
               <Globe className="w-4 h-4 mr-2" />
-              {geocoding ? "Géolocalisation en cours..." : "Géolocaliser toutes les entreprises"}
+              {geocoding ? "Démarrage..." : "Lancer la géolocalisation"}
             </Button>
           )}
         </CardDescription>

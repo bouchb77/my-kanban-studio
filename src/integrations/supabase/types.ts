@@ -80,6 +80,36 @@ export type Database = {
         }
         Relationships: []
       }
+      contacts: {
+        Row: {
+          contact_name: string | null
+          created_at: string
+          email: string | null
+          id: string
+          phone: string | null
+          sipi_number: string
+          updated_at: string
+        }
+        Insert: {
+          contact_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          phone?: string | null
+          sipi_number: string
+          updated_at?: string
+        }
+        Update: {
+          contact_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          phone?: string | null
+          sipi_number?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       department_management: {
         Row: {
           created_at: string

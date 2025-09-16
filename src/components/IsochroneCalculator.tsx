@@ -207,13 +207,28 @@ const IsochroneCalculator = () => {
     }
 
     try {
+      // Récupérer les informations de contact pour les entreprises
+      const sipiNumbers = companiesInZone.map(c => c.sipi_number);
+      const { data: contactsData } = await supabase
+        .from('contacts')
+        .select('sipi_number, contact_name, email, phone')
+        .in('sipi_number', sipiNumbers);
+
+      // Créer un map des contacts par SIPI
+      const contactsMap = new Map(
+        contactsData?.map(contact => [contact.sipi_number, contact]) || []
+      );
+
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet('Entreprises Zone Isochrone');
 
-      // En-têtes
+      // En-têtes avec informations de contact
       worksheet.columns = [
         { header: 'SIPI', key: 'sipi_number', width: 15 },
         { header: 'Nom Entreprise', key: 'company_name', width: 30 },
+        { header: 'Contact', key: 'contact_name', width: 25 },
+        { header: 'E-mail', key: 'email', width: 30 },
+        { header: 'Téléphone', key: 'phone', width: 20 },
         { header: 'Ville', key: 'city', width: 20 },
         { header: 'Département', key: 'general_department', width: 15 },
         { header: 'Année 1', key: 'year1', width: 10 },
@@ -225,11 +240,15 @@ const IsochroneCalculator = () => {
         { header: 'Longitude', key: 'longitude', width: 12 }
       ];
 
-      // Données
+      // Données avec informations de contact
       companiesInZone.forEach(company => {
+        const contact = contactsMap.get(company.sipi_number);
         worksheet.addRow({
           sipi_number: company.sipi_number,
           company_name: company.company_name,
+          contact_name: contact?.contact_name || '',
+          email: contact?.email || '',
+          phone: contact?.phone || '',
           city: company.city,
           general_department: company.general_department,
           year1: company.year1,
@@ -266,7 +285,7 @@ const IsochroneCalculator = () => {
 
       toast({
         title: "Export réussi",
-        description: `${companiesInZone.length} entreprises exportées`,
+        description: `${companiesInZone.length} entreprises exportées avec informations de contact`,
       });
 
     } catch (err) {

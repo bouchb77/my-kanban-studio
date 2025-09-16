@@ -129,7 +129,7 @@ const ReportingPage = () => {
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="Type de client" />
               </SelectTrigger>
-              <SelectContent className="bg-popover border border-border z-50">
+              <SelectContent className="bg-popover border border-border z-50 shadow-lg">
                 <SelectItem value="all">Tous les clients</SelectItem>
                 <SelectItem value="INDUSTRIE">Clients</SelectItem>
                 <SelectItem value="DISTRIBUTEUR">Revendeurs</SelectItem>

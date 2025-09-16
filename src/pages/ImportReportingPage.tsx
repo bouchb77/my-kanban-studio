@@ -5,6 +5,7 @@ import { ShieldAlert } from 'lucide-react';
 import { CompanyImportSection } from '@/components/CompanyImportSection';
 import { OrderImportSection } from '@/components/OrderImportSection';
 import DepartmentImportSection from '@/components/DepartmentImportSection';
+import ContactImportSection from '@/components/ContactImportSection';
 import IncompleteGeocodingTable from '@/components/IncompleteGeocodingTable';
 
 const ImportReportingPage: React.FC = () => {
@@ -64,6 +65,12 @@ const ImportReportingPage: React.FC = () => {
         <div>
           <h2 className="text-2xl font-semibold mb-4">Import des Commandes</h2>
           <OrderImportSection />
+        </div>
+
+        {/* Import des contacts */}
+        <div>
+          <h2 className="text-2xl font-semibold mb-4">Import des Contacts</h2>
+          <ContactImportSection />
         </div>
 
         {/* Gestion des entreprises avec géolocalisation incomplète */}

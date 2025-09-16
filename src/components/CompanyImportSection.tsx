@@ -164,11 +164,16 @@ export function CompanyImportSection() {
   };
 
   const handleImport = async () => {
-    if (companies.length === 0) return;
+    if (companies.length === 0) {
+      console.log('Aucune entreprise à importer');
+      return;
+    }
 
+    console.log('Début de l\'import de', companies.length, 'entreprises');
     setIsLoading(true);
     try {
       // Supprimer toutes les entreprises existantes (admin uniquement)
+      console.log('Suppression des entreprises existantes...');
       const { error: deleteError } = await supabase
         .from('companies')
         .delete()
@@ -178,12 +183,17 @@ export function CompanyImportSection() {
         console.error('Error deleting existing companies:', deleteError);
         throw deleteError;
       }
+      console.log('Entreprises existantes supprimées');
 
       // Geocode and insert companies with GPS coordinates
       const companiesWithGPS = [];
       let processed = 0;
       
+      console.log('Début de la géolocalisation pour', companies.length, 'entreprises');
+      
       for (const company of companies) {
+        console.log(`Géolocalisation ${processed + 1}/${companies.length}: ${company.company_name}`);
+        
         // Update progress in UI
         toast({
           title: "Géolocalisation en cours...",
@@ -191,6 +201,7 @@ export function CompanyImportSection() {
         });
         
         const gpsData = await geocodeAddress(company);
+        console.log('GPS pour', company.company_name, ':', gpsData);
         companiesWithGPS.push({
           sipi_number: company.sipi_number,
           company_name: company.company_name,
@@ -233,6 +244,12 @@ export function CompanyImportSection() {
       console.log('Insertion réussie:', insertedData?.length, 'entreprises insérées');
 
       const geocodedCount = companiesWithGPS.filter(c => c.latitude && c.longitude).length;
+      console.log('Statistiques finales:', {
+        total: companies.length,
+        inserted: insertedData?.length,
+        geocoded: geocodedCount
+      });
+      
       toast({
         title: "Import réussi",
         description: `${companies.length} entreprises importées avec succès. ${geocodedCount} géolocalisées.`,

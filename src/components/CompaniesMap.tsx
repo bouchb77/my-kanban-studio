@@ -126,34 +126,71 @@ const CompaniesMap = () => {
   const fetchCompaniesData = async () => {
     try {
       console.log('Fetching companies with GPS coordinates...');
-      const { data: companiesData, error: companiesError } = await supabase
-        .from('companies')
-        .select('id, sipi_number, company_name, latitude, longitude, address1, city, general_department')
-        .not('latitude', 'is', null)
-        .not('longitude', 'is', null);
+      
+      // Récupérer toutes les entreprises en utilisant une approche de pagination
+      let allCompanies: any[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      let hasMore = true;
 
-      if (companiesError) {
-        console.error('Error fetching companies:', companiesError);
-        setError('Erreur lors du chargement des entreprises');
-        return;
+      while (hasMore) {
+        const { data: companiesBatch, error: companiesError } = await supabase
+          .from('companies')
+          .select('id, sipi_number, company_name, latitude, longitude, address1, city, general_department')
+          .not('latitude', 'is', null)
+          .not('longitude', 'is', null)
+          .range(from, from + batchSize - 1);
+
+        if (companiesError) {
+          console.error('Error fetching companies:', companiesError);
+          setError('Erreur lors du chargement des entreprises');
+          return;
+        }
+
+        if (companiesBatch && companiesBatch.length > 0) {
+          allCompanies = [...allCompanies, ...companiesBatch];
+          from += batchSize;
+          hasMore = companiesBatch.length === batchSize;
+        } else {
+          hasMore = false;
+        }
       }
 
-      // Fetch order statistics for each company
+      console.log(`Total entreprises récupérées: ${allCompanies.length}`);
+
+      // Récupérer toutes les commandes en utilisant une approche de pagination
       console.log('Fetching order statistics...');
-      const { data: ordersData, error: ordersError } = await supabase
-        .from('orders')
-        .select('sipi_number, order_date, amount');
+      let allOrders: any[] = [];
+      from = 0;
+      hasMore = true;
 
-      if (ordersError) {
-        console.error('Error fetching orders:', ordersError);
-        setError('Erreur lors du chargement des commandes');
-        return;
+      while (hasMore) {
+        const { data: ordersBatch, error: ordersError } = await supabase
+          .from('orders')
+          .select('sipi_number, order_date, amount')
+          .range(from, from + batchSize - 1);
+
+        if (ordersError) {
+          console.error('Error fetching orders:', ordersError);
+          setError('Erreur lors du chargement des commandes');
+          return;
+        }
+
+        if (ordersBatch && ordersBatch.length > 0) {
+          allOrders = [...allOrders, ...ordersBatch];
+          from += batchSize;
+          hasMore = ordersBatch.length === batchSize;
+        } else {
+          hasMore = false;
+        }
       }
+
+      console.log(`Total commandes récupérées: ${allOrders.length}`);
 
       // Group orders by SIPI and year
       const orderStatsByCompany = new Map<string, Map<number, { totalOrders: number; totalAmount: number }>>();
       
-      ordersData?.forEach(order => {
+      allOrders.forEach(order => {
         const year = new Date(order.order_date).getFullYear();
         
         if (!orderStatsByCompany.has(order.sipi_number)) {
@@ -170,7 +207,7 @@ const CompaniesMap = () => {
       });
 
       // Combine companies with their order statistics
-      const companiesWithStats: Company[] = (companiesData || []).map(company => {
+      const companiesWithStats: Company[] = allCompanies.map(company => {
         const companyOrderStats = orderStatsByCompany.get(company.sipi_number);
         const orderStats: CompanyOrderStats[] = [];
         
@@ -192,7 +229,7 @@ const CompaniesMap = () => {
         };
       });
 
-      console.log('Companies loaded:', companiesWithStats?.length || 0);
+      console.log('Companies with stats processed:', companiesWithStats?.length || 0);
       setCompanies(companiesWithStats);
     } catch (error) {
       console.error('Error:', error);

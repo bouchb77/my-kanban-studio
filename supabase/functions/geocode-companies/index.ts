@@ -17,20 +17,29 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Test Nominatim API availability
-    console.log('Testing Nominatim API connectivity...')
+    // Test Google Maps API availability
+    console.log('Testing Google Maps API connectivity...')
+    const googleMapsApiKey = Deno.env.get('GOOGLE_MAPS_API_KEY')
+    if (!googleMapsApiKey) {
+      throw new Error('Google Maps API key is not configured')
+    }
+    
     try {
-      const testResponse = await fetch('https://nominatim.openstreetmap.org/search?q=paris,france&format=json&limit=1&countrycodes=fr')
+      const testResponse = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=Paris,France&key=${googleMapsApiKey}`)
       if (!testResponse.ok) {
         const errorText = await testResponse.text()
-        console.error('Nominatim API test failed:', testResponse.status, errorText)
-        throw new Error(`Nominatim API test failed: ${testResponse.status} - ${errorText}`)
+        console.error('Google Maps API test failed:', testResponse.status, errorText)
+        throw new Error(`Google Maps API test failed: ${testResponse.status} - ${errorText}`)
       }
       const testData = await testResponse.json()
-      console.log('Nominatim API test successful:', testData?.length > 0 ? 'API is accessible' : 'API may have issues')
+      if (testData.status !== 'OK') {
+        console.error('Google Maps API test failed:', testData.status, testData.error_message)
+        throw new Error(`Google Maps API test failed: ${testData.status} - ${testData.error_message}`)
+      }
+      console.log('Google Maps API test successful:', testData?.results?.length > 0 ? 'API is accessible' : 'API may have issues')
     } catch (error) {
-      console.error('Nominatim API connectivity test failed:', error)
-      throw new Error(`Nominatim API connectivity test failed: ${error.message}`)
+      console.error('Google Maps API connectivity test failed:', error)
+      throw new Error(`Google Maps API connectivity test failed: ${error.message}`)
     }
 
     // Function to process companies in background
@@ -43,14 +52,14 @@ serve(async (req) => {
       console.log('Starting background geocoding process...')
 
       try {
-        // Process companies in batches of 10 (reduced for Nominatim rate limits)
+        // Process companies in batches of 50 (Google Maps has higher rate limits)
         while (true) {
-          // Get companies without coordinates (batch of 10)
+          // Get companies without coordinates (batch of 50)
           const { data: companies, error: fetchError } = await supabaseClient
             .from('companies')
             .select('id, company_name, address1, address2, city, postal_code, sipi_number')
             .or('latitude.is.null,longitude.is.null')
-            .limit(10)
+            .limit(50)
 
           if (fetchError) {
             throw fetchError
@@ -70,27 +79,14 @@ serve(async (req) => {
 
       for (const company of companies) {
       try {
-        // Build address string prioritizing postal code over city name
-        let address = '';
-        
-        // Primary geocoding attempt: Use postal code + basic address
-        if (company.postal_code) {
-          const addressParts = [
-            company.address1,
-            company.postal_code,
-            'France'
-          ].filter(Boolean);
-          address = addressParts.join(', ');
-        } else {
-          // Fallback: Use full address if no postal code
-          const addressParts = [
-            company.address1,
-            company.address2,
-            company.city,
-            'France'
-          ].filter(Boolean);
-          address = addressParts.join(', ');
-        }
+        // Build address string using address1, address2, and postal_code
+        const addressParts = [
+          company.address1,
+          company.address2,
+          company.postal_code,
+          'France'
+        ].filter(Boolean);
+        const address = addressParts.join(', ');
         
         if (!address.trim()) {
           console.log(`Skipping company ${company.sipi_number} - no address data`)
@@ -98,37 +94,34 @@ serve(async (req) => {
           continue
         }
 
-        // Geocode with Nominatim (OpenStreetMap) - free alternative
-        let geocodeUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&countrycodes=fr&addressdetails=1`
+        // Geocode with Google Maps API
+        const googleMapsApiKey = Deno.env.get('GOOGLE_MAPS_API_KEY')
+        const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${googleMapsApiKey}&region=fr`
         
         console.log(`Geocoding ${company.company_name} with address: "${address}"`)
         
-        const response = await fetch(geocodeUrl, {
-          headers: {
-            'User-Agent': 'Lovable-App-Geocoding/1.0'
-          }
-        })
+        const response = await fetch(geocodeUrl)
         
         if (!response.ok) {
           const errorText = await response.text()
-          console.error(`Nominatim API error for ${company.company_name}: ${response.status} - ${errorText}`)
+          console.error(`Google Maps API error for ${company.company_name}: ${response.status} - ${errorText}`)
           batchFailed++
           continue
         }
         
         const data = await response.json()
         
-        if (!Array.isArray(data) || data.length === 0) {
+        if (data.status !== 'OK' || !data.results || data.results.length === 0) {
           console.log(`No coordinates found for ${company.company_name} at "${address}"`)
-          console.log(`Nominatim response:`, JSON.stringify(data, null, 2))
+          console.log(`Google Maps response:`, JSON.stringify(data, null, 2))
           batchFailed++
           continue
         }
         
-        const result = data[0]
-        const latitude = parseFloat(result.lat)
-        const longitude = parseFloat(result.lon)
-        const geocodedAddress = result.display_name
+        const result = data.results[0]
+        const latitude = result.geometry.location.lat
+        const longitude = result.geometry.location.lng
+        const geocodedAddress = result.formatted_address
 
         // Extract department from postal code (first 2 digits)
         let expectedDepartment = ''
@@ -152,34 +145,35 @@ serve(async (req) => {
           }
         }
 
-        // Enhanced validation with Nominatim address details
+        // Enhanced validation with Google Maps address components
         let qualityScore = 100
         let validationWarnings = []
         
-        // Nominatim provides structured address data
-        const addressDetails = result.address || {}
+        // Google Maps provides structured address components
+        const addressComponents = result.address_components || []
         
-        if (company.postal_code && (geocodedAddress || addressDetails.postcode)) {
+        if (company.postal_code && geocodedAddress) {
           const postalCode = company.postal_code.replace(/\s/g, '')
           
-          // Check postal code match in structured data first, then fallback to display name
-          const nominatimPostcode = addressDetails.postcode?.replace(/\s/g, '') || ''
-          const geocodedLower = geocodedAddress.toLowerCase()
+          // Find postal code in address components
+          const postalCodeComponent = addressComponents.find(component => 
+            component.types.includes('postal_code')
+          )
           
-          if (nominatimPostcode && nominatimPostcode !== postalCode) {
+          if (postalCodeComponent && postalCodeComponent.long_name !== postalCode) {
             qualityScore -= 30
-            validationWarnings.push(`Postal code mismatch: expected ${postalCode}, got ${nominatimPostcode}`)
-          } else if (!nominatimPostcode && !geocodedLower.includes(postalCode)) {
+            validationWarnings.push(`Postal code mismatch: expected ${postalCode}, got ${postalCodeComponent.long_name}`)
+          } else if (!postalCodeComponent && !geocodedAddress.toLowerCase().includes(postalCode)) {
             qualityScore -= 20
             validationWarnings.push(`Postal code not found in address: ${postalCode}`)
           }
           
-          // Check department consistency using structured data
-          if (expectedDepartment && addressDetails.postcode) {
-            const nominatimDept = addressDetails.postcode.substring(0, 2)
-            if (nominatimDept !== expectedDepartment) {
+          // Check department consistency using postal code
+          if (expectedDepartment && postalCodeComponent) {
+            const geocodedDept = postalCodeComponent.long_name.substring(0, 2)
+            if (geocodedDept !== expectedDepartment) {
               qualityScore -= 15
-              validationWarnings.push(`Department mismatch: expected ${expectedDepartment}, got ${nominatimDept}`)
+              validationWarnings.push(`Department mismatch: expected ${expectedDepartment}, got ${geocodedDept}`)
             }
           }
         }
@@ -208,8 +202,8 @@ serve(async (req) => {
         
         batchProcessed++
         
-        // Rate limiting for Nominatim - wait 1 second between requests (recommended by OSM)
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        // Rate limiting for Google Maps - wait 100ms between requests
+        await new Promise(resolve => setTimeout(resolve, 100))
           
         } catch (error) {
           console.error(`Error processing company ${company.sipi_number}:`, error)
@@ -225,11 +219,11 @@ serve(async (req) => {
       console.log(`Batch ${batchNumber} completed: ${batchSucceeded} succeeded, ${batchFailed} failed`)
       batchNumber++
       
-      // Wait 3 seconds between batches to avoid rate limits
-      await new Promise(resolve => setTimeout(resolve, 3000))
+      // Wait 1 second between batches
+      await new Promise(resolve => setTimeout(resolve, 1000))
       
       // Break if we've processed too many batches in one run to avoid timeouts
-      if (batchNumber > 30) {
+      if (batchNumber > 20) {
         console.log('Reached batch limit for this execution. Function will restart automatically.')
         break
       }

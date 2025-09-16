@@ -173,139 +173,27 @@ export function CompanyImportSection() {
     }
   };
 
-  const geocodeAddress = async (company: Company): Promise<{latitude?: number, longitude?: number, geocoded_address?: string}> => {
-    const addressParts = [
-      company.address1,
-      company.address2,
-      company.city,
-      company.general_department
-    ].filter(Boolean);
-    
-    if (addressParts.length === 0) {
-      return {};
-    }
-
-    const address = addressParts.join(', ');
-    
+  const forceGeocodeAllCompanies = async () => {
+    setIsLoading(true);
     try {
-      // Using Nominatim API (OpenStreetMap) for geocoding - free service
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&countrycodes=fr`,
-        {
-          headers: {
-            'User-Agent': 'TaskFlow-App'
-          }
-        }
-      );
-      
-      if (!response.ok) {
-        console.warn('Geocoding API error for:', address);
-        return {};
-      }
-      
-      const data = await response.json();
-      
-      if (data && data.length > 0) {
-        const result = data[0];
-        return {
-          latitude: parseFloat(result.lat),
-          longitude: parseFloat(result.lon),
-          geocoded_address: result.display_name
-        };
-      }
-    } catch (error) {
-      console.warn('Geocoding failed for:', address, error);
-    }
-    
-    return {};
-  };
-
-  const geocodeCompaniesInBackground = async () => {
-    console.log('Début de la géolocalisation en arrière-plan');
-    
-    try {
-      // Récupérer les entreprises sans géolocalisation
-      const { data: companiesWithoutGPS, error: fetchError } = await supabase
-        .from('companies')
-        .select('id, sipi_number, company_name, address1, address2, city, general_department')
-        .is('latitude', null);
-
-      if (fetchError) {
-        console.error('Erreur récupération entreprises:', fetchError);
-        return;
-      }
-
-      if (!companiesWithoutGPS || companiesWithoutGPS.length === 0) {
-        console.log('Aucune entreprise à géolocaliser');
-        return;
-      }
-
-      console.log(`Géolocalisation de ${companiesWithoutGPS.length} entreprises`);
-      
-      // Traiter par petits lots pour éviter les timeouts
-      const batchSize = 10;
-      let processed = 0;
-      
-      for (let i = 0; i < companiesWithoutGPS.length; i += batchSize) {
-        const batch = companiesWithoutGPS.slice(i, Math.min(i + batchSize, companiesWithoutGPS.length));
-        
-        for (const company of batch) {
-          try {
-            const gpsData = await geocodeAddress(company);
-            
-            if (gpsData.latitude && gpsData.longitude) {
-              // Mettre à jour l'entreprise avec les coordonnées GPS
-              const { error: updateError } = await supabase
-                .from('companies')
-                .update({
-                  latitude: gpsData.latitude,
-                  longitude: gpsData.longitude,
-                  geocoded_address: gpsData.geocoded_address,
-                  geocoding_date: new Date().toISOString()
-                })
-                .eq('id', company.id);
-
-              if (updateError) {
-                console.error('Erreur mise à jour GPS pour', company.company_name, ':', updateError);
-              } else {
-                console.log('GPS mis à jour pour:', company.company_name);
-              }
-            }
-            
-            processed++;
-            
-            // Délai pour respecter les limites de l'API
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-          } catch (error) {
-            console.error('Erreur géolocalisation pour', company.company_name, ':', error);
-          }
-        }
-        
-        // Notification de progression
-        if (i + batchSize < companiesWithoutGPS.length) {
-          toast({
-            title: "Géolocalisation en cours",
-            description: `${processed}/${companiesWithoutGPS.length} entreprises géolocalisées`,
-          });
-        }
-        
-        // Pause entre les lots
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      const { error } = await supabase.functions.invoke('geocode-companies');
+      if (error) {
+        throw error;
       }
       
       toast({
-        title: "Géolocalisation terminée",
-        description: `${processed} entreprises géolocalisées avec succès`,
+        title: "Géolocalisation démarrée",
+        description: "Le processus de géolocalisation a été lancé en arrière-plan",
       });
-      
     } catch (error) {
-      console.error('Erreur géolocalisation en arrière-plan:', error);
+      console.error('Erreur démarrage géolocalisation forcée:', error);
       toast({
-        title: "Erreur géolocalisation",
-        description: "Impossible de géolocaliser les entreprises",
+        title: "Erreur",
+        description: "Impossible de démarrer la géolocalisation",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -351,40 +239,33 @@ export function CompanyImportSection() {
     }
     
     try {
-      // Supprimer toutes les entreprises existantes (admin uniquement)
-      console.log('Suppression des entreprises existantes...');
-      const { error: deleteError } = await supabase
-        .from('companies')
-        .delete()
-        .gte('created_at', '1900-01-01'); // Delete all
-
-      if (deleteError) {
-        console.error('Error deleting existing companies:', deleteError);
-        throw deleteError;
-      }
-      console.log('Entreprises existantes supprimées');
-
-      // Géolocaliser par lots pour optimiser les performances
-      const batchSize = 50; // Traiter par lots de 50
-      const companiesWithGPS = [];
+      // Traitement par lots pour optimiser les performances
+      const batchSize = 50;
+      let totalInserted = 0;
+      let totalUpdated = 0;
       
-      console.log('Début de la géolocalisation par lots');
+      console.log('Début du traitement par lots avec upserts');
       
       for (let i = 0; i < companies.length; i += batchSize) {
         const batch = companies.slice(i, Math.min(i + batchSize, companies.length));
         
         console.log(`Traitement du lot ${Math.floor(i/batchSize) + 1}/${Math.ceil(companies.length/batchSize)}`);
         
-        // Traiter le lot actuel sans géolocalisation d'abord (plus rapide)
-        const batchWithoutGPS = batch.map(company => {
-          console.log('Dates avant insertion:', {
-            last_order_date: company.last_order_date,
-            client_blocked_date: company.client_blocked_date,
-            training_date: company.training_date,
-            report_creation_date: company.report_creation_date
-          });
-          
-          return {
+        // Traitement des entreprises du lot
+        for (const company of batch) {
+          // Vérifier si l'entreprise existe déjà
+          const { data: existingCompany, error: checkError } = await supabase
+            .from('companies')
+            .select('id, address1, city, latitude, longitude')
+            .eq('sipi_number', company.sipi_number)
+            .maybeSingle();
+
+          if (checkError) {
+            console.error('Erreur vérification entreprise:', checkError);
+            continue;
+          }
+
+          const companyData = {
             sipi_number: company.sipi_number,
             company_name: company.company_name,
             address1: company.address1 || null,
@@ -393,69 +274,88 @@ export function CompanyImportSection() {
             postal_code: company.postal_code || null,
             general_department: company.general_department || null,
             quality: company.quality || null,
-            last_order_date: company.last_order_date ? company.last_order_date : null,
-            client_blocked_date: company.client_blocked_date ? company.client_blocked_date : null,
-            training_date: company.training_date ? company.training_date : null,
-            report_creation_date: company.report_creation_date ? company.report_creation_date : null,
-            latitude: null,
-            longitude: null,
-            geocoded_address: null,
-            geocoding_date: null
+            last_order_date: company.last_order_date || null,
+            client_blocked_date: company.client_blocked_date || null,
+            training_date: company.training_date || null,
+            report_creation_date: company.report_creation_date || null
           };
-        });
-        
-        companiesWithGPS.push(...batchWithoutGPS);
+
+          if (existingCompany) {
+            // L'entreprise existe, vérifier si l'adresse a changé
+            const addressChanged = 
+              existingCompany.address1 !== companyData.address1 || 
+              existingCompany.city !== companyData.city;
+
+            if (addressChanged) {
+              console.log(`Adresse modifiée pour ${company.company_name}, géolocalisation à recalculer`);
+            }
+
+            // Mettre à jour l'entreprise existante
+            const updateData: any = { ...companyData };
+            if (addressChanged) {
+              updateData.latitude = null;
+              updateData.longitude = null;
+              updateData.geocoded_address = null;
+              updateData.geocoding_date = null;
+            }
+
+            const { error: updateError } = await supabase
+              .from('companies')
+              .update(updateData)
+              .eq('id', existingCompany.id);
+
+            if (updateError) {
+              console.error('Erreur mise à jour entreprise:', updateError);
+            } else {
+              totalUpdated++;
+              console.log(`Entreprise mise à jour: ${company.company_name}`);
+            }
+          } else {
+            // Nouvelle entreprise, l'insérer
+            const { error: insertError } = await supabase
+              .from('companies')
+              .insert({
+                ...companyData,
+                latitude: null,
+                longitude: null,
+                geocoded_address: null,
+                geocoding_date: null
+              });
+
+            if (insertError) {
+              console.error('Erreur insertion entreprise:', insertError);
+            } else {
+              totalInserted++;
+              console.log(`Nouvelle entreprise insérée: ${company.company_name}`);
+            }
+          }
+        }
         
         // Mise à jour du progrès
         toast({
           title: "Import en cours...",
           description: `Traitement ${Math.min(i + batchSize, companies.length)}/${companies.length} entreprises`,
         });
-        
-        // Insérer le lot en base
-        if (i === 0) {
-          // Premier lot : supprimer les anciennes données
-          const { error: deleteError } = await supabase
-            .from('companies')
-            .delete()
-            .gte('created_at', '1900-01-01');
-          
-          if (deleteError) {
-            console.error('Erreur suppression:', deleteError);
-            throw deleteError;
-          }
-          console.log('Anciennes entreprises supprimées');
-        }
-        
-        // Insérer le lot actuel
-        console.log('Insertion du lot avec données:', batchWithoutGPS.slice(0, 2)); // Log des 2 premières entreprises
-        const { data: insertData, error: insertError } = await supabase
-          .from('companies')
-          .insert(batchWithoutGPS)
-          .select('sipi_number, last_order_date, client_blocked_date, training_date, report_creation_date');
-        
-        if (insertError) {
-          console.error('Erreur insertion lot:', insertError);
-          console.error('Données qui ont causé l\'erreur:', batchWithoutGPS.slice(0, 2));
-          throw insertError;
-        }
-        
-        console.log(`Lot ${Math.floor(i/batchSize) + 1} inséré avec succès`);
-        if (insertData && insertData.length > 0) {
-          console.log('Données insérées avec dates:', insertData.slice(0, 2));
-        }
       }
 
-      console.log('Import terminé avec succès');
+      console.log(`Import terminé avec succès: ${totalInserted} créées, ${totalUpdated} mises à jour`);
 
       toast({
         title: "Import réussi",
-        description: `${companies.length} entreprises importées avec succès. Démarrage de la géolocalisation...`,
+        description: `${totalInserted} entreprises créées, ${totalUpdated} mises à jour. Démarrage de la géolocalisation...`,
       });
       setCompanies([]);
       
-      // Démarrer la géolocalisation en arrière-plan
-      geocodeCompaniesInBackground();
+      // Démarrer la géolocalisation en arrière-plan via la fonction edge
+      const { error: geocodeError } = await supabase.functions.invoke('geocode-companies');
+      if (geocodeError) {
+        console.error('Erreur démarrage géolocalisation:', geocodeError);
+        toast({
+          title: "Géolocalisation",
+          description: "Erreur lors du démarrage de la géolocalisation automatique",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       console.error('Error importing companies:', error);
       toast({
@@ -477,92 +377,100 @@ export function CompanyImportSection() {
         "Adresse2": "Bâtiment A",
         "Ville": "Paris",
         "CP": "75001",
-        "Département général": "Île-de-France",
-        "Qualité": "Premium",
+        "Département général": "75",
+        "Qualité": "Client Premium",
         "Date de dernière cmd": "2024-01-15",
         "Date de client bloqué": "",
-        "Date de formation": "2024-02-01",
-        "Date de création du rapport": "2024-01-01"
-      },
-      { 
-        "N° Société": "87654321", 
-        "Nom de société": "Demo SARL",
-        "Adresse1": "456 Avenue des Champs",
-        "Adresse2": "",
-        "Ville": "Lyon",
-        "CP": "69001",
-        "Département général": "Rhône-Alpes",
-        "Qualité": "Standard",
-        "Date de dernière cmd": "2024-02-20",
-        "Date de client bloqué": "2024-03-01",
-        "Date de formation": "",
-        "Date de création du rapport": "2024-01-15"
+        "Date de formation": "2023-12-01",
+        "Date de création du rapport": "2023-11-15"
       }
     ];
-    
-    const wb = XLSX.utils.book_new();
+
     const ws = XLSX.utils.json_to_sheet(templateData);
-    XLSX.utils.book_append_sheet(wb, ws, "Entreprises");
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Template");
     XLSX.writeFile(wb, "modele_entreprises.xlsx");
+    
+    toast({
+      title: "Téléchargement démarré",
+      description: "Le modèle Excel a été téléchargé",
+    });
+  };
+
+  const clearSelection = () => {
+    setCompanies([]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   return (
-    <Card className="shadow-card border-0">
+    <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <FileSpreadsheet className="w-5 h-5" />
           Import des entreprises
         </CardTitle>
         <CardDescription>
-          Importez un fichier Excel avec toutes les informations d'entreprises (N° Société, Nom, Adresse, etc.)
-          <br />
-          <strong>Dates au format:</strong> AAAA-MM-JJ (ex: 2024-01-15) ou format Excel
+          Importez vos données d'entreprises depuis un fichier Excel (.xlsx, .xls)
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
         <div className="flex gap-2">
           <Button 
-            variant="outline" 
-            onClick={downloadTemplate}
-            className="flex items-center gap-2"
+            onClick={downloadTemplate} 
+            variant="outline"
+            className="flex items-center gap-1"
           >
             <Download className="w-4 h-4" />
             Télécharger le modèle
           </Button>
+          
+          <Button 
+            onClick={forceGeocodeAllCompanies} 
+            disabled={isLoading}
+            variant="outline"
+            className="flex items-center gap-1"
+          >
+            {isLoading ? "Géolocalisation en cours..." : "Forcer la géolocalisation"}
+          </Button>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="excel-upload">Fichier Excel</Label>
+          <Label htmlFor="file-upload">Fichier Excel</Label>
           <Input
             ref={fileInputRef}
-            id="excel-upload"
+            id="file-upload"
             type="file"
             accept=".xlsx,.xls"
             onChange={handleFileUpload}
             disabled={isUploading}
+            className="cursor-pointer"
           />
+          {isUploading && <p className="text-sm text-muted-foreground">Lecture du fichier...</p>}
         </div>
 
         {companies.length > 0 && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary">{companies.length} entreprises</Badge>
-                <span className="text-sm text-muted-foreground">prêtes à importer</span>
-              </div>
+              <Badge variant="outline" className="text-sm">
+                {companies.length} entreprises prêtes à importer
+              </Badge>
               <div className="flex gap-2">
                 <Button 
+                  onClick={clearSelection} 
                   variant="outline" 
                   size="sm"
-                  onClick={() => setCompanies([])}
+                  className="flex items-center gap-1"
                 >
-                  <Trash2 className="w-4 h-4 mr-1" />
+                  <Trash2 className="w-3 h-3" />
                   Effacer
                 </Button>
                 <Button 
-                  onClick={handleImport}
-                  disabled={isLoading}
-                  className="bg-primary text-primary-foreground"
+                  onClick={handleImport} 
+                  disabled={isLoading || companies.length === 0}
+                  size="sm"
+                  className="flex items-center gap-1"
                 >
                   <Upload className="w-4 h-4 mr-1" />
                   {isLoading ? "Import en cours..." : "Importer"}

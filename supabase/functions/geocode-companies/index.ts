@@ -177,7 +177,7 @@ serve(async (req) => {
             }
           }
         }
-        // Update company with coordinates and validation info
+        // Update company with coordinates (without modifying quality)
         const { error: updateError } = await supabaseClient
           .from('companies')
           .update({
@@ -185,8 +185,7 @@ serve(async (req) => {
             longitude,
             geocoded_address: geocodedAddress,
             geocoding_date: new Date().toISOString(),
-            general_department: expectedDepartment || null,
-            quality: qualityScore >= 80 ? 'high' : qualityScore >= 60 ? 'medium' : 'low'
+            general_department: expectedDepartment || null
           })
           .eq('id', company.id)
 

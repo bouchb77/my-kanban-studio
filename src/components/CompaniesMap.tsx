@@ -1,4 +1,4 @@
-import React, { useEffect, useState, Suspense, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,8 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { MapPin, Building2, Filter, ChevronDown, Globe, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-const MapComponent = React.lazy(() => import('./MapComponent'));
+import MapComponent from './MapComponent';
 
 interface Company {
   id: string;
@@ -388,13 +387,7 @@ const CompaniesMap = () => {
           <div className="space-y-6">
             {/* Carte */}
             <div>
-              <Suspense fallback={
-                <div className="h-[500px] w-3/4 mx-auto flex items-center justify-center bg-muted/30 rounded-lg border">
-                  <div className="text-muted-foreground">Chargement de la carte...</div>
-                </div>
-              }>
-                <MapComponent companies={filteredCompanies} />
-              </Suspense>
+              <MapComponent companies={filteredCompanies} />
               
               <div className="flex items-center gap-4 pt-4 border-t">
                 <div className="flex items-center gap-2">

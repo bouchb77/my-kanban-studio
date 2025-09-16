@@ -83,31 +83,31 @@ export type Database = {
       orders: {
         Row: {
           amount: number
-          company_name: string
           created_at: string
           id: string
           order_date: string
           order_number: string
+          sipi_number: string
           status: string
           updated_at: string
         }
         Insert: {
           amount?: number
-          company_name: string
           created_at?: string
           id?: string
           order_date: string
           order_number: string
+          sipi_number?: string
           status?: string
           updated_at?: string
         }
         Update: {
           amount?: number
-          company_name?: string
           created_at?: string
           id?: string
           order_date?: string
           order_number?: string
+          sipi_number?: string
           status?: string
           updated_at?: string
         }

@@ -24,7 +24,7 @@ const CompaniesMap = () => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showMap, setShowMap] = useState(true);
+  
   const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
   const [totalCompanies, setTotalCompanies] = useState(0);
   const [geocoding, setGeocoding] = useState(false);
@@ -227,99 +227,90 @@ const CompaniesMap = () => {
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowMap(true)}
-                className={`px-3 py-1 rounded text-sm ${showMap ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
-              >
-                Carte
-              </button>
-              <button
-                onClick={() => setShowMap(false)}
-                className={`px-3 py-1 rounded text-sm ${!showMap ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
-              >
-                Liste
-              </button>
-            </div>
-            
-            {showMap ? (
-              <>
-                <Suspense fallback={
-                  <div className="h-[500px] w-3/4 mx-auto flex items-center justify-center bg-muted/30 rounded-lg border">
-                    <div className="text-muted-foreground">Chargement de la carte...</div>
-                  </div>
-                }>
-                  <MapComponent companies={filteredCompanies} />
-                </Suspense>
-                
-                <div className="flex items-center gap-4 pt-4 border-t">
-                  <div className="flex items-center gap-2">
-                    <Filter className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">Filtrer par département :</span>
-                  </div>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-64 justify-between">
-                        {selectedDepartments.length === 0 
-                          ? "Tous les départements"
-                          : selectedDepartments.length === 1
-                          ? selectedDepartments[0]
-                          : `${selectedDepartments.length} départements sélectionnés`
-                        }
-                        <ChevronDown className="h-4 w-4 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-64 p-0 bg-background border shadow-xl" align="start">
-                      <div className="p-2 bg-background">
-                        <div className="flex items-center space-x-2 p-2 border-b bg-background">
-                          <Checkbox 
-                            id="select-all"
-                            checked={selectedDepartments.length === departments.length}
-                            onCheckedChange={handleSelectAll}
-                          />
-                          <label htmlFor="select-all" className="text-sm font-medium">
-                            Tout sélectionner
-                          </label>
-                        </div>
-                        <div className="max-h-48 overflow-y-auto bg-background">
-                          {departments.map((department) => (
-                            <div key={department} className="flex items-center space-x-2 p-2 hover:bg-muted/50 bg-background">
-                              <Checkbox 
-                                id={department}
-                                checked={selectedDepartments.includes(department)}
-                                onCheckedChange={() => handleDepartmentToggle(department)}
-                              />
-                              <label htmlFor={department} className="text-sm flex-1 cursor-pointer">
-                                {department}
-                              </label>
-                            </div>
-                          ))}
-                        </div>
-                        {selectedDepartments.length > 0 && (
-                          <div className="p-2 border-t bg-background">
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => setSelectedDepartments([])}
-                              className="w-full"
-                            >
-                              Effacer la sélection
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+          <div className="space-y-6">
+            {/* Carte */}
+            <div>
+              <Suspense fallback={
+                <div className="h-[500px] w-3/4 mx-auto flex items-center justify-center bg-muted/30 rounded-lg border">
+                  <div className="text-muted-foreground">Chargement de la carte...</div>
                 </div>
-              </>
-            ) : (
+              }>
+                <MapComponent companies={filteredCompanies} />
+              </Suspense>
+              
+              <div className="flex items-center gap-4 pt-4 border-t">
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Filtrer par département :</span>
+                </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-64 justify-between">
+                      {selectedDepartments.length === 0 
+                        ? "Tous les départements"
+                        : selectedDepartments.length === 1
+                        ? selectedDepartments[0]
+                        : `${selectedDepartments.length} départements sélectionnés`
+                      }
+                      <ChevronDown className="h-4 w-4 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-0 bg-background border shadow-xl" align="start">
+                    <div className="p-2 bg-background">
+                      <div className="flex items-center space-x-2 p-2 border-b bg-background">
+                        <Checkbox 
+                          id="select-all"
+                          checked={selectedDepartments.length === departments.length}
+                          onCheckedChange={handleSelectAll}
+                        />
+                        <label htmlFor="select-all" className="text-sm font-medium">
+                          Tout sélectionner
+                        </label>
+                      </div>
+                      <div className="max-h-48 overflow-y-auto bg-background">
+                        {departments.map((department) => (
+                          <div key={department} className="flex items-center space-x-2 p-2 hover:bg-muted/50 bg-background">
+                            <Checkbox 
+                              id={department}
+                              checked={selectedDepartments.includes(department)}
+                              onCheckedChange={() => handleDepartmentToggle(department)}
+                            />
+                            <label htmlFor={department} className="text-sm flex-1 cursor-pointer">
+                              {department}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                      {selectedDepartments.length > 0 && (
+                        <div className="p-2 border-t bg-background">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => setSelectedDepartments([])}
+                            className="w-full"
+                          >
+                            Effacer la sélection
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+
+            {/* Liste des entreprises */}
+            <div>
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Building2 className="w-5 h-5" />
+                Liste des entreprises ({filteredCompanies.length})
+              </h3>
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {filteredCompanies.map((company) => (
                   <div key={company.id} className="p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                     <div className="flex justify-between items-start">
                       <div>
-                        <h3 className="font-semibold">{company.company_name}</h3>
+                        <h4 className="font-semibold">{company.company_name}</h4>
                         <p className="text-sm text-muted-foreground">SIPI: {company.sipi_number}</p>
                         {company.address1 && (
                           <p className="text-sm">{company.address1}</p>
@@ -339,7 +330,7 @@ const CompaniesMap = () => {
                   </div>
                 ))}
               </div>
-            )}
+            </div>
           </div>
         )}
       </CardContent>

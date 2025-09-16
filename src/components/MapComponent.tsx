@@ -82,8 +82,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
   return (
     <div 
       ref={mapRef} 
-      className="h-96 w-full rounded-lg border"
-      style={{ minHeight: '384px' }}
+      className="h-[500px] w-3/4 mx-auto rounded-lg border"
+      style={{ minHeight: '500px' }}
     />
   );
 };

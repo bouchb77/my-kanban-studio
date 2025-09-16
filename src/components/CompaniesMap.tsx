@@ -134,7 +134,7 @@ const CompaniesMap = () => {
             
             {showMap ? (
               <Suspense fallback={
-                <div className="h-96 flex items-center justify-center bg-muted/30 rounded-lg border">
+                <div className="h-[500px] w-3/4 mx-auto flex items-center justify-center bg-muted/30 rounded-lg border">
                   <div className="text-muted-foreground">Chargement de la carte...</div>
                 </div>
               }>

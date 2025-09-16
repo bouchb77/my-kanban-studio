@@ -131,9 +131,9 @@ async function geocodeWithNominatim(address: string): Promise<GeocodeResult> {
 // Fonction principale de géocodage avec fallbacks
 async function geocodeAddress(address: string): Promise<GeocodeResult> {
   const services = [
-    geocodeWithOpenRouteService,
-    geocodeWithGoogle,
-    geocodeWithNominatim
+    geocodeWithGoogle,           // 1er: Google Maps (plus fiable)
+    geocodeWithOpenRouteService, // 2ème: OpenRouteService
+    geocodeWithNominatim         // 3ème: Nominatim OSM (gratuit)
   ];
 
   let lastError: Error | null = null;

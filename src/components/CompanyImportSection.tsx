@@ -189,7 +189,7 @@ export function CompanyImportSection() {
       
       toast({
         title: "Géolocalisation démarrée",
-        description: "Système de géolocalisation amélioré avec 3 services de fallback lancé en arrière-plan",
+        description: "Géolocalisation Google Maps prioritaire avec fallbacks lancée en arrière-plan",
       });
     } catch (error) {
       console.error('Erreur démarrage géolocalisation forcée:', error);
@@ -348,7 +348,7 @@ export function CompanyImportSection() {
 
       toast({
         title: "Import réussi",
-        description: `${totalInserted} entreprises créées, ${totalUpdated} mises à jour. Géolocalisation améliorée en cours...`,
+        description: `${totalInserted} entreprises créées, ${totalUpdated} mises à jour. Géolocalisation Google Maps prioritaire en cours...`,
       });
       setCompanies([]);
       
@@ -420,7 +420,7 @@ export function CompanyImportSection() {
         <CardDescription>
           Importez vos données d'entreprises depuis un fichier Excel (.xlsx, .xls)<br/>
           <span className="text-xs text-muted-foreground mt-1 block">
-            ✅ Géolocalisation améliorée avec 3 services de fallback (OpenRouteService, Google Maps, Nominatim OSM)
+            ✅ Google Maps Geocoding API prioritaire + OpenRouteService + Nominatim OSM en fallback
           </span>
         </CardDescription>
       </CardHeader>
@@ -441,7 +441,7 @@ export function CompanyImportSection() {
             variant="outline"
             className="flex items-center gap-1"
           >
-            {isLoading ? "Géolocalisation en cours..." : "Géolocalisation Améliorée"}
+            {isLoading ? "Géolocalisation en cours..." : "Google Maps Geocoding"}
           </Button>
         </div>
 

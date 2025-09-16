@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { useUserRole } from '@/hooks/useUserRole';
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MapPin, Download, Calculator, Loader2, ShieldAlert } from "lucide-react";
+import { MapPin, Download, Calculator, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useCompanyOrderStats, CompanyOrderPeriod } from "@/hooks/useCompanyOrderStats";
 import { supabase } from '@/integrations/supabase/client';
@@ -18,7 +18,6 @@ interface IsochronePoint {
 }
 
 const IsochronePage = () => {
-  const { isAdmin, loading: roleLoading } = useUserRole();
   const [maxThreshold, setMaxThreshold] = useState<number>(50000);
   const [centerLocation, setCenterLocation] = useState<string>('');
   const [travelTime, setTravelTime] = useState<number>(60);
@@ -216,7 +215,7 @@ const IsochronePage = () => {
     }
   };
 
-  if (roleLoading) {
+  if (loading) {
     return (
       <div className="p-6">
         <div className="animate-pulse space-y-4">
@@ -224,22 +223,6 @@ const IsochronePage = () => {
           <div className="h-4 bg-muted rounded w-1/2" />
           <div className="h-64 bg-muted rounded" />
         </div>
-      </div>
-    );
-  }
-
-  if (!isAdmin) {
-    return (
-      <div className="p-6">
-        <Card className="max-w-md mx-auto mt-20">
-          <CardContent className="pt-6 text-center">
-            <ShieldAlert className="w-16 h-16 text-destructive mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Accès non autorisé</h2>
-            <p className="text-muted-foreground">
-              Seuls les administrateurs peuvent accéder à cette page.
-            </p>
-          </CardContent>
-        </Card>
       </div>
     );
   }

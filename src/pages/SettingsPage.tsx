@@ -22,8 +22,7 @@ import {
   Plus, 
   Trash2,
   Edit,
-  Save,
-  Users
+  Save
 } from "lucide-react";
 import { DragDropList } from "@/components/DragDropList";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,8 +30,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useUserViewPreferences } from "@/hooks/useUserViewPreferences";
 import { useUserCategories } from "@/hooks/useUserCategories";
-import { useUserRole } from "@/hooks/useUserRole";
-import { UserApprovalPanel } from "@/components/UserApprovalPanel";
 
 interface UserColumn {
   id: string;
@@ -61,7 +58,6 @@ interface NotificationSettings {
 const SettingsPage = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { isAdmin } = useUserRole();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
@@ -409,7 +405,7 @@ const SettingsPage = () => {
       </div>
 
       <Tabs defaultValue="columns" className="space-y-6">
-        <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-7' : 'grid-cols-6'}`}>
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="columns" className="flex items-center gap-2">
             <Columns className="w-4 h-4" />
             Colonnes
@@ -430,12 +426,6 @@ const SettingsPage = () => {
             <User className="w-4 h-4" />
             Profil
           </TabsTrigger>
-          {isAdmin && (
-            <TabsTrigger value="users" className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              Utilisateurs
-            </TabsTrigger>
-          )}
         </TabsList>
 
         {/* Colonnes Kanban */}
@@ -1013,13 +1003,6 @@ const SettingsPage = () => {
             </CardContent>
           </Card>
         </TabsContent>
-
-        {/* Gestion des utilisateurs (admin uniquement) */}
-        {isAdmin && (
-          <TabsContent value="users">
-            <UserApprovalPanel />
-          </TabsContent>
-        )}
       </Tabs>
     </div>
   );

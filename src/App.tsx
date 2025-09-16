@@ -22,6 +22,7 @@ import CompaniesPage from "./pages/CompaniesPage";
 import ImportReportingPage from "./pages/ImportReportingPage";
 import PublicReportingPage from "./pages/PublicReportingPage";
 import IsochronePage from "./pages/IsochronePage";
+import UserApprovalPage from "./pages/UserApprovalPage";
 
 const queryClient = new QueryClient();
 
@@ -144,6 +145,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <MainLayout><IsochronePage /></MainLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/users" 
+              element={
+                <ProtectedRoute>
+                  <MainLayout><UserApprovalPage /></MainLayout>
                 </ProtectedRoute>
               } 
             />

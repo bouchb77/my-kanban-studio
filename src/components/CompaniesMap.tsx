@@ -179,13 +179,9 @@ const CompaniesMap = () => {
         let formationStatus = 'non_formee';
         
         if (company.training_date) {
-          // Si training_date existe et report_creation_date aussi = Uniquement payant
-          if (company.report_creation_date) {
-            formationStatus = 'formee_payant';
-          } else {
-            // Si training_date existe mais pas report_creation_date = Payant comme gratuit
-            formationStatus = 'formee_mixte';
-          }
+          formationStatus = 'formee_payant'; // Structure Formée (Uniquement payant)
+        } else if (company.report_creation_date) {
+          formationStatus = 'formee_mixte'; // Structure Formée* (Payant comme gratuit)
         }
         
         if (formationStatus !== formationFilter) {

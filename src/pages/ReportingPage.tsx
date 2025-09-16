@@ -17,7 +17,9 @@ import {
   Calendar,
   Clock,
   CheckSquare,
-  AlertTriangle
+  AlertTriangle,
+  ShoppingCart,
+  Euro
 } from "lucide-react";
 import {
   BarChart,
@@ -34,6 +36,7 @@ import {
   Line,
 } from "recharts";
 import { useTasks } from "@/hooks/useTasks";
+import { useOrders } from "@/hooks/useOrders";
 import { useMemo } from "react";
 import CompaniesMap from "@/components/CompaniesMap";
 
@@ -64,6 +67,7 @@ const productivityData = [
 
 const ReportingPage = () => {
   const { tasks, getTaskStats, loading } = useTasks();
+  const { orderStats, loading: ordersLoading, error: ordersError } = useOrders();
   const stats = getTaskStats();
 
   const statusData = useMemo(() => [
@@ -100,7 +104,11 @@ const ReportingPage = () => {
     });
   }, [tasks]);
 
-  if (loading) {
+  // Calculs des totaux
+  const totalOrders = orderStats.reduce((sum, stat) => sum + stat.totalOrders, 0);
+  const totalAmount = orderStats.reduce((sum, stat) => sum + stat.totalAmount, 0);
+
+  if (loading || ordersLoading) {
     return (
       <div className="p-6 flex items-center justify-center">
         <div className="text-muted-foreground">Chargement des données...</div>
@@ -109,15 +117,183 @@ const ReportingPage = () => {
   }
 
   return (
-    <div className="p-6">
-      <h1 className="text-3xl font-bold mb-6 text-red-500">PAGE REPORTING SIMPLIFIÉE POUR TEST CARTE</h1>
-      <div className="bg-blue-500 p-4 text-white mb-4">
-        Avant le composant carte
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Reporting</h1>
+        <Button variant="outline">
+          <Download className="w-4 h-4 mr-2" />
+          Exporter
+        </Button>
       </div>
-      <CompaniesMap />
-      <div className="bg-green-500 p-4 text-white mt-4">
-        Après le composant carte
+
+      {/* Statistiques des commandes */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Commandes</CardTitle>
+            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalOrders.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
+              Toutes années confondues
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Chiffre d'Affaires</CardTitle>
+            <Euro className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalAmount.toLocaleString()} €</div>
+            <p className="text-xs text-muted-foreground">
+              Montant total des commandes
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Années Actives</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{orderStats.length}</div>
+            <p className="text-xs text-muted-foreground">
+              Périodes avec commandes
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Moyenne par Année</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {orderStats.length > 0 ? Math.round(totalOrders / orderStats.length).toLocaleString() : 0}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Commandes par an
+            </p>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Graphiques */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Graphique nombre de commandes par année */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Nombre de Commandes par Année</CardTitle>
+            <CardDescription>
+              Évolution du nombre de commandes
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={orderStats}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="year" />
+                <YAxis />
+                <Tooltip 
+                  formatter={(value, name) => [
+                    `${value} commandes`, 
+                    'Nombre de commandes'
+                  ]}
+                />
+                <Bar dataKey="totalOrders" fill="hsl(var(--primary))" radius={4} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Graphique montant total par année */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Chiffre d'Affaires par Année</CardTitle>
+            <CardDescription>
+              Évolution du montant total des commandes
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={orderStats}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="year" />
+                <YAxis />
+                <Tooltip 
+                  formatter={(value, name) => [
+                    `${Number(value).toLocaleString()} €`, 
+                    'Chiffre d\'affaires'
+                  ]}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="totalAmount" 
+                  stroke="hsl(var(--success))" 
+                  strokeWidth={3}
+                  dot={{ fill: "hsl(var(--success))", strokeWidth: 2, r: 4 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Tableau détaillé par année */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Détail par Année</CardTitle>
+          <CardDescription>
+            Statistiques détaillées des commandes par année
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {orderStats.map((stat, index) => (
+              <div key={stat.year} className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center space-x-4">
+                  <Badge variant="outline">{stat.year}</Badge>
+                  <div>
+                    <p className="font-medium">{stat.totalOrders} commandes</p>
+                    <p className="text-sm text-muted-foreground">
+                      {stat.totalAmount.toLocaleString()} € de chiffre d'affaires
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="font-medium">
+                    {stat.totalOrders > 0 ? Math.round(stat.totalAmount / stat.totalOrders).toLocaleString() : 0} €
+                  </p>
+                  <p className="text-sm text-muted-foreground">Montant moyen</p>
+                </div>
+              </div>
+            ))}
+            {orderStats.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                Aucune donnée de commande disponible
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Carte des entreprises */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Localisation des Entreprises</CardTitle>
+          <CardDescription>
+            Répartition géographique des entreprises clientes
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CompaniesMap />
+        </CardContent>
+      </Card>
     </div>
   );
 };

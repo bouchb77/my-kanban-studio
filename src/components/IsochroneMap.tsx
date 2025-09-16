@@ -118,17 +118,23 @@ const IsochroneMap: React.FC<IsochroneMapProps> = ({
       
       // Utilise l'algorithme ray casting pour vérifier si le point est dans le polygone
       let inside = false;
+      const testLat = company.latitude;
+      const testLng = company.longitude;
       
       for (let i = 0, j = isochronePolygon.length - 1; i < isochronePolygon.length; j = i++) {
-        const xi = isochronePolygon[i].lat, yi = isochronePolygon[i].lng;
-        const xj = isochronePolygon[j].lat, yj = isochronePolygon[j].lng;
+        const lat1 = isochronePolygon[i].lat;
+        const lng1 = isochronePolygon[i].lng;
+        const lat2 = isochronePolygon[j].lat;
+        const lng2 = isochronePolygon[j].lng;
         
-        if (((yi > company.longitude) !== (yj > company.longitude)) && 
-            (company.latitude < (xj - xi) * (company.longitude - yi) / (yj - yi) + xi)) {
+        // Ray casting algorithm: cast a ray from the test point to the right
+        if (((lng1 > testLng) !== (lng2 > testLng)) && 
+            (testLat < (lat2 - lat1) * (testLng - lng1) / (lng2 - lng1) + lat1)) {
           inside = !inside;
         }
       }
       
+      console.log(`Entreprise ${company.company_name} (${testLat}, ${testLng}): ${inside ? 'DANS' : 'HORS'} zone`);
       return inside;
     };
 

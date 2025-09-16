@@ -78,33 +78,9 @@ const CompaniesMap = () => {
     return Array.from(years).sort((a, b) => b - a); // Sort descending
   }, [companies]);
 
-  // Filter companies based on all filters including date range
+  // Filter companies based on all filters (date filtering is now done server-side)
   const filteredCompanies = useMemo(() => {
-    let filtered = companies.map(company => {
-      // Filter order stats by date range first
-      let filteredOrderStats = company.orderStats || [];
-      
-      if (startDate || endDate) {
-        // We need to filter based on the order dates, but since we only have yearly data,
-        // we'll filter by years that fall within the date range
-        const startYear = startDate ? startDate.getFullYear() : 0;
-        const endYear = endDate ? endDate.getFullYear() : 9999;
-        
-        filteredOrderStats = filteredOrderStats.filter(stat => 
-          stat.year >= startYear && stat.year <= endYear
-        );
-      }
-      
-      // Recalculate average with filtered data
-      const totalAmount = filteredOrderStats.reduce((sum, stat) => sum + stat.totalAmount, 0);
-      const averageOrderPerYear = filteredOrderStats.length > 0 ? totalAmount / filteredOrderStats.length : 0;
-      
-      return {
-        ...company,
-        orderStats: filteredOrderStats,
-        averageOrderPerYear
-      };
-    }).filter(company => {
+    let filtered = companies.filter(company => {
       // Department filter
       if (selectedDepartments.length > 0) {
         if (!company.general_department || !selectedDepartments.includes(company.general_department)) {
@@ -192,7 +168,7 @@ const CompaniesMap = () => {
     }
 
     return filtered;
-  }, [companies, selectedDepartments, sipiFilter, cityFilter, companyNameFilter, minAverageFilter, maxAverageFilter, sortColumn, sortDirection, startDate, endDate]);
+  }, [companies, selectedDepartments, sipiFilter, cityFilter, companyNameFilter, minAverageFilter, maxAverageFilter, sortColumn, sortDirection]);
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -313,16 +289,26 @@ const CompaniesMap = () => {
 
       console.log(`Total entreprises récupérées: ${allCompanies.length}`);
 
-      // Récupérer toutes les commandes en utilisant une approche de pagination
+      // Récupérer les commandes avec filtrage par date si spécifié
       console.log('Fetching order statistics...');
       let allOrders: any[] = [];
       from = 0;
       hasMore = true;
 
       while (hasMore) {
-        const { data: ordersBatch, error: ordersError } = await supabase
+        let query = supabase
           .from('orders')
-          .select('sipi_number, order_date, amount')
+          .select('sipi_number, order_date, amount');
+        
+        // Apply date filters at database level
+        if (startDate) {
+          query = query.gte('order_date', startDate.toISOString().split('T')[0]);
+        }
+        if (endDate) {
+          query = query.lte('order_date', endDate.toISOString().split('T')[0]);
+        }
+
+        const { data: ordersBatch, error: ordersError } = await query
           .range(from, from + batchSize - 1);
 
         if (ordersError) {
@@ -342,7 +328,7 @@ const CompaniesMap = () => {
 
       console.log(`Total commandes récupérées: ${allOrders.length}`);
 
-      // Group orders by SIPI and year (load all data, filtering will be done client-side)
+      // Group orders by SIPI and year
       const orderStatsByCompany = new Map<string, Map<number, { totalOrders: number; totalAmount: number }>>();
       
       allOrders.forEach(order => {
@@ -411,7 +397,7 @@ const CompaniesMap = () => {
     };
 
     loadData();
-  }, []); // Remove startDate and endDate dependencies to prevent reloading
+  }, [startDate, endDate]); // Re-add dependencies to reload when dates change
 
   if (loading) {
     return (

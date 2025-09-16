@@ -35,6 +35,7 @@ export const useCompanyOrderStats = () => {
         .not('longitude', 'is', null);
 
       if (companiesError) throw companiesError;
+      console.log(`Entreprises avec coordonnées trouvées: ${companies?.length || 0}`);
 
       // Récupérer toutes les commandes
       const { data: orders, error: ordersError } = await supabase
@@ -42,6 +43,7 @@ export const useCompanyOrderStats = () => {
         .select('sipi_number, amount, order_date');
 
       if (ordersError) throw ordersError;
+      console.log(`Commandes trouvées: ${orders?.length || 0}`);
 
       // Grouper les commandes par SIPI et par année
       const ordersByCompany = new Map<string, Map<number, number>>();
@@ -60,8 +62,9 @@ export const useCompanyOrderStats = () => {
 
       // Calculer les périodes de 2 années consécutives pour chaque entreprise
       const companyPeriods: CompanyOrderPeriod[] = [];
-      const currentYear = new Date().getFullYear();
 
+      console.log(`Début du traitement pour ${companies?.length || 0} entreprises`);
+      
       companies?.forEach(company => {
         const companyOrders = ordersByCompany.get(company.sipi_number);
         if (!companyOrders) return;
@@ -79,7 +82,7 @@ export const useCompanyOrderStats = () => {
             const amount2 = companyOrders.get(year2) || 0;
             const maxAmount = Math.max(amount1, amount2);
             
-            // Vérifier si le montant maximum est inférieur au seuil
+            // Vérifier si le montant maximum est inférieur ou égal au seuil
             if (maxAmount <= maxThreshold) {
               companyPeriods.push({
                 company_id: company.id,
@@ -111,7 +114,11 @@ export const useCompanyOrderStats = () => {
         }
       });
 
-      setCompanyStats(Array.from(companyMaxPeriods.values()));
+      const finalResults = Array.from(companyMaxPeriods.values());
+      console.log(`Entreprises trouvées avec seuil ${maxThreshold}€:`, finalResults.length);
+      console.log('Échantillon des résultats:', finalResults.slice(0, 5));
+      
+      setCompanyStats(finalResults);
     } catch (err) {
       console.error('Erreur lors du chargement des statistiques des entreprises:', err);
       setError(err instanceof Error ? err.message : 'Une erreur est survenue');

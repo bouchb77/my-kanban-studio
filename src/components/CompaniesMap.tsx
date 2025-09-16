@@ -57,6 +57,11 @@ const CompaniesMap = () => {
   const [minAverageFilter, setMinAverageFilter] = useState('');
   const [maxAverageFilter, setMaxAverageFilter] = useState('');
   const [formationFilter, setFormationFilter] = useState('');
+  const [responsableBOFilter, setResponsableBOFilter] = useState('');
+  const [formateurFilter, setFormateurFilter] = useState('');
+
+  // Department management data
+  const [departmentManagement, setDepartmentManagement] = useState<Record<string, any>>({});
   
   // Date filters
   const [startDate, setStartDate] = useState<Date>();
@@ -67,6 +72,30 @@ const CompaniesMap = () => {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
   const { toast } = useToast();
+
+  // Fetch department management data
+  const fetchDepartmentManagement = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('department_management')
+        .select('*');
+
+      if (error) {
+        console.error('Error fetching department management:', error);
+        return;
+      }
+
+      // Create a lookup map by department name
+      const managementMap: Record<string, any> = {};
+      data?.forEach(dept => {
+        managementMap[dept.department_name] = dept;
+      });
+      
+      setDepartmentManagement(managementMap);
+    } catch (error) {
+      console.error('Error fetching department management:', error);
+    }
+  };
 
   // Get unique departments for filter
   const departments = useMemo(() => {
@@ -133,6 +162,24 @@ const CompaniesMap = () => {
             'non_formee';
         
         if (formationStatus !== formationFilter) {
+          return false;
+        }
+      }
+      
+      // Responsable BO filter
+      if (responsableBOFilter && company.general_department) {
+        const deptData = departmentManagement[company.general_department];
+        if (!deptData || !deptData.responsable_bo || 
+            !deptData.responsable_bo.toLowerCase().includes(responsableBOFilter.toLowerCase())) {
+          return false;
+        }
+      }
+      
+      // Formateur filter
+      if (formateurFilter && company.general_department) {
+        const deptData = departmentManagement[company.general_department];
+        if (!deptData || !deptData.formateur || 
+            !deptData.formateur.toLowerCase().includes(formateurFilter.toLowerCase())) {
           return false;
         }
       }
@@ -441,6 +488,9 @@ const CompaniesMap = () => {
     };
 
     loadData();
+
+    // Also fetch department management data
+    fetchDepartmentManagement();
   }, [startDate, endDate]); // Re-add dependencies to reload when dates change
 
   if (loading) {
@@ -675,7 +725,7 @@ const CompaniesMap = () => {
                 )}
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4">
                 <div>
                   <label className="text-sm font-medium">Numéro SIPI</label>
                   <Input
@@ -770,8 +820,24 @@ const CompaniesMap = () => {
                     </PopoverContent>
                   </Popover>
                 </div>
+                <div>
+                  <label className="text-sm font-medium">Responsable BO</label>
+                  <Input
+                    placeholder="Rechercher par responsable BO..."
+                    value={responsableBOFilter}
+                    onChange={(e) => setResponsableBOFilter(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Formateur</label>
+                  <Input
+                    placeholder="Rechercher par formateur..."
+                    value={formateurFilter}
+                    onChange={(e) => setFormateurFilter(e.target.value)}
+                  />
+                </div>
               </div>
-              {(sipiFilter || cityFilter || companyNameFilter || minAverageFilter || maxAverageFilter || formationFilter) && (
+              {(sipiFilter || cityFilter || companyNameFilter || minAverageFilter || maxAverageFilter || formationFilter || responsableBOFilter || formateurFilter) && (
                 <Button 
                   variant="ghost" 
                   size="sm" 
@@ -782,6 +848,8 @@ const CompaniesMap = () => {
                     setMinAverageFilter('');
                     setMaxAverageFilter('');
                     setFormationFilter('');
+                    setResponsableBOFilter('');
+                    setFormateurFilter('');
                   }}
                   className="w-full mt-2"
                 >
@@ -952,6 +1020,7 @@ const CompaniesMap = () => {
         company={selectedCompany}
         open={companyDetailOpen}
         onOpenChange={setCompanyDetailOpen}
+        departmentManagement={departmentManagement}
       />
     </Card>
   );

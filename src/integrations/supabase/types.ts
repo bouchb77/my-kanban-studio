@@ -80,6 +80,36 @@ export type Database = {
         }
         Relationships: []
       }
+      department_management: {
+        Row: {
+          created_at: string
+          ct: string | null
+          department_name: string
+          formateur: string | null
+          id: string
+          responsable_bo: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          ct?: string | null
+          department_name: string
+          formateur?: string | null
+          id?: string
+          responsable_bo?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          ct?: string | null
+          department_name?: string
+          formateur?: string | null
+          id?: string
+          responsable_bo?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           amount: number

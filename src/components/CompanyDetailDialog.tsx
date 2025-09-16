@@ -43,12 +43,14 @@ interface CompanyDetailDialogProps {
   company: Company | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  departmentManagement?: Record<string, any>;
 }
 
 const CompanyDetailDialog: React.FC<CompanyDetailDialogProps> = ({
   company,
   open,
   onOpenChange,
+  departmentManagement = {},
 }) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
@@ -226,6 +228,27 @@ const CompanyDetailDialog: React.FC<CompanyDetailDialogProps> = ({
                   </div>
                 </div>
               </div>
+
+              {/* Department management section */}
+              {company.general_department && departmentManagement[company.general_department] && (
+                <div className="pt-2 border-t">
+                  <p className="text-sm font-medium mb-2">Équipe départementale:</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Responsable BO:</span>
+                      <div className="font-medium">{departmentManagement[company.general_department].responsable_bo || '-'}</div>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">CT:</span>
+                      <div className="font-medium">{departmentManagement[company.general_department].ct || '-'}</div>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Formateur:</span>
+                      <div className="font-medium">{departmentManagement[company.general_department].formateur || '-'}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 

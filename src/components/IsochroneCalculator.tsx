@@ -130,15 +130,19 @@ const IsochroneCalculator = () => {
     let inside = false;
     
     for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-      const xi = polygon[i].lat, yi = polygon[i].lng;
-      const xj = polygon[j].lat, yj = polygon[j].lng;
+      const lat1 = polygon[i].lat;
+      const lng1 = polygon[i].lng;
+      const lat2 = polygon[j].lat;
+      const lng2 = polygon[j].lng;
       
-      if (((yi > pointLng) !== (yj > pointLng)) && 
-          (pointLat < (xj - xi) * (pointLng - yi) / (yj - yi) + xi)) {
+      // Ray casting algorithm: cast a ray from the test point to the right
+      if (((lng1 > pointLng) !== (lng2 > pointLng)) && 
+          (pointLat < (lat2 - lat1) * (pointLng - lng1) / (lng2 - lng1) + lat1)) {
         inside = !inside;
       }
     }
     
+    console.log(`Point (${pointLat}, ${pointLng}): ${inside ? 'DANS' : 'HORS'} isochrone`);
     return inside;
   };
 

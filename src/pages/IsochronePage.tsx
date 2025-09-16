@@ -55,14 +55,14 @@ const IsochronePage = () => {
         throw new Error('Erreur lors du géocodage: ' + geocodeResponse.error.message);
       }
       
-      const { coordinates } = geocodeResponse.data;
-      setCenterCoords({ lat: coordinates[1], lng: coordinates[0] });
+      const { lat, lng } = geocodeResponse.data;
+      setCenterCoords({ lat, lng });
       
       // Calculer l'isochrone avec OpenRouteService
       const isochroneResponse = await supabase.functions.invoke('calculate-isochrone', {
         body: {
-          lat: coordinates[1],
-          lng: coordinates[0], 
+          lat: lat,
+          lng: lng, 
           time: travelTime,
           profile: transportMode === 'driving' ? 'driving-car' : 'foot-walking'
         }

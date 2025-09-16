@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useCompanyOrderStats, CompanyOrderPeriod } from "@/hooks/useCompanyOrderStats";
 import { supabase } from '@/integrations/supabase/client';
 import * as ExcelJS from 'exceljs';
-import IsochroneMap from '@/components/IsochroneMap';
+import SimpleMap from '@/components/SimpleMap';
 
 interface IsochronePoint {
   lat: number;
@@ -310,7 +310,7 @@ const IsochronePage = () => {
             <CardTitle>Carte des Entreprises et Isochrone</CardTitle>
           </CardHeader>
           <CardContent>
-            <IsochroneMap 
+            <SimpleMap 
               companies={companyStats}
               centerLocation={centerCoords}
               isochronePolygon={isochronePolygon}

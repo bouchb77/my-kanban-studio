@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { MapPin, Building2, Filter, ChevronDown } from "lucide-react";
+import { MapPin, Building2, Filter, ChevronDown, Globe } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const MapComponent = React.lazy(() => import('./MapComponent'));
 
@@ -25,6 +26,9 @@ const CompaniesMap = () => {
   const [error, setError] = useState<string | null>(null);
   const [showMap, setShowMap] = useState(true);
   const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
+  const [totalCompanies, setTotalCompanies] = useState(0);
+  const [geocoding, setGeocoding] = useState(false);
+  const { toast } = useToast();
 
   // Get unique departments for filter
   const departments = useMemo(() => {
@@ -61,34 +65,82 @@ const CompaniesMap = () => {
     }
   };
 
-  // Fetch companies with GPS coordinates
-  useEffect(() => {
-    const fetchCompanies = async () => {
-      try {
-        console.log('Fetching companies with GPS coordinates...');
-        const { data, error } = await supabase
-          .from('companies')
-          .select('id, sipi_number, company_name, latitude, longitude, address1, city, general_department')
-          .not('latitude', 'is', null)
-          .not('longitude', 'is', null);
+  const handleGeocodeCompanies = async () => {
+    setGeocoding(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('geocode-companies');
+      
+      if (error) throw error;
+      
+      toast({
+        title: "✅ Géolocalisation terminée",
+        description: data.message,
+      });
+      
+      // Refresh companies data
+      fetchCompaniesData();
+      fetchTotalCompanies();
+    } catch (error) {
+      console.error('Error geocoding companies:', error);
+      toast({
+        title: "❌ Erreur",
+        description: "Erreur lors de la géolocalisation des entreprises",
+        variant: "destructive"
+      });
+    } finally {
+      setGeocoding(false);
+    }
+  };
 
-        if (error) {
-          console.error('Error fetching companies:', error);
-          setError('Erreur lors du chargement des entreprises');
-          return;
-        }
-
-        console.log('Companies loaded:', data?.length || 0);
-        setCompanies(data || []);
-      } catch (error) {
-        console.error('Error:', error);
-        setError('Erreur de connexion');
-      } finally {
-        setLoading(false);
+  const fetchTotalCompanies = async () => {
+    try {
+      const { count, error } = await supabase
+        .from('companies')
+        .select('*', { count: 'exact', head: true });
+      
+      if (!error && count) {
+        setTotalCompanies(count);
       }
+    } catch (error) {
+      console.error('Error fetching total companies:', error);
+    }
+  };
+
+  // Fetch companies with GPS coordinates
+  const fetchCompaniesData = async () => {
+    try {
+      console.log('Fetching companies with GPS coordinates...');
+      const { data, error } = await supabase
+        .from('companies')
+        .select('id, sipi_number, company_name, latitude, longitude, address1, city, general_department')
+        .not('latitude', 'is', null)
+        .not('longitude', 'is', null);
+
+      if (error) {
+        console.error('Error fetching companies:', error);
+        setError('Erreur lors du chargement des entreprises');
+        return;
+      }
+
+      console.log('Companies loaded:', data?.length || 0);
+      setCompanies(data || []);
+    } catch (error) {
+      console.error('Error:', error);
+      setError('Erreur de connexion');
+    }
+  };
+
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      await Promise.all([
+        fetchCompaniesData(),
+        fetchTotalCompanies()
+      ]);
+      setLoading(false);
     };
 
-    fetchCompanies();
+    loadData();
   }, []);
 
   if (loading) {
@@ -141,8 +193,20 @@ const CompaniesMap = () => {
           <span>Localisation géographique des entreprises</span>
           <div className="flex items-center gap-2 text-sm">
             <Building2 className="w-4 h-4" />
-            <span>{filteredCompanies.length} entreprise{filteredCompanies.length > 1 ? 's' : ''} affichée{filteredCompanies.length > 1 ? 's' : ''}</span>
+            <span>{filteredCompanies.length} / {totalCompanies} entreprise{filteredCompanies.length > 1 ? 's' : ''} géolocalisée{filteredCompanies.length > 1 ? 's' : ''}</span>
           </div>
+          {totalCompanies > filteredCompanies.length && (
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={handleGeocodeCompanies}
+              disabled={geocoding}
+              className="ml-auto"
+            >
+              <Globe className="w-4 h-4 mr-2" />
+              {geocoding ? "Géolocalisation..." : `Géolocaliser ${totalCompanies - companies.length} entreprises`}
+            </Button>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent>

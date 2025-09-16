@@ -56,6 +56,7 @@ const CompaniesMap = () => {
   const [companyNameFilter, setCompanyNameFilter] = useState('');
   const [minAverageFilter, setMinAverageFilter] = useState('');
   const [maxAverageFilter, setMaxAverageFilter] = useState('');
+  const [formationFilter, setFormationFilter] = useState('');
   
   // Date filters
   const [startDate, setStartDate] = useState<Date>();
@@ -119,6 +120,19 @@ const CompaniesMap = () => {
         const max = maxAverageFilter ? parseFloat(maxAverageFilter) : Infinity;
         
         if (average < min || average > max) {
+          return false;
+        }
+      }
+      
+      // Formation filter
+      if (formationFilter) {
+        const formationStatus = company.training_date ? 
+          'formee_payant' : 
+          company.report_creation_date ? 
+            'formee_mixte' : 
+            'non_formee';
+        
+        if (formationStatus !== formationFilter) {
           return false;
         }
       }
@@ -661,7 +675,7 @@ const CompaniesMap = () => {
                 )}
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                 <div>
                   <label className="text-sm font-medium">Numéro SIPI</label>
                   <Input
@@ -704,8 +718,60 @@ const CompaniesMap = () => {
                     onChange={(e) => setMaxAverageFilter(e.target.value)}
                   />
                 </div>
+                <div>
+                  <label className="text-sm font-medium">Formation</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-between">
+                        {formationFilter === '' 
+                          ? "Toutes les formations"
+                          : formationFilter === 'formee_payant'
+                          ? "Structure Formée (Payant)"
+                          : formationFilter === 'formee_mixte'
+                          ? "Structure Formée* (Mixte)"
+                          : "Structure non formée"
+                        }
+                        <ChevronDown className="h-4 w-4 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-0 bg-background border shadow-xl z-[9999]" align="start">
+                      <div className="p-2 bg-background">
+                        <div className="space-y-1">
+                          <Button
+                            variant={formationFilter === '' ? 'default' : 'ghost'}
+                            className="w-full justify-start text-sm"
+                            onClick={() => setFormationFilter('')}
+                          >
+                            Toutes les formations
+                          </Button>
+                          <Button
+                            variant={formationFilter === 'formee_payant' ? 'default' : 'ghost'}
+                            className="w-full justify-start text-sm"
+                            onClick={() => setFormationFilter('formee_payant')}
+                          >
+                            Structure Formée (Payant)
+                          </Button>
+                          <Button
+                            variant={formationFilter === 'formee_mixte' ? 'default' : 'ghost'}
+                            className="w-full justify-start text-sm"
+                            onClick={() => setFormationFilter('formee_mixte')}
+                          >
+                            Structure Formée* (Mixte)
+                          </Button>
+                          <Button
+                            variant={formationFilter === 'non_formee' ? 'default' : 'ghost'}
+                            className="w-full justify-start text-sm"
+                            onClick={() => setFormationFilter('non_formee')}
+                          >
+                            Structure non formée
+                          </Button>
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
-              {(sipiFilter || cityFilter || companyNameFilter || minAverageFilter || maxAverageFilter) && (
+              {(sipiFilter || cityFilter || companyNameFilter || minAverageFilter || maxAverageFilter || formationFilter) && (
                 <Button 
                   variant="ghost" 
                   size="sm" 
@@ -715,6 +781,7 @@ const CompaniesMap = () => {
                     setCompanyNameFilter('');
                     setMinAverageFilter('');
                     setMaxAverageFilter('');
+                    setFormationFilter('');
                   }}
                   className="w-full mt-2"
                 >

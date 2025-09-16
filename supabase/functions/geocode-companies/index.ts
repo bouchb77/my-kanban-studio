@@ -82,14 +82,156 @@ serve(async (req) => {
           const [longitude, latitude] = feature.center
           const geocodedAddress = feature.place_name
 
-          // Update company with coordinates
+          // Extract department from postal code (first 2 digits)
+          let expectedDepartment = ''
+          if (company.postal_code) {
+            const postalCode = company.postal_code.replace(/\s/g, '')
+            if (postalCode.length >= 2) {
+              expectedDepartment = postalCode.substring(0, 2)
+              
+              // Handle special cases
+              if (expectedDepartment === '97') {
+                expectedDepartment = postalCode.substring(0, 3) // DOM-TOM
+              } else if (expectedDepartment === '20') {
+                // Corsica: 2A or 2B
+                const corseCode = postalCode.substring(0, 3)
+                if (corseCode.startsWith('201') || corseCode.startsWith('200')) {
+                  expectedDepartment = '2A'
+                } else {
+                  expectedDepartment = '2B'
+                }
+              }
+            }
+          }
+
+          // Check if geocoded address contains expected department
+          let departmentMatch = true
+          let departmentWarning = ''
+          
+          if (expectedDepartment && geocodedAddress) {
+            const geocodedLower = geocodedAddress.toLowerCase()
+            
+            // Check for department number or name in geocoded address
+            const departmentNames: { [key: string]: string[] } = {
+              '01': ['ain'],
+              '02': ['aisne'],
+              '03': ['allier'],
+              '04': ['alpes-de-haute-provence', 'alpes de haute provence'],
+              '05': ['hautes-alpes', 'hautes alpes'],
+              '06': ['alpes-maritimes', 'alpes maritimes'],
+              '07': ['ardèche', 'ardeche'],
+              '08': ['ardennes'],
+              '09': ['ariège', 'ariege'],
+              '10': ['aube'],
+              '11': ['aude'],
+              '12': ['aveyron'],
+              '13': ['bouches-du-rhône', 'bouches du rhône'],
+              '14': ['calvados'],
+              '15': ['cantal'],
+              '16': ['charente'],
+              '17': ['charente-maritime', 'charente maritime'],
+              '18': ['cher'],
+              '19': ['corrèze', 'correze'],
+              '21': ['côte-d\'or', 'côte d\'or', 'cote d\'or'],
+              '22': ['côtes-d\'armor', 'côtes d\'armor', 'cotes d\'armor'],
+              '23': ['creuse'],
+              '24': ['dordogne'],
+              '25': ['doubs'],
+              '26': ['drôme', 'drome'],
+              '27': ['eure'],
+              '28': ['eure-et-loir', 'eure et loir'],
+              '29': ['finistère', 'finistere'],
+              '30': ['gard'],
+              '31': ['haute-garonne', 'haute garonne'],
+              '32': ['gers'],
+              '33': ['gironde'],
+              '34': ['hérault', 'herault'],
+              '35': ['ille-et-vilaine', 'ille et vilaine'],
+              '36': ['indre'],
+              '37': ['indre-et-loire', 'indre et loire'],
+              '38': ['isère', 'isere'],
+              '39': ['jura'],
+              '40': ['landes'],
+              '41': ['loir-et-cher', 'loir et cher'],
+              '42': ['loire'],
+              '43': ['haute-loire', 'haute loire'],
+              '44': ['loire-atlantique', 'loire atlantique'],
+              '45': ['loiret'],
+              '46': ['lot'],
+              '47': ['lot-et-garonne', 'lot et garonne'],
+              '48': ['lozère', 'lozere'],
+              '49': ['maine-et-loire', 'maine et loire'],
+              '50': ['manche'],
+              '51': ['marne'],
+              '52': ['haute-marne', 'haute marne'],
+              '53': ['mayenne'],
+              '54': ['meurthe-et-moselle', 'meurthe et moselle'],
+              '55': ['meuse'],
+              '56': ['morbihan'],
+              '57': ['moselle'],
+              '58': ['nièvre', 'nievre'],
+              '59': ['nord'],
+              '60': ['oise'],
+              '61': ['orne'],
+              '62': ['pas-de-calais', 'pas de calais'],
+              '63': ['puy-de-dôme', 'puy de dôme'],
+              '64': ['pyrénées-atlantiques', 'pyrenees atlantiques'],
+              '65': ['hautes-pyrénées', 'hautes pyrenees'],
+              '66': ['pyrénées-orientales', 'pyrenees orientales'],
+              '67': ['bas-rhin', 'bas rhin'],
+              '68': ['haut-rhin', 'haut rhin'],
+              '69': ['rhône', 'rhone'],
+              '70': ['haute-saône', 'haute saone'],
+              '71': ['saône-et-loire', 'saone et loire'],
+              '72': ['sarthe'],
+              '73': ['savoie'],
+              '74': ['haute-savoie', 'haute savoie'],
+              '75': ['paris'],
+              '76': ['seine-maritime', 'seine maritime'],
+              '77': ['seine-et-marne', 'seine et marne'],
+              '78': ['yvelines'],
+              '79': ['deux-sèvres', 'deux sevres'],
+              '80': ['somme'],
+              '81': ['tarn'],
+              '82': ['tarn-et-garonne', 'tarn et garonne'],
+              '83': ['var'],
+              '84': ['vaucluse'],
+              '85': ['vendée', 'vendee'],
+              '86': ['vienne'],
+              '87': ['haute-vienne', 'haute vienne'],
+              '88': ['vosges'],
+              '89': ['yonne'],
+              '90': ['territoire de belfort'],
+              '91': ['essonne'],
+              '92': ['hauts-de-seine', 'hauts de seine'],
+              '93': ['seine-saint-denis', 'seine saint denis'],
+              '94': ['val-de-marne', 'val de marne'],
+              '95': ['val-d\'oise', 'val d\'oise'],
+              '2A': ['corse-du-sud', 'corse du sud'],
+              '2B': ['haute-corse', 'haute corse']
+            }
+            
+            const expectedDeptNames = departmentNames[expectedDepartment] || []
+            const hasDepartmentMatch = expectedDeptNames.some(name => 
+              geocodedLower.includes(name) || geocodedLower.includes(expectedDepartment)
+            )
+            
+            if (!hasDepartmentMatch) {
+              departmentMatch = false
+              departmentWarning = `Department mismatch: expected ${expectedDepartment}, geocoded address: ${geocodedAddress}`
+              console.warn(`${company.company_name}: ${departmentWarning}`)
+            }
+          }
+
+          // Update company with coordinates and department validation
           const { error: updateError } = await supabaseClient
             .from('companies')
             .update({
               latitude,
               longitude,
               geocoded_address: geocodedAddress,
-              geocoding_date: new Date().toISOString()
+              geocoding_date: new Date().toISOString(),
+              general_department: departmentMatch ? expectedDepartment : null
             })
             .eq('id', company.id)
 
@@ -97,7 +239,8 @@ serve(async (req) => {
             console.error(`Failed to update company ${company.sipi_number}:`, updateError)
             batchFailed++
           } else {
-            console.log(`Geocoded ${company.company_name}: ${latitude}, ${longitude}`)
+            const status = departmentMatch ? '✓' : '⚠️'
+            console.log(`${status} Geocoded ${company.company_name}: ${latitude}, ${longitude} ${departmentWarning ? '- ' + departmentWarning : ''}`)
             batchSucceeded++
           }
         } else {

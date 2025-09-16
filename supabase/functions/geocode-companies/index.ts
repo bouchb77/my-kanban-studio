@@ -19,7 +19,24 @@ serve(async (req) => {
 
     const mapboxToken = Deno.env.get('MAPBOX_ACCESS_TOKEN')
     if (!mapboxToken) {
+      console.error('MAPBOX_ACCESS_TOKEN not configured in environment variables')
       throw new Error('MAPBOX_ACCESS_TOKEN not configured')
+    }
+
+    // Test Mapbox API availability with a simple request
+    console.log('Testing Mapbox API connectivity...')
+    try {
+      const testResponse = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/paris.json?access_token=${mapboxToken}&limit=1`)
+      if (!testResponse.ok) {
+        const errorText = await testResponse.text()
+        console.error('Mapbox API test failed:', testResponse.status, errorText)
+        throw new Error(`Mapbox API test failed: ${testResponse.status} - ${errorText}`)
+      }
+      const testData = await testResponse.json()
+      console.log('Mapbox API test successful:', testData.features?.length > 0 ? 'Token is valid' : 'Token may be invalid')
+    } catch (error) {
+      console.error('Mapbox API connectivity test failed:', error)
+      throw new Error(`Mapbox API connectivity test failed: ${error.message}`)
     }
 
     // Function to process companies in background
@@ -95,13 +112,29 @@ serve(async (req) => {
           geocodeUrl += `&types=postcode,address,poi`
         }
         
+        console.log(`Geocoding ${company.company_name} with address: "${address}"`)
+        
         const response = await fetch(geocodeUrl)
+        
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error(`Mapbox API error for ${company.company_name}: ${response.status} - ${errorText}`)
+          batchFailed++
+          continue
+        }
+        
         const data = await response.json()
-
-        if (data.features && data.features.length > 0) {
-          const feature = data.features[0]
-          const [longitude, latitude] = feature.center
-          const geocodedAddress = feature.place_name
+        
+        if (!data.features || data.features.length === 0) {
+          console.log(`No coordinates found for ${company.company_name} at "${address}"`)
+          console.log(`Mapbox response:`, JSON.stringify(data, null, 2))
+          batchFailed++
+          continue
+        }
+        
+        const feature = data.features[0]
+        const [longitude, latitude] = feature.center
+        const geocodedAddress = feature.place_name
 
           // Extract department from postal code (first 2 digits)
           let expectedDepartment = ''

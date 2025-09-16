@@ -100,44 +100,15 @@ const IsochroneMap: React.FC<IsochroneMapProps> = ({
       }
     }
 
-    // Ajouter les marqueurs pour les entreprises - Méthode de détection hybride plus fiable
+    // Ajouter les marqueurs pour les entreprises avec détection simplifiée et efficace
     companies.forEach((company) => {
       if (!company.latitude || !company.longitude) return;
 
       let inZone = false;
       
       if (isochronePolygon.length > 0) {
-        // Méthode 1: Essayer d'abord l'API Google Maps geometry
-        if (window.google?.maps?.geometry) {
-          try {
-            const polygon = new google.maps.Polygon({
-              paths: isochronePolygon
-            });
-            const testPoint = new google.maps.LatLng(company.latitude, company.longitude);
-            inZone = google.maps.geometry.poly.containsLocation(testPoint, polygon);
-          } catch (error) {
-            console.error('Erreur Google Maps geometry:', error);
-            inZone = false;
-          }
-        }
-        
-        // Méthode 2: Si Google Maps échoue, utiliser ray casting robuste
-        if (!window.google?.maps?.geometry || inZone === undefined) {
-          inZone = isPointInPolygonRobust(company.latitude, company.longitude, isochronePolygon);
-        }
-        
-        // Méthode 3: Vérification par distance comme backup
-        if (centerLocation && !inZone) {
-          const distance = calculateHaversineDistance(
-            company.latitude, company.longitude,
-            centerLocation.lat, centerLocation.lng
-          );
-          // Si très proche du centre, considérer comme dans la zone
-          if (distance < 5) { // 5km du centre
-            console.log(`Correction distance pour ${company.company_name}: ${distance.toFixed(1)}km du centre -> DANS zone`);
-            inZone = true;
-          }
-        }
+        // Utiliser uniquement l'algorithme ray casting fiable
+        inZone = isPointInPolygonRobust(company.latitude, company.longitude, isochronePolygon);
       }
       
       const marker = new google.maps.Marker({
@@ -184,20 +155,23 @@ const IsochroneMap: React.FC<IsochroneMapProps> = ({
       });
     });
 
-    // Fonction ray casting améliorée
-    function isPointInPolygonRobust(lat: number, lng: number, polygon: { lat: number; lng: number }[]): boolean {
+    // Fonction ray casting correcte - Point-in-polygon algorithm
+    function isPointInPolygonRobust(pointLat: number, pointLng: number, polygon: { lat: number; lng: number }[]): boolean {
       if (polygon.length < 3) return false;
       
       let inside = false;
       let j = polygon.length - 1;
 
       for (let i = 0; i < polygon.length; i++) {
-        const xi = polygon[i].lat;
-        const yi = polygon[i].lng;
-        const xj = polygon[j].lat;
-        const yj = polygon[j].lng;
+        const vertexLat_i = polygon[i].lat;
+        const vertexLng_i = polygon[i].lng;
+        const vertexLat_j = polygon[j].lat;
+        const vertexLng_j = polygon[j].lng;
 
-        if (((yi > lng) !== (yj > lng)) && (lat < (xj - xi) * (lng - yi) / (yj - yi) + xi)) {
+        // Ray casting: trace une ligne horizontale vers la droite depuis le point
+        // et compte combien de fois elle croise les arêtes du polygone
+        if (((vertexLng_i > pointLng) !== (vertexLng_j > pointLng)) &&
+            (pointLat < (vertexLat_j - vertexLat_i) * (pointLng - vertexLng_i) / (vertexLng_j - vertexLng_i) + vertexLat_i)) {
           inside = !inside;
         }
         j = i;

@@ -69,11 +69,6 @@ const IsochronePage = () => {
       const polygon = generateCirclePolygon(centerCoordResult.lat, centerCoordResult.lng, approximateRadius);
       setIsochronePolygon(polygon);
       
-      toast({
-        title: "Calcul terminé",
-        description: `${companyStats.length} entreprises trouvées avec le critère de montant`,
-      });
-      
     } catch (err) {
       console.error('Erreur lors du calcul de l\'isochrone:', err);
       toast({

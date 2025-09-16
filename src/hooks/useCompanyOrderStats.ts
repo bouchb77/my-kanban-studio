@@ -74,6 +74,22 @@ export const useCompanyOrderStats = () => {
         orders: Array.from(orders.entries())
       })));
 
+      // Vérifier le matching entre entreprises et commandes
+      const companySipis = new Set(companies?.map(c => c.sipi_number) || []);
+      const orderSipis = new Set(Array.from(ordersByCompany.keys()));
+      
+      console.log(`SIPI des entreprises (échantillon):`, Array.from(companySipis).slice(0, 10));
+      console.log(`SIPI des commandes (échantillon):`, Array.from(orderSipis).slice(0, 10));
+      
+      const matchingSipis = Array.from(companySipis).filter(sipi => orderSipis.has(sipi));
+      console.log(`Entreprises avec commandes correspondantes: ${matchingSipis.length}/${companySipis.size}`);
+      
+      if (matchingSipis.length === 0) {
+        console.error('PROBLÈME: Aucun SIPI ne correspond entre entreprises et commandes!');
+        console.log('Exemple SIPI entreprise:', Array.from(companySipis)[0]);
+        console.log('Exemple SIPI commande:', Array.from(orderSipis)[0]);
+      }
+
       // Calculer les périodes de 2 années consécutives pour chaque entreprise
       const companyPeriods: CompanyOrderPeriod[] = [];
 

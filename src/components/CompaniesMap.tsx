@@ -42,7 +42,7 @@ interface CompaniesMapProps {
   clientTypeFilter?: string;
 }
 
-const CompaniesMap = ({ clientTypeFilter = 'all' }: CompaniesMapProps) => {
+const CompaniesMap = ({ clientTypeFilter: initialClientTypeFilter = 'all' }: CompaniesMapProps) => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +64,7 @@ const CompaniesMap = ({ clientTypeFilter = 'all' }: CompaniesMapProps) => {
   const [formationFilter, setFormationFilter] = useState('');
   const [responsableBOFilter, setResponsableBOFilter] = useState('');
   const [formateurFilter, setFormateurFilter] = useState('');
+  const [localClientTypeFilter, setLocalClientTypeFilter] = useState(initialClientTypeFilter);
 
   // Department management data
   const [departmentManagement, setDepartmentManagement] = useState<Record<string, any>>({});
@@ -147,8 +148,8 @@ const CompaniesMap = ({ clientTypeFilter = 'all' }: CompaniesMapProps) => {
   const filteredCompanies = useMemo(() => {
     let filtered = companies.filter(company => {
       // Type de client filter
-      if (clientTypeFilter !== 'all') {
-        if (!company.quality || company.quality !== clientTypeFilter) {
+      if (localClientTypeFilter !== 'all') {
+        if (!company.quality || company.quality !== localClientTypeFilter) {
           return false;
         }
       }
@@ -273,7 +274,7 @@ const CompaniesMap = ({ clientTypeFilter = 'all' }: CompaniesMapProps) => {
     }
 
     return filtered;
-  }, [companies, clientTypeFilter, selectedDepartments, sipiFilter, cityFilter, companyNameFilter, minAverageFilter, maxAverageFilter, formationFilter, responsableBOFilter, formateurFilter, departmentManagement, sortColumn, sortDirection]);
+  }, [companies, localClientTypeFilter, selectedDepartments, sipiFilter, cityFilter, companyNameFilter, minAverageFilter, maxAverageFilter, formationFilter, responsableBOFilter, formateurFilter, departmentManagement, sortColumn, sortDirection]);
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -929,8 +930,51 @@ const CompaniesMap = ({ clientTypeFilter = 'all' }: CompaniesMapProps) => {
                     </PopoverContent>
                   </Popover>
                 </div>
+                <div>
+                  <label className="text-sm font-medium">Type de client</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-between">
+                        {localClientTypeFilter === 'all' 
+                          ? "Tous les clients"
+                          : localClientTypeFilter === 'INDUSTRIE'
+                          ? "Clients"
+                          : "Revendeurs"
+                        }
+                        <ChevronDown className="h-4 w-4 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-48 p-0 bg-background border shadow-xl z-[9999]" align="start">
+                      <div className="p-2 bg-background">
+                        <div className="space-y-1">
+                          <Button
+                            variant={localClientTypeFilter === 'all' ? 'default' : 'ghost'}
+                            className="w-full justify-start text-sm"
+                            onClick={() => setLocalClientTypeFilter('all')}
+                          >
+                            Tous les clients
+                          </Button>
+                          <Button
+                            variant={localClientTypeFilter === 'INDUSTRIE' ? 'default' : 'ghost'}
+                            className="w-full justify-start text-sm"
+                            onClick={() => setLocalClientTypeFilter('INDUSTRIE')}
+                          >
+                            Clients
+                          </Button>
+                          <Button
+                            variant={localClientTypeFilter === 'DISTRIBUTEUR' ? 'default' : 'ghost'}
+                            className="w-full justify-start text-sm"
+                            onClick={() => setLocalClientTypeFilter('DISTRIBUTEUR')}
+                          >
+                            Revendeurs
+                          </Button>
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
-              {(sipiFilter || cityFilter || companyNameFilter || minAverageFilter || maxAverageFilter || formationFilter || responsableBOFilter || formateurFilter) && (
+              {(sipiFilter || cityFilter || companyNameFilter || minAverageFilter || maxAverageFilter || formationFilter || responsableBOFilter || formateurFilter || localClientTypeFilter !== 'all') && (
                 <Button 
                   variant="ghost" 
                   size="sm" 
@@ -943,6 +987,7 @@ const CompaniesMap = ({ clientTypeFilter = 'all' }: CompaniesMapProps) => {
                     setFormationFilter('');
                     setResponsableBOFilter('');
                     setFormateurFilter('');
+                    setLocalClientTypeFilter('all');
                   }}
                   className="w-full mt-2"
                 >

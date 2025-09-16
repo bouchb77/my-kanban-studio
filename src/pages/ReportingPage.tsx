@@ -69,7 +69,6 @@ const productivityData = [
 const ReportingPage = () => {
   const { tasks, getTaskStats, loading } = useTasks();
   const { orderStats, loading: ordersLoading, error: ordersError } = useOrders();
-  const [clientTypeFilter, setClientTypeFilter] = useState<string>('all');
   const stats = getTaskStats();
 
   const statusData = useMemo(() => [
@@ -122,25 +121,10 @@ const ReportingPage = () => {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Reporting</h1>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-muted-foreground" />
-            <Select value={clientTypeFilter} onValueChange={setClientTypeFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Type de client" />
-              </SelectTrigger>
-              <SelectContent className="bg-popover border border-border z-50 shadow-lg">
-                <SelectItem value="all">Tous les clients</SelectItem>
-                <SelectItem value="INDUSTRIE">Clients</SelectItem>
-                <SelectItem value="DISTRIBUTEUR">Revendeurs</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <Button variant="outline">
-            <Download className="w-4 h-4 mr-2" />
-            Exporter
-          </Button>
-        </div>
+        <Button variant="outline">
+          <Download className="w-4 h-4 mr-2" />
+          Exporter
+        </Button>
       </div>
 
       {/* Statistiques des commandes */}
@@ -242,17 +226,12 @@ const ReportingPage = () => {
       <Card>
         <CardHeader>
           <CardTitle>Localisation des Entreprises</CardTitle>
-          <CardDescription>
-            Répartition géographique des entreprises clientes
-            {clientTypeFilter !== 'all' && (
-              <span className="ml-2">
-                - Filtrée par {clientTypeFilter === 'INDUSTRIE' ? 'Clients' : 'Revendeurs'}
-              </span>
-            )}
-          </CardDescription>
+        <CardDescription>
+          Répartition géographique des entreprises clientes
+        </CardDescription>
         </CardHeader>
         <CardContent>
-          <CompaniesMap clientTypeFilter={clientTypeFilter} />
+          <CompaniesMap clientTypeFilter="all" />
         </CardContent>
       </Card>
     </div>

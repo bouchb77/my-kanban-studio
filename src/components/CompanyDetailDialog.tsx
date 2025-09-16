@@ -28,6 +28,7 @@ interface Company {
   quality?: string;
   client_blocked_date?: string;
   training_date?: string;
+  report_creation_date?: string;
 }
 
 interface Order {
@@ -164,10 +165,10 @@ const CompanyDetailDialog: React.FC<CompanyDetailDialogProps> = ({
                 </div>
               )}
 
-              {(company.last_order_date || company.training_date || company.client_blocked_date) && (
+              {(company.last_order_date || company.training_date || company.client_blocked_date || company.report_creation_date) && (
                 <div className="pt-2 border-t">
                   <p className="text-sm font-medium mb-2">Dates importantes:</p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     {company.last_order_date && (
                       <div>
                         <span className="text-muted-foreground">Dernière commande:</span>
@@ -176,8 +177,14 @@ const CompanyDetailDialog: React.FC<CompanyDetailDialogProps> = ({
                     )}
                     {company.training_date && (
                       <div>
-                        <span className="text-muted-foreground">Formation:</span>
+                        <span className="text-muted-foreground">Formation (Date de cmd SIPI):</span>
                         <div>{format(new Date(company.training_date), 'dd/MM/yyyy')}</div>
+                      </div>
+                    )}
+                    {company.report_creation_date && (
+                      <div>
+                        <span className="text-muted-foreground">Date approx Formation (rapport SIPI):</span>
+                        <div>{format(new Date(company.report_creation_date), 'dd/MM/yyyy')}</div>
                       </div>
                     )}
                     {company.client_blocked_date && (
@@ -189,6 +196,36 @@ const CompanyDetailDialog: React.FC<CompanyDetailDialogProps> = ({
                   </div>
                 </div>
               )}
+
+              {/* Status section */}
+              <div className="pt-2 border-t">
+                <p className="text-sm font-medium mb-2">Status:</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Client bloqué:</span>
+                    <div>
+                      {company.client_blocked_date && company.last_order_date && 
+                       new Date(company.client_blocked_date) > new Date(company.last_order_date) ? (
+                        <Badge variant="destructive">Oui</Badge>
+                      ) : (
+                        <Badge variant="secondary">Non</Badge>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Formation:</span>
+                    <div>
+                      {company.training_date ? (
+                        <Badge variant="default">Structure Formée (Uniquement payant)</Badge>
+                      ) : company.report_creation_date ? (
+                        <Badge variant="outline">Structure Formée* (Payant comme gratuit)</Badge>
+                      ) : (
+                        <Badge variant="secondary">Structure non formée</Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
 

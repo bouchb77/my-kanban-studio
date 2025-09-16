@@ -23,6 +23,10 @@ interface Company {
   address1?: string;
   city?: string;
   general_department?: string;
+  client_blocked_date?: string;
+  training_date?: string;
+  report_creation_date?: string;
+  last_order_date?: string;
   orderStats?: CompanyOrderStats[];
   averageOrderPerYear?: number;
 }
@@ -293,7 +297,7 @@ const CompaniesMap = () => {
       while (hasMore) {
         const { data: companiesBatch, error: companiesError } = await supabase
           .from('companies')
-          .select('id, sipi_number, company_name, latitude, longitude, address1, city, general_department')
+          .select('id, sipi_number, company_name, latitude, longitude, address1, city, general_department, client_blocked_date, training_date, report_creation_date, last_order_date')
           .not('latitude', 'is', null)
           .not('longitude', 'is', null)
           .range(from, from + batchSize - 1);
@@ -752,10 +756,14 @@ const CompaniesMap = () => {
                         onClick={() => handleSort('city')}
                       >
                         <div className="flex items-center gap-2">
-                          Ville
-                          {getSortIcon('city')}
-                        </div>
-                      </TableHead>
+                           Ville
+                           {getSortIcon('city')}
+                         </div>
+                       </TableHead>
+                       <TableHead className="min-w-[120px]">Client bloqué</TableHead>
+                       <TableHead className="min-w-[150px]">Formation (Date de cmd SIPI)</TableHead>
+                       <TableHead className="min-w-[180px]">Date approx Formation (rapport SIPI)</TableHead>
+                       <TableHead className="min-w-[200px]">Formation</TableHead>
                       <TableHead 
                         className="min-w-[100px] cursor-pointer hover:bg-muted/50 select-none"
                         onClick={() => handleSort('general_department')}
@@ -810,6 +818,31 @@ const CompaniesMap = () => {
                           </TableCell>
                           <TableCell>{company.sipi_number}</TableCell>
                           <TableCell>{company.city || "-"}</TableCell>
+                          <TableCell>
+                            {company.client_blocked_date && company.last_order_date && 
+                             new Date(company.client_blocked_date) > new Date(company.last_order_date) ? (
+                              <span className="text-destructive font-medium">Oui</span>
+                            ) : (
+                              <span className="text-muted-foreground">Non</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {company.training_date ? format(new Date(company.training_date), 'dd/MM/yyyy') : '-'}
+                          </TableCell>
+                          <TableCell>
+                            {company.report_creation_date ? format(new Date(company.report_creation_date), 'dd/MM/yyyy') : '-'}
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              {company.training_date ? (
+                                <span className="text-green-700 font-medium">Structure Formée (Uniquement payant)</span>
+                              ) : company.report_creation_date ? (
+                                <span className="text-blue-700 font-medium">Structure Formée* (Payant comme gratuit)</span>
+                              ) : (
+                                <span className="text-muted-foreground">Structure non formée</span>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell>{company.general_department || "-"}</TableCell>
                           <TableCell className="font-medium">
                             {company.averageOrderPerYear ? 

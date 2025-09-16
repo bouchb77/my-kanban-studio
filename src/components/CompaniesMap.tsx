@@ -204,7 +204,7 @@ const CompaniesMap = () => {
               className="ml-auto"
             >
               <Globe className="w-4 h-4 mr-2" />
-              {geocoding ? "Géolocalisation..." : `Géolocaliser ${totalCompanies - companies.length} entreprises`}
+              {geocoding ? "Géolocalisation en cours..." : "Géolocaliser toutes les entreprises"}
             </Button>
           )}
         </CardDescription>

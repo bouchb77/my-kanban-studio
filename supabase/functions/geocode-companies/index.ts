@@ -22,24 +22,37 @@ serve(async (req) => {
       throw new Error('MAPBOX_ACCESS_TOKEN not configured')
     }
 
-    // Get companies without coordinates
-    const { data: companies, error: fetchError } = await supabaseClient
-      .from('companies')
-      .select('id, company_name, address1, address2, city, postal_code, sipi_number')
-      .or('latitude.is.null,longitude.is.null')
-      .limit(50) // Process 50 at a time to avoid rate limits
+    let totalProcessed = 0
+    let totalSucceeded = 0
+    let totalFailed = 0
+    let batchNumber = 1
 
-    if (fetchError) {
-      throw fetchError
-    }
+    // Process all companies in batches of 50
+    while (true) {
+      // Get companies without coordinates (batch of 50)
+      const { data: companies, error: fetchError } = await supabaseClient
+        .from('companies')
+        .select('id, company_name, address1, address2, city, postal_code, sipi_number')
+        .or('latitude.is.null,longitude.is.null')
+        .limit(50)
 
-    console.log(`Processing ${companies?.length || 0} companies`)
+      if (fetchError) {
+        throw fetchError
+      }
 
-    let processed = 0
-    let succeeded = 0
-    let failed = 0
+      // If no more companies to process, break the loop
+      if (!companies || companies.length === 0) {
+        console.log('No more companies to geocode')
+        break
+      }
 
-    for (const company of companies || []) {
+      console.log(`Processing batch ${batchNumber}: ${companies.length} companies`)
+      
+      let batchProcessed = 0
+      let batchSucceeded = 0
+      let batchFailed = 0
+
+      for (const company of companies) {
       try {
         // Build address string
         const addressParts = [
@@ -54,7 +67,7 @@ serve(async (req) => {
         
         if (!address.trim()) {
           console.log(`Skipping company ${company.sipi_number} - no address`)
-          failed++
+          batchFailed++
           continue
         }
 
@@ -82,34 +95,47 @@ serve(async (req) => {
 
           if (updateError) {
             console.error(`Failed to update company ${company.sipi_number}:`, updateError)
-            failed++
+            batchFailed++
           } else {
             console.log(`Geocoded ${company.company_name}: ${latitude}, ${longitude}`)
-            succeeded++
+            batchSucceeded++
           }
         } else {
           console.log(`No coordinates found for ${company.company_name} at ${address}`)
-          failed++
+          batchFailed++
         }
         
-        processed++
+        batchProcessed++
         
         // Rate limiting - wait 100ms between requests
         await new Promise(resolve => setTimeout(resolve, 100))
         
       } catch (error) {
         console.error(`Error processing company ${company.sipi_number}:`, error)
-        failed++
+        batchFailed++
       }
     }
+
+    // Update totals for this batch
+    totalProcessed += batchProcessed
+    totalSucceeded += batchSucceeded
+    totalFailed += batchFailed
+    
+    console.log(`Batch ${batchNumber} completed: ${batchSucceeded} succeeded, ${batchFailed} failed`)
+    batchNumber++
+    
+    // Wait 2 seconds between batches to be respectful to Mapbox API
+    await new Promise(resolve => setTimeout(resolve, 2000))
+  }
 
     return new Response(
       JSON.stringify({
         success: true,
-        processed,
-        succeeded,
-        failed,
-        message: `Processed ${processed} companies. ${succeeded} geocoded successfully, ${failed} failed.`
+        processed: totalProcessed,
+        succeeded: totalSucceeded,
+        failed: totalFailed,
+        batches: batchNumber - 1,
+        message: `Processed ${totalProcessed} companies in ${batchNumber - 1} batches. ${totalSucceeded} geocoded successfully, ${totalFailed} failed.`
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -105,11 +105,42 @@ const IsochronePage = () => {
     return points;
   };
 
+  // Fonction point-in-polygon pour déterminer si une entreprise est dans la zone
+  const isPointInPolygon = (point: { lat: number; lng: number }, polygon: { lat: number; lng: number }[]): boolean => {
+    if (polygon.length < 3) return false;
+    
+    let inside = false;
+    let j = polygon.length - 1;
+    
+    for (let i = 0; i < polygon.length; i++) {
+      const xi = polygon[i].lat;
+      const yi = polygon[i].lng;
+      const xj = polygon[j].lat;
+      const yj = polygon[j].lng;
+      
+      if (((yi > point.lng) !== (yj > point.lng)) && 
+          (point.lat < (xj - xi) * (point.lng - yi) / (yj - yi) + xi)) {
+        inside = !inside;
+      }
+      j = i;
+    }
+    
+    return inside;
+  };
+
   const exportToExcel = async () => {
-    if (companyStats.length === 0) {
+    // Filtrer les entreprises dans la zone isochrone
+    const companiesInZone = companyStats.filter(company => {
+      if (!company.latitude || !company.longitude || isochronePolygon.length === 0) {
+        return false;
+      }
+      return isPointInPolygon({ lat: company.latitude, lng: company.longitude }, isochronePolygon);
+    });
+
+    if (companiesInZone.length === 0) {
       toast({
         title: "Aucune donnée",
-        description: "Aucune entreprise à exporter",
+        description: "Aucune entreprise dans la zone isochrone à exporter",
         variant: "destructive"
       });
       return;
@@ -131,11 +162,12 @@ const IsochronePage = () => {
         { header: 'Montant Année 2', key: 'amount2', width: 15 },
         { header: 'Montant Maximum', key: 'maxAmount', width: 15 },
         { header: 'Latitude', key: 'latitude', width: 12 },
-        { header: 'Longitude', key: 'longitude', width: 12 }
+        { header: 'Longitude', key: 'longitude', width: 12 },
+        { header: 'Dans Zone Isochrone', key: 'in_zone', width: 20 }
       ];
 
-      // Données
-      companyStats.forEach(company => {
+      // Données - uniquement les entreprises dans la zone
+      companiesInZone.forEach(company => {
         worksheet.addRow({
           sipi_number: company.sipi_number,
           company_name: company.company_name,
@@ -147,7 +179,8 @@ const IsochronePage = () => {
           amount2: company.amount2,
           maxAmount: company.maxAmount,
           latitude: company.latitude,
-          longitude: company.longitude
+          longitude: company.longitude,
+          in_zone: 'OUI'
         });
       });
 
@@ -165,13 +198,13 @@ const IsochronePage = () => {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `entreprises_isochrone_${new Date().toISOString().split('T')[0]}.xlsx`;
+      link.download = `entreprises_zone_isochrone_${new Date().toISOString().split('T')[0]}.xlsx`;
       link.click();
       window.URL.revokeObjectURL(url);
 
       toast({
         title: "Export réussi",
-        description: `${companyStats.length} entreprises exportées`,
+        description: `${companiesInZone.length} entreprises dans la zone exportées`,
       });
 
     } catch (err) {
@@ -294,12 +327,12 @@ const IsochronePage = () => {
               
               <Button 
                 onClick={exportToExcel}
-                disabled={companyStats.length === 0}
+                disabled={companyStats.length === 0 || isochronePolygon.length === 0}
                 variant="outline"
                 className="flex items-center gap-2"
               >
                 <Download className="w-4 h-4" />
-                Exporter Excel
+                Exporter Clients Zone
               </Button>
             </div>
           </CardContent>

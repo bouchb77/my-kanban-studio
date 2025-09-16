@@ -1,18 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MapPin, Building2 } from "lucide-react";
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
-
-// Fix pour les icônes par défaut de Leaflet
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
 
 interface Company {
   id: string;
@@ -104,13 +93,13 @@ const CompaniesMap = () => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <MapPin className="w-5 h-5" />
-          Carte des entreprises
+          Entreprises géolocalisées
         </CardTitle>
         <CardDescription className="flex items-center gap-4">
-          <span>Localisation géographique des entreprises</span>
+          <span>Liste des entreprises avec coordonnées GPS</span>
           <div className="flex items-center gap-2 text-sm">
             <Building2 className="w-4 h-4" />
-            <span>{companies.length} entreprises géolocalisées</span>
+            <span>{companies.length} entreprises</span>
           </div>
         </CardDescription>
       </CardHeader>
@@ -124,39 +113,30 @@ const CompaniesMap = () => {
             </div>
           </div>
         ) : (
-          <div className="h-96 rounded-lg overflow-hidden">
-            <MapContainer
-              center={[46.603354, 1.888334]} // Centre de la France
-              zoom={6}
-              style={{ height: '100%', width: '100%' }}
-            >
-              <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              />
-              {companies.map((company) => (
-                <Marker
-                  key={company.id}
-                  position={[company.latitude, company.longitude]}
-                >
-                  <Popup>
-                    <div className="p-2">
-                      <h3 className="font-semibold text-sm">{company.company_name}</h3>
-                      <p className="text-xs text-muted-foreground">SIPI: {company.sipi_number}</p>
-                      {company.address1 && (
-                        <p className="text-xs">{company.address1}</p>
-                      )}
-                      {company.city && (
-                        <p className="text-xs">
-                          {company.city}
-                          {company.general_department && ` (${company.general_department})`}
-                        </p>
-                      )}
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
-            </MapContainer>
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {companies.map((company) => (
+              <div key={company.id} className="p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-semibold">{company.company_name}</h3>
+                    <p className="text-sm text-muted-foreground">SIPI: {company.sipi_number}</p>
+                    {company.address1 && (
+                      <p className="text-sm">{company.address1}</p>
+                    )}
+                    {company.city && (
+                      <p className="text-sm">
+                        {company.city}
+                        {company.general_department && ` (${company.general_department})`}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right text-sm text-muted-foreground">
+                    <p>Lat: {company.latitude.toFixed(4)}</p>
+                    <p>Lng: {company.longitude.toFixed(4)}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </CardContent>

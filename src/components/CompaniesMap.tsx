@@ -1,8 +1,10 @@
 import React, { useEffect, useState, Suspense, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MapPin, Building2, Filter } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { MapPin, Building2, Filter, ChevronDown } from "lucide-react";
 
 const MapComponent = React.lazy(() => import('./MapComponent'));
 
@@ -22,7 +24,7 @@ const CompaniesMap = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showMap, setShowMap] = useState(true);
-  const [selectedDepartment, setSelectedDepartment] = useState<string>("all");
+  const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
 
   // Get unique departments for filter
   const departments = useMemo(() => {
@@ -33,13 +35,31 @@ const CompaniesMap = () => {
     return uniqueDepartments;
   }, [companies]);
 
-  // Filter companies based on selected department
+  // Filter companies based on selected departments
   const filteredCompanies = useMemo(() => {
-    if (selectedDepartment === "all") {
+    if (selectedDepartments.length === 0) {
       return companies;
     }
-    return companies.filter(company => company.general_department === selectedDepartment);
-  }, [companies, selectedDepartment]);
+    return companies.filter(company => 
+      company.general_department && selectedDepartments.includes(company.general_department)
+    );
+  }, [companies, selectedDepartments]);
+
+  const handleDepartmentToggle = (department: string) => {
+    setSelectedDepartments(prev => 
+      prev.includes(department)
+        ? prev.filter(d => d !== department)
+        : [...prev, department]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedDepartments.length === departments.length) {
+      setSelectedDepartments([]);
+    } else {
+      setSelectedDepartments(departments);
+    }
+  };
 
   // Fetch companies with GPS coordinates
   useEffect(() => {
@@ -166,19 +186,59 @@ const CompaniesMap = () => {
                     <Filter className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm font-medium">Filtrer par département :</span>
                   </div>
-                  <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder="Tous les départements" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-background border shadow-lg z-[9999] max-h-48 overflow-y-auto">
-                      <SelectItem value="all">Tous les départements</SelectItem>
-                      {departments.map((department) => (
-                        <SelectItem key={department} value={department}>
-                          {department}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-64 justify-between">
+                        {selectedDepartments.length === 0 
+                          ? "Tous les départements"
+                          : selectedDepartments.length === 1
+                          ? selectedDepartments[0]
+                          : `${selectedDepartments.length} départements sélectionnés`
+                        }
+                        <ChevronDown className="h-4 w-4 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-0" align="start">
+                      <div className="p-2">
+                        <div className="flex items-center space-x-2 p-2 border-b">
+                          <Checkbox 
+                            id="select-all"
+                            checked={selectedDepartments.length === departments.length}
+                            onCheckedChange={handleSelectAll}
+                          />
+                          <label htmlFor="select-all" className="text-sm font-medium">
+                            Tout sélectionner
+                          </label>
+                        </div>
+                        <div className="max-h-48 overflow-y-auto">
+                          {departments.map((department) => (
+                            <div key={department} className="flex items-center space-x-2 p-2 hover:bg-muted/50">
+                              <Checkbox 
+                                id={department}
+                                checked={selectedDepartments.includes(department)}
+                                onCheckedChange={() => handleDepartmentToggle(department)}
+                              />
+                              <label htmlFor={department} className="text-sm flex-1 cursor-pointer">
+                                {department}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                        {selectedDepartments.length > 0 && (
+                          <div className="p-2 border-t">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => setSelectedDepartments([])}
+                              className="w-full"
+                            >
+                              Effacer la sélection
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </>
             ) : (

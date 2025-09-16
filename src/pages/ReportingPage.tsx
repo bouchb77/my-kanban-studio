@@ -35,6 +35,7 @@ import {
 } from "recharts";
 import { useTasks } from "@/hooks/useTasks";
 import { useMemo } from "react";
+import CompaniesMap from "@/components/CompaniesMap";
 
 // Mock data
 const weeklyData = [
@@ -317,6 +318,9 @@ const ReportingPage = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Carte des entreprises */}
+      <CompaniesMap />
 
       {/* Recommandations */}
       <Card className="shadow-card border-0">

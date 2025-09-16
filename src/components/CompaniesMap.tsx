@@ -155,11 +155,17 @@ const CompaniesMap = () => {
       
       // Formation filter
       if (formationFilter) {
-        const formationStatus = company.training_date ? 
-          'formee_payant' : 
-          company.report_creation_date ? 
-            'formee_mixte' : 
-            'non_formee';
+        let formationStatus = 'non_formee';
+        
+        if (company.training_date) {
+          // Si training_date existe et report_creation_date aussi = Uniquement payant
+          if (company.report_creation_date) {
+            formationStatus = 'formee_payant';
+          } else {
+            // Si training_date existe mais pas report_creation_date = Payant comme gratuit
+            formationStatus = 'formee_mixte';
+          }
+        }
         
         if (formationStatus !== formationFilter) {
           return false;
@@ -238,7 +244,7 @@ const CompaniesMap = () => {
     }
 
     return filtered;
-  }, [companies, selectedDepartments, sipiFilter, cityFilter, companyNameFilter, minAverageFilter, maxAverageFilter, sortColumn, sortDirection]);
+  }, [companies, selectedDepartments, sipiFilter, cityFilter, companyNameFilter, minAverageFilter, maxAverageFilter, formationFilter, responsableBOFilter, formateurFilter, departmentManagement, sortColumn, sortDirection]);
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -774,11 +780,11 @@ const CompaniesMap = () => {
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full justify-between">
                         {formationFilter === '' 
-                          ? "Toutes les formations"
+                          ? "Tout"
                           : formationFilter === 'formee_payant'
-                          ? "Structure Formée (Payant)"
+                          ? "Structure Formée (Uniquement payant)"
                           : formationFilter === 'formee_mixte'
-                          ? "Structure Formée* (Mixte)"
+                          ? "Structure Formée* (Payant comme gratuit)"
                           : "Structure non formée"
                         }
                         <ChevronDown className="h-4 w-4 opacity-50" />
@@ -792,21 +798,7 @@ const CompaniesMap = () => {
                             className="w-full justify-start text-sm"
                             onClick={() => setFormationFilter('')}
                           >
-                            Toutes les formations
-                          </Button>
-                          <Button
-                            variant={formationFilter === 'formee_payant' ? 'default' : 'ghost'}
-                            className="w-full justify-start text-sm"
-                            onClick={() => setFormationFilter('formee_payant')}
-                          >
-                            Structure Formée (Payant)
-                          </Button>
-                          <Button
-                            variant={formationFilter === 'formee_mixte' ? 'default' : 'ghost'}
-                            className="w-full justify-start text-sm"
-                            onClick={() => setFormationFilter('formee_mixte')}
-                          >
-                            Structure Formée* (Mixte)
+                            Tout
                           </Button>
                           <Button
                             variant={formationFilter === 'non_formee' ? 'default' : 'ghost'}
@@ -814,6 +806,20 @@ const CompaniesMap = () => {
                             onClick={() => setFormationFilter('non_formee')}
                           >
                             Structure non formée
+                          </Button>
+                          <Button
+                            variant={formationFilter === 'formee_mixte' ? 'default' : 'ghost'}
+                            className="w-full justify-start text-sm"
+                            onClick={() => setFormationFilter('formee_mixte')}
+                          >
+                            Structure Formée* (Payant comme gratuit)
+                          </Button>
+                          <Button
+                            variant={formationFilter === 'formee_payant' ? 'default' : 'ghost'}
+                            className="w-full justify-start text-sm"
+                            onClick={() => setFormationFilter('formee_payant')}
+                          >
+                            Structure Formée (Uniquement payant)
                           </Button>
                         </div>
                       </div>

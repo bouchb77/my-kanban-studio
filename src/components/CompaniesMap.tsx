@@ -27,6 +27,7 @@ interface Company {
   training_date?: string;
   report_creation_date?: string;
   last_order_date?: string;
+  quality?: string;
   orderStats?: CompanyOrderStats[];
   averageOrderPerYear?: number;
 }
@@ -37,7 +38,11 @@ interface CompanyOrderStats {
   totalAmount: number;
 }
 
-const CompaniesMap = () => {
+interface CompaniesMapProps {
+  clientTypeFilter?: string;
+}
+
+const CompaniesMap = ({ clientTypeFilter = 'all' }: CompaniesMapProps) => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -141,6 +146,13 @@ const CompaniesMap = () => {
   // Filter companies based on all filters (date filtering is now done server-side)
   const filteredCompanies = useMemo(() => {
     let filtered = companies.filter(company => {
+      // Type de client filter
+      if (clientTypeFilter !== 'all') {
+        if (!company.quality || company.quality !== clientTypeFilter) {
+          return false;
+        }
+      }
+      
       // Department filter
       if (selectedDepartments.length > 0) {
         if (!company.general_department || !selectedDepartments.includes(company.general_department)) {
@@ -261,7 +273,7 @@ const CompaniesMap = () => {
     }
 
     return filtered;
-  }, [companies, selectedDepartments, sipiFilter, cityFilter, companyNameFilter, minAverageFilter, maxAverageFilter, formationFilter, responsableBOFilter, formateurFilter, departmentManagement, sortColumn, sortDirection]);
+  }, [companies, clientTypeFilter, selectedDepartments, sipiFilter, cityFilter, companyNameFilter, minAverageFilter, maxAverageFilter, formationFilter, responsableBOFilter, formateurFilter, departmentManagement, sortColumn, sortDirection]);
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -381,7 +393,7 @@ const CompaniesMap = () => {
       while (hasMore) {
         const { data: companiesBatch, error: companiesError } = await supabase
           .from('companies')
-          .select('id, sipi_number, company_name, latitude, longitude, address1, city, general_department, client_blocked_date, training_date, report_creation_date, last_order_date')
+          .select('id, sipi_number, company_name, latitude, longitude, address1, city, general_department, client_blocked_date, training_date, report_creation_date, last_order_date, quality')
           .not('latitude', 'is', null)
           .not('longitude', 'is', null)
           .range(from, from + batchSize - 1);

@@ -1,3 +1,4 @@
+import React, { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -19,7 +20,8 @@ import {
   CheckSquare,
   AlertTriangle,
   ShoppingCart,
-  Euro
+  Euro,
+  Users
 } from "lucide-react";
 import {
   BarChart,
@@ -37,7 +39,6 @@ import {
 } from "recharts";
 import { useTasks } from "@/hooks/useTasks";
 import { useOrders } from "@/hooks/useOrders";
-import { useMemo } from "react";
 import CompaniesMap from "@/components/CompaniesMap";
 
 // Mock data
@@ -68,6 +69,7 @@ const productivityData = [
 const ReportingPage = () => {
   const { tasks, getTaskStats, loading } = useTasks();
   const { orderStats, loading: ordersLoading, error: ordersError } = useOrders();
+  const [clientTypeFilter, setClientTypeFilter] = useState<string>('all');
   const stats = getTaskStats();
 
   const statusData = useMemo(() => [
@@ -120,10 +122,25 @@ const ReportingPage = () => {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Reporting</h1>
-        <Button variant="outline">
-          <Download className="w-4 h-4 mr-2" />
-          Exporter
-        </Button>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-muted-foreground" />
+            <Select value={clientTypeFilter} onValueChange={setClientTypeFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Type de client" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border border-border z-50">
+                <SelectItem value="all">Tous les clients</SelectItem>
+                <SelectItem value="INDUSTRIE">Clients</SelectItem>
+                <SelectItem value="DISTRIBUTEUR">Revendeurs</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button variant="outline">
+            <Download className="w-4 h-4 mr-2" />
+            Exporter
+          </Button>
+        </div>
       </div>
 
       {/* Statistiques des commandes */}
@@ -227,10 +244,15 @@ const ReportingPage = () => {
           <CardTitle>Localisation des Entreprises</CardTitle>
           <CardDescription>
             Répartition géographique des entreprises clientes
+            {clientTypeFilter !== 'all' && (
+              <span className="ml-2">
+                - Filtrée par {clientTypeFilter === 'INDUSTRIE' ? 'Clients' : 'Revendeurs'}
+              </span>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <CompaniesMap />
+          <CompaniesMap clientTypeFilter={clientTypeFilter} />
         </CardContent>
       </Card>
     </div>

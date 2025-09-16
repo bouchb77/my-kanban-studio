@@ -15,6 +15,7 @@ export interface CompanyOrderPeriod {
   address1?: string;
   city?: string;
   general_department?: string;
+  quality?: string;
 }
 
 export const useCompanyOrderStats = () => {
@@ -36,7 +37,7 @@ export const useCompanyOrderStats = () => {
       while (hasMoreCompanies) {
         const { data: companiesBatch, error: companiesError } = await supabase
           .from('companies')
-          .select('id, sipi_number, company_name, latitude, longitude, address1, city, general_department')
+          .select('id, sipi_number, company_name, latitude, longitude, address1, city, general_department, quality')
           .not('latitude', 'is', null)
           .not('longitude', 'is', null)
           .range(companiesFrom, companiesFrom + companiesBatchSize - 1);
@@ -172,7 +173,8 @@ export const useCompanyOrderStats = () => {
               longitude: company.longitude,
               address1: company.address1,
               city: company.city,
-              general_department: company.general_department
+              general_department: company.general_department,
+              quality: company.quality
             };
           } else if (sum2023_2024 <= maxThreshold && sum2023_2024 > 0) {
             selectedPeriod = {
@@ -188,7 +190,8 @@ export const useCompanyOrderStats = () => {
               longitude: company.longitude,
               address1: company.address1,
               city: company.city,
-              general_department: company.general_department
+              general_department: company.general_department,
+              quality: company.quality
             };
           }
           

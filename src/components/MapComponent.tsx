@@ -70,12 +70,16 @@ const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
       }
     });
 
-    // Calculate bubble sizes
-    const orderCounts = filteredCompanies.map(company => {
-      return company.orderStats?.reduce((sum, stat) => sum + stat.totalOrders, 0) || 0;
+    // Calculate bubble sizes based on average orders per year
+    const averageOrdersPerYear = filteredCompanies.map(company => {
+      const orderStats = company.orderStats || [];
+      if (orderStats.length === 0) return 0;
+      
+      const totalOrders = orderStats.reduce((sum, stat) => sum + stat.totalOrders, 0);
+      return totalOrders / orderStats.length; // Average per year
     });
-    const maxOrders = Math.max(...orderCounts, 1);
-    const minOrders = Math.min(...orderCounts.filter(count => count > 0), 0);
+    const maxAvgOrders = Math.max(...averageOrdersPerYear, 1);
+    const minAvgOrders = Math.min(...averageOrdersPerYear.filter(avg => avg > 0), 0);
 
     // Add bubbles for each company
     filteredCompanies.forEach((company) => {
@@ -83,9 +87,13 @@ const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
         const totalOrders = company.orderStats?.reduce((sum, stat) => sum + stat.totalOrders, 0) || 0;
         const totalAmount = company.orderStats?.reduce((sum, stat) => sum + stat.totalAmount, 0) || 0;
         
-        // Calculate bubble size (between 5 and 50 pixels)
-        const normalizedSize = totalOrders > 0 
-          ? ((totalOrders - minOrders) / (maxOrders - minOrders)) * 45 + 5
+        // Calculate average orders per year for this company
+        const orderStats = company.orderStats || [];
+        const avgOrdersPerYear = orderStats.length > 0 ? totalOrders / orderStats.length : 0;
+        
+        // Calculate bubble size (between 5 and 50 pixels) based on average per year
+        const normalizedSize = avgOrdersPerYear > 0 
+          ? ((avgOrdersPerYear - minAvgOrders) / (maxAvgOrders - minAvgOrders)) * 45 + 5
           : 5;
 
         // Department colors
@@ -163,7 +171,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
       <div className="text-sm text-muted-foreground text-center p-3 bg-muted/30 rounded-lg">
         Carte à bulles interactive - {companies.length} entreprises
         <br />
-        <span className="text-xs">Taille des bulles = Nombre total de commandes</span>
+        <span className="text-xs">Taille des bulles = Moyenne de commandes par an</span>
       </div>
 
       {/* Filtres par département */}
@@ -205,7 +213,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
         <h4 className="font-semibold mb-2">Légende</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <div>
-            <strong>Taille des bulles :</strong> Proportionnelle au nombre total de commandes
+            <strong>Taille des bulles :</strong> Proportionnelle à la moyenne de commandes par an
           </div>
           <div>
             <strong>Couleurs :</strong> Différenciation par département

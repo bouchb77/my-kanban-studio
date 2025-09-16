@@ -205,15 +205,11 @@ serve(async (req) => {
             console.log(`${qualityIcon} Geocoded ${company.company_name}: ${latitude}, ${longitude} [Quality: ${qualityScore}%]${warningText}`)
             batchSucceeded++
           }
-        } else {
-          console.log(`No coordinates found for ${company.company_name} at ${address}`)
-          batchFailed++
-        }
         
-          batchProcessed++
-          
-          // Rate limiting for Nominatim - wait 1 second between requests (recommended by OSM)
-          await new Promise(resolve => setTimeout(resolve, 1000))
+        batchProcessed++
+        
+        // Rate limiting for Nominatim - wait 1 second between requests (recommended by OSM)
+        await new Promise(resolve => setTimeout(resolve, 1000))
           
         } catch (error) {
           console.error(`Error processing company ${company.sipi_number}:`, error)

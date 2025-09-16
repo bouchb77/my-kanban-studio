@@ -6,7 +6,6 @@ import { CompanyImportSection } from '@/components/CompanyImportSection';
 import { OrderImportSection } from '@/components/OrderImportSection';
 import DepartmentImportSection from '@/components/DepartmentImportSection';
 import IncompleteGeocodingTable from '@/components/IncompleteGeocodingTable';
-import IsochroneCalculator from '@/components/IsochroneCalculator';
 
 const ImportReportingPage: React.FC = () => {
   const { isAdmin, loading } = useUserRole();
@@ -71,12 +70,6 @@ const ImportReportingPage: React.FC = () => {
         <div>
           <h2 className="text-2xl font-semibold mb-4">Géolocalisation des Entreprises</h2>
           <IncompleteGeocodingTable />
-        </div>
-
-        {/* Calculateur d'isochrone */}
-        <div>
-          <h2 className="text-2xl font-semibold mb-4">Calculateur d'Isochrone</h2>
-          <IsochroneCalculator />
         </div>
       </div>
     </div>

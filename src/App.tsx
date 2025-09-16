@@ -21,6 +21,7 @@ import ProjectDetailPage from "./pages/ProjectDetailPage";
 import CompaniesPage from "./pages/CompaniesPage";
 import ImportReportingPage from "./pages/ImportReportingPage";
 import PublicReportingPage from "./pages/PublicReportingPage";
+import IsochronePage from "./pages/IsochronePage";
 
 const queryClient = new QueryClient();
 
@@ -135,6 +136,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <MainLayout><ImportReportingPage /></MainLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/isochrone" 
+              element={
+                <ProtectedRoute>
+                  <MainLayout><IsochronePage /></MainLayout>
                 </ProtectedRoute>
               } 
             />

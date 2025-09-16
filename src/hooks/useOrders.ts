@@ -17,10 +17,11 @@ export const useOrders = () => {
       setLoading(true);
       setError(null);
 
-      // Récupérer toutes les commandes et les grouper par année
+      // Récupérer toutes les commandes sans limite
       const { data: orders, error: ordersError } = await supabase
         .from('orders')
-        .select('order_date, amount');
+        .select('order_date, amount')
+        .limit(10000); // Augmenter la limite pour récupérer toutes les commandes
 
       if (ordersError) {
         throw ordersError;

@@ -198,9 +198,9 @@ const CompaniesMap = () => {
                         <ChevronDown className="h-4 w-4 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-64 p-0" align="start">
-                      <div className="p-2">
-                        <div className="flex items-center space-x-2 p-2 border-b">
+                    <PopoverContent className="w-64 p-0 bg-background border shadow-xl" align="start">
+                      <div className="p-2 bg-background">
+                        <div className="flex items-center space-x-2 p-2 border-b bg-background">
                           <Checkbox 
                             id="select-all"
                             checked={selectedDepartments.length === departments.length}
@@ -210,9 +210,9 @@ const CompaniesMap = () => {
                             Tout sélectionner
                           </label>
                         </div>
-                        <div className="max-h-48 overflow-y-auto">
+                        <div className="max-h-48 overflow-y-auto bg-background">
                           {departments.map((department) => (
-                            <div key={department} className="flex items-center space-x-2 p-2 hover:bg-muted/50">
+                            <div key={department} className="flex items-center space-x-2 p-2 hover:bg-muted/50 bg-background">
                               <Checkbox 
                                 id={department}
                                 checked={selectedDepartments.includes(department)}
@@ -225,7 +225,7 @@ const CompaniesMap = () => {
                           ))}
                         </div>
                         {selectedDepartments.length > 0 && (
-                          <div className="p-2 border-t">
+                          <div className="p-2 border-t bg-background">
                             <Button 
                               variant="ghost" 
                               size="sm" 

@@ -37,11 +37,22 @@ export function CompanyImportSection() {
 
   // Fonction pour convertir les dates Excel
   const parseExcelDate = (excelDate: any): string | undefined => {
+    console.log('parseExcelDate appelée avec:', excelDate, 'type:', typeof excelDate);
+    
     if (!excelDate) return undefined;
     
     // Si c'est déjà une chaîne de date valide au format ISO
     if (typeof excelDate === 'string' && /^\d{4}-\d{2}-\d{2}/.test(excelDate)) {
-      return excelDate.split('T')[0]; // Prendre seulement la partie date
+      const result = excelDate.split('T')[0]; // Prendre seulement la partie date
+      console.log('Date string détectée:', excelDate, '→', result);
+      return result;
+    }
+    
+    // Si c'est un objet Date JavaScript
+    if (excelDate instanceof Date) {
+      const result = excelDate.toISOString().split('T')[0];
+      console.log('Date object détectée:', excelDate, '→', result);
+      return result;
     }
     
     // Si c'est un nombre (format Excel - jours depuis 1900-01-01)
@@ -61,10 +72,12 @@ export function CompanyImportSection() {
         const resultDate = new Date(excelEpoch.getTime() + (adjustedDays - 1) * millisecondsPerDay);
         
         if (!isNaN(resultDate.getTime())) {
-          return resultDate.toISOString().split('T')[0];
+          const result = resultDate.toISOString().split('T')[0];
+          console.log('Date number convertie:', excelDate, '→', result);
+          return result;
         }
       } catch (e) {
-        console.warn('Erreur conversion date Excel:', excelDate, e);
+        console.warn('Erreur conversion date Excel number:', excelDate, e);
       }
     }
     
@@ -73,14 +86,16 @@ export function CompanyImportSection() {
       try {
         const parsed = new Date(excelDate);
         if (!isNaN(parsed.getTime())) {
-          return parsed.toISOString().split('T')[0];
+          const result = parsed.toISOString().split('T')[0];
+          console.log('Date string parsed:', excelDate, '→', result);
+          return result;
         }
       } catch (e) {
         console.warn('Erreur parsing date string:', excelDate, e);
       }
     }
     
-    console.warn('Date non convertible:', excelDate);
+    console.warn('Date non convertible:', excelDate, 'type:', typeof excelDate);
     return undefined;
   };
 
@@ -97,20 +112,37 @@ export function CompanyImportSection() {
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
       // Transformer les données Excel en format attendu
-      const parsedCompanies: Company[] = jsonData.map((row: any) => ({
-        sipi_number: String(row['N° Société'] || row['No Société'] || row['SIPI'] || '').replace(/\D/g, ''),
-        company_name: String(row['Nom de société'] || row['Nom société'] || row['Société'] || row['Company'] || ''),
-        address1: String(row['Adresse1'] || row['Adresse 1'] || ''),
-        address2: String(row['Adresse2'] || row['Adresse 2'] || ''),
-        city: String(row['Ville'] || ''),
-        postal_code: String(row['CP'] || row['Code Postal'] || ''),
-        general_department: String(row['Département général'] || row['Département'] || ''),
-        quality: String(row['Qualité'] || ''),
-        last_order_date: parseExcelDate(row['Date de dernière cmd']),
-        client_blocked_date: parseExcelDate(row['Date de client bloqué']),
-        training_date: parseExcelDate(row['Date de formation']),
-        report_creation_date: parseExcelDate(row['Date de création du rapport'])
-      })).filter(company => company.sipi_number && company.company_name);
+      const parsedCompanies: Company[] = jsonData.map((row: any, index: number) => {
+        console.log(`Ligne ${index + 1} - Données brutes:`, row);
+        
+        const company = {
+          sipi_number: String(row['N° Société'] || row['No Société'] || row['SIPI'] || '').replace(/\D/g, ''),
+          company_name: String(row['Nom de société'] || row['Nom société'] || row['Société'] || row['Company'] || ''),
+          address1: String(row['Adresse1'] || row['Adresse 1'] || ''),
+          address2: String(row['Adresse2'] || row['Adresse 2'] || ''),
+          city: String(row['Ville'] || ''),
+          postal_code: String(row['CP'] || row['Code Postal'] || ''),
+          general_department: String(row['Département général'] || row['Département'] || ''),
+          quality: String(row['Qualité'] || ''),
+          last_order_date: parseExcelDate(row['Date de dernière cmd']),
+          client_blocked_date: parseExcelDate(row['Date de client bloqué']),
+          training_date: parseExcelDate(row['Date de formation']),
+          report_creation_date: parseExcelDate(row['Date de création du rapport'])
+        };
+        
+        console.log(`Ligne ${index + 1} - Dates parsées:`, {
+          'Date de dernière cmd': row['Date de dernière cmd'],
+          'Date de client bloqué': row['Date de client bloqué'],
+          'Date de formation': row['Date de formation'],
+          'Date de création du rapport': row['Date de création du rapport'],
+          parsed_last_order_date: company.last_order_date,
+          parsed_client_blocked_date: company.client_blocked_date,
+          parsed_training_date: company.training_date,
+          parsed_report_creation_date: company.report_creation_date
+        });
+        
+        return company;
+      }).filter(company => company.sipi_number && company.company_name);
 
       if (parsedCompanies.length === 0) {
         toast({

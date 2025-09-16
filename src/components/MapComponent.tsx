@@ -33,11 +33,20 @@ const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
       try {
         if (!mapRef.current) return;
 
-        // Récupérer la clé API Google Maps depuis les secrets via edge function si nécessaire
-        // Pour l'instant, utiliser directement la clé stockée
-        const googleMapsApiKey = process.env.NODE_ENV === 'development' 
-          ? 'AIzaSyBpKK9_mCN8V8vhcLHbN0iKx-0aUK4-uCc' 
-          : 'YOUR_PRODUCTION_KEY'; // Remplacer par votre vraie clé
+        // Récupérer la clé API Google Maps depuis la fonction edge
+        const response = await supabase.functions.invoke('get-google-maps-key');
+        
+        if (response.error) {
+          console.error('Erreur lors de la récupération de la clé Google Maps:', response.error);
+          return;
+        }
+        
+        const googleMapsApiKey = response.data?.apiKey;
+        
+        if (!googleMapsApiKey) {
+          console.error('Clé API Google Maps non configurée');
+          return;
+        }
         
         const loader = new Loader({
           apiKey: googleMapsApiKey,

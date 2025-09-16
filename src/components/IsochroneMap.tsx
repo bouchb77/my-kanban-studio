@@ -1,6 +1,16 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useEffect, useState } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Polygon } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { CompanyOrderPeriod } from '@/hooks/useCompanyOrderStats';
+
+// Fix des icônes Leaflet
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
 
 interface IsochroneMapProps {
   companies: CompanyOrderPeriod[];
@@ -9,237 +19,229 @@ interface IsochroneMapProps {
   maxThreshold: number;
 }
 
+// Créer des icônes personnalisées
+const createCustomIcon = (color: string) => {
+  return L.divIcon({
+    className: 'custom-div-icon',
+    html: `<div style="
+      background-color: ${color};
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 2px solid white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    "></div>`,
+    iconSize: [12, 12],
+    iconAnchor: [6, 6],
+  });
+};
+
+const centerIcon = L.divIcon({
+  className: 'custom-center-icon',
+  html: `<div style="
+    background-color: #ef4444;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 3px solid white;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  "></div>`,
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
+});
+
+const inZoneIcon = createCustomIcon('#10b981');
+const outZoneIcon = createCustomIcon('#f59e0b');
+
 const IsochroneMap: React.FC<IsochroneMapProps> = ({ 
   companies, 
   centerLocation, 
   isochronePolygon, 
   maxThreshold 
 }) => {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [companiesInZone, setCompaniesInZone] = useState<CompanyOrderPeriod[]>([]);
+  const [companiesOutZone, setCompaniesOutZone] = useState<CompanyOrderPeriod[]>([]);
 
-  // Charger Google Maps
-  useEffect(() => {
-    const loadGoogleMaps = async () => {
-      if (!window.google) {
-        try {
-          const response = await supabase.functions.invoke('get-google-maps-key');
-          if (response.error) throw response.error;
-          
-          const { apiKey } = response.data;
-          
-          const script = document.createElement('script');
-          script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,drawing`;
-          script.onload = () => setIsLoaded(true);
-          document.head.appendChild(script);
-        } catch (error) {
-          console.error('Erreur lors du chargement de Google Maps:', error);
-        }
-      } else {
-        setIsLoaded(true);
+  // Fonction point-in-polygon utilisant l'algorithme de Leaflet
+  const isPointInPolygon = (point: { lat: number; lng: number }, polygon: { lat: number; lng: number }[]): boolean => {
+    if (polygon.length < 3) return false;
+    
+    const latLngs = polygon.map(p => L.latLng(p.lat, p.lng));
+    const leafletPolygon = L.polygon(latLngs);
+    const testPoint = L.latLng(point.lat, point.lng);
+    
+    // Utiliser la méthode Leaflet pour tester si un point est dans un polygone
+    const bounds = leafletPolygon.getBounds();
+    if (!bounds.contains(testPoint)) return false;
+    
+    // Ray casting algorithm comme fallback
+    let inside = false;
+    let j = polygon.length - 1;
+    
+    for (let i = 0; i < polygon.length; i++) {
+      const xi = polygon[i].lat;
+      const yi = polygon[i].lng;
+      const xj = polygon[j].lat;
+      const yj = polygon[j].lng;
+      
+      if (((yi > point.lng) !== (yj > point.lng)) && 
+          (point.lat < (xj - xi) * (point.lng - yi) / (yj - yi) + xi)) {
+        inside = !inside;
       }
-    };
+      j = i;
+    }
+    
+    return inside;
+  };
 
-    loadGoogleMaps();
-  }, []);
-
-  // Initialiser la carte
+  // Classifier les entreprises en "dans la zone" ou "hors zone"
   useEffect(() => {
-    if (!isLoaded || !mapRef.current || map) return;
-
-    const mapOptions: google.maps.MapOptions = {
-      zoom: 8,
-      center: centerLocation || { lat: 46.603354, lng: 1.888334 }, // Centre de la France
-      mapTypeId: google.maps.MapTypeId.ROADMAP,
-    };
-
-    const newMap = new google.maps.Map(mapRef.current, mapOptions);
-    setMap(newMap);
-  }, [isLoaded, centerLocation, map]);
-
-  // Dessiner l'isochrone et les marqueurs
-  useEffect(() => {
-    if (!map || !isLoaded) return;
-
-    console.log('IsochroneMap: Polygone reçu:', isochronePolygon.length, 'points');
-    console.log('IsochroneMap: Entreprises reçues:', companies.length);
-
-    // Nettoyer les anciens marqueurs et polygones
-    // (Dans une vraie app, on stockerait les références pour les nettoyer)
-
-    // Dessiner l'isochrone si elle existe
-    if (isochronePolygon.length > 0) {
-      const polygon = new google.maps.Polygon({
-        paths: isochronePolygon,
-        strokeColor: '#3b82f6',
-        strokeOpacity: 0.8,
-        strokeWeight: 2,
-        fillColor: '#3b82f6',
-        fillOpacity: 0.2,
-      });
-      polygon.setMap(map);
-
-      // Centre de l'isochrone
-      if (centerLocation) {
-        new google.maps.Marker({
-          position: centerLocation,
-          map: map,
-          title: 'Point de départ',
-          icon: {
-            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="12" r="8" fill="#ef4444" stroke="#ffffff" stroke-width="2"/>
-                <circle cx="12" cy="12" r="3" fill="#ffffff"/>
-              </svg>
-            `),
-            scaledSize: new google.maps.Size(24, 24),
-            anchor: new google.maps.Point(12, 12),
-          },
-        });
-      }
+    if (isochronePolygon.length === 0) {
+      setCompaniesInZone([]);
+      setCompaniesOutZone(companies);
+      return;
     }
 
-    // Ajouter les marqueurs pour les entreprises avec détection simplifiée et efficace
-    companies.forEach((company, index) => {
-      if (!company.latitude || !company.longitude) return;
+    const inZone: CompanyOrderPeriod[] = [];
+    const outZone: CompanyOrderPeriod[] = [];
 
-      let inZone = false;
-      
-      if (isochronePolygon.length > 0) {
-        // Utiliser uniquement l'algorithme ray casting fiable
-        inZone = isPointInPolygonRobust(company.latitude, company.longitude, isochronePolygon);
-        
-        // Debug pour les 5 premiers points
-        if (index < 5) {
-          console.log(`🔍 DEBUG ${company.company_name}:`, {
-            coords: [company.latitude, company.longitude],
-            inZone,
-            polygonFirstPoint: isochronePolygon[0],
-            polygonLastPoint: isochronePolygon[isochronePolygon.length - 1],
-            polygonSize: isochronePolygon.length
-          });
-        }
+    companies.forEach((company) => {
+      if (!company.latitude || !company.longitude) {
+        outZone.push(company);
+        return;
       }
-      
-      const marker = new google.maps.Marker({
-        position: { lat: company.latitude, lng: company.longitude },
-        map: map,
-        title: company.company_name,
-        icon: {
-          url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="8" cy="8" r="6" fill="${inZone ? '#10b981' : '#f59e0b'}" stroke="#ffffff" stroke-width="2"/>
-              <circle cx="8" cy="8" r="2" fill="#ffffff"/>
-            </svg>
-          `),
-          scaledSize: new google.maps.Size(16, 16),
-          anchor: new google.maps.Point(8, 8),
-        },
-      });
 
-      // Info window
-      const infoWindow = new google.maps.InfoWindow({
-        content: `
-          <div style="max-width: 250px;">
-            <h3 style="margin: 0 0 8px 0; font-weight: bold;">${company.company_name}</h3>
-            <p style="margin: 0; font-size: 12px; color: #666;">SIPI: ${company.sipi_number}</p>
-            <p style="margin: 4px 0; font-size: 12px; color: #666;">Ville: ${company.city || 'N/A'}</p>
-            <p style="margin: 4px 0; font-size: 12px; color: #666;">
-              Coordonnées: ${company.latitude?.toFixed(6)}, ${company.longitude?.toFixed(6)}
-            </p>
-            <p style="margin: 4px 0; font-size: 12px;">
-              Période: ${company.year1}-${company.year2}
-            </p>
-            <p style="margin: 4px 0; font-size: 12px;">
-              Montants: ${company.amount1.toLocaleString()}€ / ${company.amount2.toLocaleString()}€
-            </p>
-            <p style="margin: 4px 0 0 0; font-weight: bold; color: ${inZone ? '#10b981' : '#f59e0b'};">
-              Max: ${company.maxAmount.toLocaleString()}€ ${inZone ? '(Dans la zone)' : '(Hors zone)'}
-            </p>
-          </div>
-        `
-      });
+      const isInside = isPointInPolygon(
+        { lat: company.latitude, lng: company.longitude },
+        isochronePolygon
+      );
 
-      marker.addListener('click', () => {
-        infoWindow.open(map, marker);
-      });
+      if (isInside) {
+        inZone.push(company);
+      } else {
+        outZone.push(company);
+      }
     });
 
-    // Fonction ray casting correcte - Point-in-polygon algorithm
-    function isPointInPolygonRobust(pointLat: number, pointLng: number, polygon: { lat: number; lng: number }[]): boolean {
-      if (polygon.length < 3) {
-        console.log("⚠️ Polygone trop petit:", polygon.length);
-        return false;
-      }
-      
-      let inside = false;
-      let intersections = 0;
-      
-      for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-        const xi = polygon[i].lat;
-        const yi = polygon[i].lng;
-        const xj = polygon[j].lat;
-        const yj = polygon[j].lng;
+    setCompaniesInZone(inZone);
+    setCompaniesOutZone(outZone);
 
-        // Vérifier si le rayon horizontal depuis le point croise cette arête
-        if (((yi > pointLng) !== (yj > pointLng)) &&
-            (pointLat < (xj - xi) * (pointLng - yi) / (yj - yi) + xi)) {
-          inside = !inside;
-          intersections++;
-        }
-      }
-      
-      // Log pour débugger les premiers tests
-      if (intersections > 0) {
-        console.log(`Ray casting: point(${pointLat.toFixed(6)}, ${pointLng.toFixed(6)}) -> ${intersections} intersections -> ${inside ? 'DANS' : 'HORS'}`);
-      }
-      
-      return inside;
-    }
+    console.log(`📊 Résultats: ${inZone.length} dans la zone, ${outZone.length} hors zone`);
+  }, [companies, isochronePolygon]);
 
-    // Fonction de calcul de distance Haversine
-    function calculateHaversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
-      const R = 6371; // Rayon de la Terre en km
-      const dLat = (lat2 - lat1) * Math.PI / 180;
-      const dLng = (lng2 - lng1) * Math.PI / 180;
-      const a = 
-        Math.sin(dLat/2) * Math.sin(dLat/2) +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-        Math.sin(dLng/2) * Math.sin(dLng/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      return R * c;
-    }
+  // Position par défaut (centre de la France)
+  const defaultCenter: [number, number] = [46.603354, 1.888334];
+  const mapCenter: [number, number] = centerLocation 
+    ? [centerLocation.lat, centerLocation.lng] 
+    : defaultCenter;
 
-    // Ajuster la vue pour inclure tous les éléments
-    if (companies.length > 0 || isochronePolygon.length > 0) {
-      const bounds = new google.maps.LatLngBounds();
-      
-      if (centerLocation) {
-        bounds.extend(centerLocation);
-      }
-      
-      companies.forEach(company => {
-        if (company.latitude && company.longitude) {
-          bounds.extend({ lat: company.latitude, lng: company.longitude });
-        }
-      });
-      
-      isochronePolygon.forEach(point => {
-        bounds.extend(point);
-      });
-      
-      map.fitBounds(bounds);
-    }
-
-  }, [map, companies, centerLocation, isochronePolygon, isLoaded]);
+  // Coordonnées pour le polygone Leaflet
+  const polygonCoords: [number, number][] = isochronePolygon.map(point => [point.lat, point.lng]);
 
   return (
     <div className="w-full h-[600px] relative">
-      <div ref={mapRef} className="w-full h-full rounded-lg" />
+      <MapContainer
+        center={mapCenter}
+        zoom={8}
+        style={{ height: '100%', width: '100%' }}
+        className="rounded-lg"
+      >
+        <TileLayer
+          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        />
+        
+        {/* Polygone isochrone */}
+        {polygonCoords.length > 0 && (
+          <Polygon
+            positions={polygonCoords}
+            pathOptions={{
+              color: '#3b82f6',
+              weight: 2,
+              opacity: 0.8,
+              fillColor: '#3b82f6',
+              fillOpacity: 0.2,
+            }}
+          />
+        )}
+
+        {/* Marqueur du centre */}
+        {centerLocation && (
+          <Marker position={[centerLocation.lat, centerLocation.lng]} icon={centerIcon}>
+            <Popup>
+              <div>
+                <strong>Point de départ</strong><br />
+                {centerLocation.lat.toFixed(6)}, {centerLocation.lng.toFixed(6)}
+              </div>
+            </Popup>
+          </Marker>
+        )}
+
+        {/* Marqueurs des entreprises dans la zone */}
+        {companiesInZone.map((company) => (
+          company.latitude && company.longitude && (
+            <Marker
+              key={`in-${company.sipi_number}`}
+              position={[company.latitude, company.longitude]}
+              icon={inZoneIcon}
+            >
+              <Popup>
+                <div style={{ maxWidth: '250px' }}>
+                  <h3 style={{ margin: '0 0 8px 0', fontWeight: 'bold' }}>{company.company_name}</h3>
+                  <p style={{ margin: '0', fontSize: '12px', color: '#666' }}>SIPI: {company.sipi_number}</p>
+                  <p style={{ margin: '4px 0', fontSize: '12px', color: '#666' }}>Ville: {company.city || 'N/A'}</p>
+                  <p style={{ margin: '4px 0', fontSize: '12px', color: '#666' }}>
+                    Coordonnées: {company.latitude.toFixed(6)}, {company.longitude.toFixed(6)}
+                  </p>
+                  <p style={{ margin: '4px 0', fontSize: '12px' }}>
+                    Période: {company.year1}-{company.year2}
+                  </p>
+                  <p style={{ margin: '4px 0', fontSize: '12px' }}>
+                    Montants: {company.amount1.toLocaleString()}€ / {company.amount2.toLocaleString()}€
+                  </p>
+                  <p style={{ margin: '4px 0 0 0', fontWeight: 'bold', color: '#10b981' }}>
+                    Max: {company.maxAmount.toLocaleString()}€ (Dans la zone)
+                  </p>
+                </div>
+              </Popup>
+            </Marker>
+          )
+        ))}
+
+        {/* Marqueurs des entreprises hors zone */}
+        {companiesOutZone.map((company) => (
+          company.latitude && company.longitude && (
+            <Marker
+              key={`out-${company.sipi_number}`}
+              position={[company.latitude, company.longitude]}
+              icon={outZoneIcon}
+            >
+              <Popup>
+                <div style={{ maxWidth: '250px' }}>
+                  <h3 style={{ margin: '0 0 8px 0', fontWeight: 'bold' }}>{company.company_name}</h3>
+                  <p style={{ margin: '0', fontSize: '12px', color: '#666' }}>SIPI: {company.sipi_number}</p>
+                  <p style={{ margin: '4px 0', fontSize: '12px', color: '#666' }}>Ville: {company.city || 'N/A'}</p>
+                  <p style={{ margin: '4px 0', fontSize: '12px', color: '#666' }}>
+                    Coordonnées: {company.latitude.toFixed(6)}, {company.longitude.toFixed(6)}
+                  </p>
+                  <p style={{ margin: '4px 0', fontSize: '12px' }}>
+                    Période: {company.year1}-{company.year2}
+                  </p>
+                  <p style={{ margin: '4px 0', fontSize: '12px' }}>
+                    Montants: {company.amount1.toLocaleString()}€ / {company.amount2.toLocaleString()}€
+                  </p>
+                  <p style={{ margin: '4px 0 0 0', fontWeight: 'bold', color: '#f59e0b' }}>
+                    Max: {company.maxAmount.toLocaleString()}€ (Hors zone)
+                  </p>
+                </div>
+              </Popup>
+            </Marker>
+          )
+        ))}
+      </MapContainer>
       
       {/* Légende */}
-      <div className="absolute top-4 right-4 bg-white p-3 rounded-lg shadow-lg z-10">
+      <div className="absolute top-4 right-4 bg-white p-3 rounded-lg shadow-lg z-[1000]">
         <h4 className="font-semibold mb-2 text-sm">Légende</h4>
         <div className="space-y-1 text-xs">
           <div className="flex items-center gap-2">
@@ -248,11 +250,11 @@ const IsochroneMap: React.FC<IsochroneMapProps> = ({
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-green-500"></div>
-            <span>Client dans la zone</span>
+            <span>Client dans la zone ({companiesInZone.length})</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-            <span>Client hors zone</span>
+            <span>Client hors zone ({companiesOutZone.length})</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-blue-500 opacity-50"></div>

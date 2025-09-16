@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { MapPin, Building2, Filter, ChevronDown, Globe } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -299,36 +300,33 @@ const CompaniesMap = () => {
               </div>
             </div>
 
-            {/* Liste des entreprises */}
+            {/* Tableau des entreprises */}
             <div>
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Building2 className="w-5 h-5" />
                 Liste des entreprises ({filteredCompanies.length})
               </h3>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {filteredCompanies.map((company) => (
-                  <div key={company.id} className="p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="font-semibold">{company.company_name}</h4>
-                        <p className="text-sm text-muted-foreground">SIPI: {company.sipi_number}</p>
-                        {company.address1 && (
-                          <p className="text-sm">{company.address1}</p>
-                        )}
-                        {company.city && (
-                          <p className="text-sm">
-                            {company.city}
-                            {company.general_department && ` (${company.general_department})`}
-                          </p>
-                        )}
-                      </div>
-                      <div className="text-right text-sm text-muted-foreground">
-                        <p>Lat: {company.latitude.toFixed(4)}</p>
-                        <p>Lng: {company.longitude.toFixed(4)}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nom de l'entreprise</TableHead>
+                      <TableHead>Numéro SIPI</TableHead>
+                      <TableHead>Ville</TableHead>
+                      <TableHead>Département</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredCompanies.map((company) => (
+                      <TableRow key={company.id}>
+                        <TableCell className="font-medium">{company.company_name}</TableCell>
+                        <TableCell>{company.sipi_number}</TableCell>
+                        <TableCell>{company.city || "-"}</TableCell>
+                        <TableCell>{company.general_department || "-"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             </div>
           </div>

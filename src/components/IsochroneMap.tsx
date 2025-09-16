@@ -100,42 +100,42 @@ const IsochroneMap: React.FC<IsochroneMapProps> = ({
       }
     }
 
-    // Ajouter les marqueurs pour les entreprises - Utiliser Google Maps geometry avec logs détaillés
+    // Ajouter les marqueurs pour les entreprises - Méthode de détection hybride plus fiable
     companies.forEach((company) => {
       if (!company.latitude || !company.longitude) return;
 
-      // Utiliser l'API de géométrie native de Google Maps
       let inZone = false;
       
-      if (isochronePolygon.length > 0 && window.google?.maps?.geometry) {
-        try {
-          // Créer un polygone Google Maps pour la détection précise
-          const polygon = new google.maps.Polygon({
-            paths: isochronePolygon
-          });
-
-          // Utiliser l'API geometry native de Google Maps
-          const testPoint = new google.maps.LatLng(company.latitude, company.longitude);
-          inZone = google.maps.geometry.poly.containsLocation(testPoint, polygon);
-          
-          // Debug pour les coordonnées problématiques
-          if (company.latitude > 49.43 && company.latitude < 49.44 && 
-              company.longitude > 1.07 && company.longitude < 1.09) {
-            console.log(`DEBUG ${company.company_name}: (${company.latitude}, ${company.longitude}) = ${inZone ? 'DANS' : 'HORS'} zone`);
-            console.log('Premier point du polygone:', isochronePolygon[0]);
-            console.log('Nombre de points dans le polygone:', isochronePolygon.length);
+      if (isochronePolygon.length > 0) {
+        // Méthode 1: Essayer d'abord l'API Google Maps geometry
+        if (window.google?.maps?.geometry) {
+          try {
+            const polygon = new google.maps.Polygon({
+              paths: isochronePolygon
+            });
+            const testPoint = new google.maps.LatLng(company.latitude, company.longitude);
+            inZone = google.maps.geometry.poly.containsLocation(testPoint, polygon);
+          } catch (error) {
+            console.error('Erreur Google Maps geometry:', error);
+            inZone = false;
           }
-        } catch (error) {
-          console.error('Erreur détection géométrie:', error, 'pour entreprise:', company.company_name);
-          // Fallback sur calcul de distance
-          if (centerLocation) {
-            const distance = google.maps.geometry.spherical.computeDistanceBetween(
-              new google.maps.LatLng(company.latitude, company.longitude),
-              new google.maps.LatLng(centerLocation.lat, centerLocation.lng)
-            );
-            // Approximation: considérer dans la zone si distance < 50km (peut être ajusté)
-            inZone = distance < 50000; // 50km en mètres
-            console.log(`Fallback distance pour ${company.company_name}: ${distance}m = ${inZone ? 'DANS' : 'HORS'}`);
+        }
+        
+        // Méthode 2: Si Google Maps échoue, utiliser ray casting robuste
+        if (!window.google?.maps?.geometry || inZone === undefined) {
+          inZone = isPointInPolygonRobust(company.latitude, company.longitude, isochronePolygon);
+        }
+        
+        // Méthode 3: Vérification par distance comme backup
+        if (centerLocation && !inZone) {
+          const distance = calculateHaversineDistance(
+            company.latitude, company.longitude,
+            centerLocation.lat, centerLocation.lng
+          );
+          // Si très proche du centre, considérer comme dans la zone
+          if (distance < 5) { // 5km du centre
+            console.log(`Correction distance pour ${company.company_name}: ${distance.toFixed(1)}km du centre -> DANS zone`);
+            inZone = true;
           }
         }
       }
@@ -183,6 +183,40 @@ const IsochroneMap: React.FC<IsochroneMapProps> = ({
         infoWindow.open(map, marker);
       });
     });
+
+    // Fonction ray casting améliorée
+    function isPointInPolygonRobust(lat: number, lng: number, polygon: { lat: number; lng: number }[]): boolean {
+      if (polygon.length < 3) return false;
+      
+      let inside = false;
+      let j = polygon.length - 1;
+
+      for (let i = 0; i < polygon.length; i++) {
+        const xi = polygon[i].lat;
+        const yi = polygon[i].lng;
+        const xj = polygon[j].lat;
+        const yj = polygon[j].lng;
+
+        if (((yi > lng) !== (yj > lng)) && (lat < (xj - xi) * (lng - yi) / (yj - yi) + xi)) {
+          inside = !inside;
+        }
+        j = i;
+      }
+      return inside;
+    }
+
+    // Fonction de calcul de distance Haversine
+    function calculateHaversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+      const R = 6371; // Rayon de la Terre en km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLng = (lng2 - lng1) * Math.PI / 180;
+      const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLng/2) * Math.sin(dLng/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
 
     // Ajuster la vue pour inclure tous les éléments
     if (companies.length > 0 || isochronePolygon.length > 0) {

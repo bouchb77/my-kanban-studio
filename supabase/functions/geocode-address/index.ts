@@ -27,35 +27,45 @@ async function geocodeWithOpenRouteService(address: string): Promise<GeocodeResu
 
   console.log('Trying OpenRouteService for:', address);
   
-  const response = await fetch(
-    `https://api.openrouteservice.org/geocode/search?api_key=${apiKey}&text=${encodeURIComponent(address)}&boundary.country=FR&size=1`,
-    {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' },
-      timeout: 5000
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(`OpenRouteService error: ${response.status}`);
-  }
-
-  const data = await response.json();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
   
-  if (!data.features || data.features.length === 0) {
-    throw new Error('No results from OpenRouteService');
+  try {
+    const response = await fetch(
+      `https://api.openrouteservice.org/geocode/search?api_key=${apiKey}&text=${encodeURIComponent(address)}&boundary.country=FR&size=1`,
+      {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        signal: controller.signal
+      }
+    );
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`OpenRouteService error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.features || data.features.length === 0) {
+      throw new Error('No results from OpenRouteService');
+    }
+
+    const feature = data.features[0];
+    const [lng, lat] = feature.geometry.coordinates;
+
+    return {
+      lat,
+      lng,
+      display_name: feature.properties.label,
+      confidence: feature.properties.confidence,
+      source: 'OpenRouteService'
+    };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
   }
-
-  const feature = data.features[0];
-  const [lng, lat] = feature.geometry.coordinates;
-
-  return {
-    lat,
-    lng,
-    display_name: feature.properties.label,
-    confidence: feature.properties.confidence,
-    source: 'OpenRouteService'
-  };
 }
 
 // Service de géocodage avec Google Maps (fallback)
@@ -67,69 +77,89 @@ async function geocodeWithGoogle(address: string): Promise<GeocodeResult> {
 
   console.log('Trying Google Maps for:', address);
   
-  const response = await fetch(
-    `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&region=fr&key=${apiKey}`,
-    {
-      method: 'GET',
-      timeout: 5000
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(`Google Maps error: ${response.status}`);
-  }
-
-  const data = await response.json();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
   
-  if (data.status !== 'OK' || !data.results || data.results.length === 0) {
-    throw new Error(`Google Maps API error: ${data.status}`);
+  try {
+    const response = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&region=fr&key=${apiKey}`,
+      {
+        method: 'GET',
+        signal: controller.signal
+      }
+    );
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`Google Maps error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.status !== 'OK' || !data.results || data.results.length === 0) {
+      throw new Error(`Google Maps API error: ${data.status}`);
+    }
+
+    const result = data.results[0];
+    const { lat, lng } = result.geometry.location;
+
+    return {
+      lat,
+      lng,
+      display_name: result.formatted_address,
+      source: 'Google Maps'
+    };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
   }
-
-  const result = data.results[0];
-  const { lat, lng } = result.geometry.location;
-
-  return {
-    lat,
-    lng,
-    display_name: result.formatted_address,
-    source: 'Google Maps'
-  };
 }
 
 // Service de géocodage avec Nominatim OSM (fallback gratuit)
 async function geocodeWithNominatim(address: string): Promise<GeocodeResult> {
   console.log('Trying Nominatim OSM for:', address);
   
-  const response = await fetch(
-    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=fr&limit=1&addressdetails=1`,
-    {
-      method: 'GET',
-      headers: { 
-        'User-Agent': 'TaskFlow-Isochrone/1.0',
-        'Accept': 'application/json'
-      },
-      timeout: 5000
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(`Nominatim error: ${response.status}`);
-  }
-
-  const data = await response.json();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
   
-  if (!data || data.length === 0) {
-    throw new Error('No results from Nominatim');
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=fr&limit=1&addressdetails=1`,
+      {
+        method: 'GET',
+        headers: { 
+          'User-Agent': 'TaskFlow-Isochrone/1.0',
+          'Accept': 'application/json'
+        },
+        signal: controller.signal
+      }
+    );
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`Nominatim error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data || data.length === 0) {
+      throw new Error('No results from Nominatim');
+    }
+
+    const result = data[0];
+
+    return {
+      lat: parseFloat(result.lat),
+      lng: parseFloat(result.lon),
+      display_name: result.display_name,
+      source: 'Nominatim OSM'
+    };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
   }
-
-  const result = data[0];
-
-  return {
-    lat: parseFloat(result.lat),
-    lng: parseFloat(result.lon),
-    display_name: result.display_name,
-    source: 'Nominatim OSM'
-  };
 }
 
 // Fonction principale de géocodage avec fallbacks
@@ -150,6 +180,8 @@ async function geocodeAddress(address: string): Promise<GeocodeResult> {
     } catch (error) {
       console.warn(`Geocoding failed with ${service.name}:`, error.message);
       lastError = error;
+      // Attendre un peu avant d'essayer le service suivant
+      await new Promise(resolve => setTimeout(resolve, 500));
       continue;
     }
   }

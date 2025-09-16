@@ -256,7 +256,11 @@ const IsochroneCalculator = () => {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `entreprises_isochrone_${new Date().toISOString().split('T')[0]}.xlsx`;
+      
+      // Nettoyer le nom de la ville pour le nom de fichier
+      const cleanLocation = centerLocation.replace(/[^a-zA-Z0-9\-_\s]/g, '').replace(/\s+/g, '_');
+      const date = new Date().toISOString().split('T')[0];
+      link.download = `entreprises_isochrone_${cleanLocation}_${maxThreshold}€_${date}.xlsx`;
       link.click();
       window.URL.revokeObjectURL(url);
 

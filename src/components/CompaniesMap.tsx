@@ -6,8 +6,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { MapPin, Building2, Filter, ChevronDown, Globe, Search } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { MapPin, Building2, Filter, ChevronDown, Globe, Search, CalendarIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import MapComponent from './MapComponent';
 
 interface Company {
@@ -44,6 +47,10 @@ const CompaniesMap = () => {
   const [companyNameFilter, setCompanyNameFilter] = useState('');
   const [minAverageFilter, setMinAverageFilter] = useState('');
   const [maxAverageFilter, setMaxAverageFilter] = useState('');
+  
+  // Date filters
+  const [startDate, setStartDate] = useState<Date>();
+  const [endDate, setEndDate] = useState<Date>();
   
   const { toast } = useToast();
 
@@ -237,10 +244,21 @@ const CompaniesMap = () => {
 
       console.log(`Total commandes récupérées: ${allOrders.length}`);
 
+      // Filter orders by date range if specified
+      let filteredOrders = allOrders;
+      if (startDate || endDate) {
+        filteredOrders = allOrders.filter(order => {
+          const orderDate = new Date(order.order_date);
+          if (startDate && orderDate < startDate) return false;
+          if (endDate && orderDate > endDate) return false;
+          return true;
+        });
+      }
+
       // Group orders by SIPI and year
       const orderStatsByCompany = new Map<string, Map<number, { totalOrders: number; totalAmount: number }>>();
       
-      allOrders.forEach(order => {
+      filteredOrders.forEach(order => {
         const year = new Date(order.order_date).getFullYear();
         
         if (!orderStatsByCompany.has(order.sipi_number)) {
@@ -306,7 +324,7 @@ const CompaniesMap = () => {
     };
 
     loadData();
-  }, []);
+  }, [startDate, endDate]);
 
   if (loading) {
     return (
@@ -456,6 +474,90 @@ const CompaniesMap = () => {
                 <Search className="w-5 h-5" />
                 Filtres
               </h3>
+              
+              {/* Date Range Filter */}
+              <div className="flex flex-col gap-4">
+                <h4 className="text-md font-medium">Période des commandes</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium block mb-2">Date de début</label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !startDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {startDate ? format(startDate, "dd/MM/yyyy") : "Sélectionner une date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={startDate}
+                          onSelect={setStartDate}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium block mb-2">Date de fin</label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !endDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {endDate ? format(endDate, "dd/MM/yyyy") : "Sélectionner une date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={endDate}
+                          onSelect={setEndDate}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+                {(startDate || endDate) && (
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => {
+                        setStartDate(undefined);
+                        setEndDate(undefined);
+                      }}
+                    >
+                      Effacer les dates
+                    </Button>
+                    <div className="text-sm text-muted-foreground flex items-center">
+                      {startDate && endDate 
+                        ? `Période: ${format(startDate, "dd/MM/yyyy")} - ${format(endDate, "dd/MM/yyyy")}`
+                        : startDate 
+                        ? `À partir du: ${format(startDate, "dd/MM/yyyy")}`
+                        : endDate 
+                        ? `Jusqu'au: ${format(endDate, "dd/MM/yyyy")}`
+                        : ''
+                      }
+                    </div>
+                  </div>
+                )}
+              </div>
+              
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                 <div>
                   <label className="text-sm font-medium">Numéro SIPI</label>

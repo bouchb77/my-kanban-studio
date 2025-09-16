@@ -164,6 +164,23 @@ export function CompanyImportSection() {
   };
 
   const handleImport = async () => {
+    console.log('=== DEBUT IMPORT DEBUG ===');
+    
+    // Vérifier l'état de connexion
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    console.log('Utilisateur connecté:', user);
+    console.log('Erreur utilisateur:', userError);
+    
+    if (!user) {
+      console.error('ERREUR: Utilisateur non connecté');
+      toast({
+        title: "Erreur d'authentification",
+        description: "Vous devez être connecté pour importer des données",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (companies.length === 0) {
       console.log('Aucune entreprise à importer');
       return;
@@ -171,6 +188,22 @@ export function CompanyImportSection() {
 
     console.log('Début de l\'import de', companies.length, 'entreprises');
     setIsLoading(true);
+    
+    // Vérifier les permissions admin
+    const { data: adminCheck, error: adminError } = await supabase.rpc('is_current_user_admin');
+    console.log('Vérification admin:', adminCheck, adminError);
+    
+    if (!adminCheck) {
+      console.error('ERREUR: Utilisateur sans droits admin');
+      toast({
+        title: "Permissions insuffisantes",
+        description: "Vous devez avoir les droits administrateur pour importer des données",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
+    
     try {
       // Supprimer toutes les entreprises existantes (admin uniquement)
       console.log('Suppression des entreprises existantes...');

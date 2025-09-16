@@ -5,6 +5,7 @@ import { ShieldAlert } from 'lucide-react';
 import { CompanyImportSection } from '@/components/CompanyImportSection';
 import { OrderImportSection } from '@/components/OrderImportSection';
 import DepartmentImportSection from '@/components/DepartmentImportSection';
+import IncompleteGeocodingTable from '@/components/IncompleteGeocodingTable';
 
 const ImportReportingPage: React.FC = () => {
   const { isAdmin, loading } = useUserRole();
@@ -63,6 +64,12 @@ const ImportReportingPage: React.FC = () => {
         <div>
           <h2 className="text-2xl font-semibold mb-4">Import des Commandes</h2>
           <OrderImportSection />
+        </div>
+
+        {/* Gestion des entreprises avec géolocalisation incomplète */}
+        <div>
+          <h2 className="text-2xl font-semibold mb-4">Géolocalisation des Entreprises</h2>
+          <IncompleteGeocodingTable />
         </div>
       </div>
     </div>

@@ -24,6 +24,55 @@ export const OrderImportSection: React.FC = () => {
   const [importing, setImporting] = useState(false);
   const { toast } = useToast();
 
+  // Fonction pour convertir les dates Excel
+  const parseExcelDate = (excelDate: any): string => {
+    if (!excelDate) return '';
+    
+    // Si c'est déjà une chaîne de date valide au format ISO
+    if (typeof excelDate === 'string' && /^\d{4}-\d{2}-\d{2}/.test(excelDate)) {
+      return excelDate.split('T')[0]; // Prendre seulement la partie date
+    }
+    
+    // Si c'est un nombre (format Excel - jours depuis 1900-01-01)
+    if (typeof excelDate === 'number') {
+      try {
+        // Excel compte les jours depuis le 1er janvier 1900
+        // Mais il y a une erreur dans Excel qui compte 1900 comme une année bissextile
+        const excelEpoch = new Date(1900, 0, 1);
+        const millisecondsPerDay = 24 * 60 * 60 * 1000;
+        
+        // Ajuster pour l'erreur d'Excel avec 1900
+        let adjustedDays = excelDate;
+        if (excelDate > 59) { // après le 28 février 1900
+          adjustedDays = excelDate - 1;
+        }
+        
+        const resultDate = new Date(excelEpoch.getTime() + (adjustedDays - 1) * millisecondsPerDay);
+        
+        if (!isNaN(resultDate.getTime())) {
+          return resultDate.toISOString().split('T')[0];
+        }
+      } catch (e) {
+        console.warn('Erreur conversion date Excel:', excelDate, e);
+      }
+    }
+    
+    // Essayer de parser comme une chaîne normale
+    if (typeof excelDate === 'string') {
+      try {
+        const parsed = new Date(excelDate);
+        if (!isNaN(parsed.getTime())) {
+          return parsed.toISOString().split('T')[0];
+        }
+      } catch (e) {
+        console.warn('Erreur parsing date string:', excelDate, e);
+      }
+    }
+    
+    console.warn('Date non convertible:', excelDate);
+    return '';
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -31,7 +80,7 @@ export const OrderImportSection: React.FC = () => {
     setUploading(true);
     try {
       const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { type: 'array' });
+      const workbook = XLSX.read(data, { cellDates: true, dateNF: 'yyyy-mm-dd' });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
@@ -39,11 +88,11 @@ export const OrderImportSection: React.FC = () => {
       // Skip header row and parse data
       const parsedOrders: Order[] = jsonData.slice(1).map((row, index) => ({
         id: `temp-${index}`,
-        order_number: row[0] || '',
-        company_name: row[1] || '',
+        order_number: String(row[0] || ''),
+        company_name: String(row[1] || ''),
         amount: parseFloat(row[2]) || 0,
-        order_date: row[3] || '',
-        status: row[4] || 'pending'
+        order_date: parseExcelDate(row[3]),
+        status: String(row[4] || 'pending')
       })).filter(order => order.order_number); // Filter out empty rows
 
       setOrders(parsedOrders);
@@ -113,7 +162,8 @@ export const OrderImportSection: React.FC = () => {
     const templateData = [
       ['N° Commande', 'Nom Entreprise', 'Montant', 'Date Commande', 'Statut'],
       ['CMD001', 'Entreprise Example', 1500.50, '2024-01-15', 'pending'],
-      ['CMD002', 'Autre Entreprise', 2300.00, '2024-01-16', 'completed']
+      ['CMD002', 'Autre Entreprise', 2300.00, '2024-01-16', 'completed'],
+      ['CMD003', 'Test SARL', 999.99, '2024-02-01', 'pending']
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(templateData);
@@ -156,7 +206,7 @@ export const OrderImportSection: React.FC = () => {
             disabled={uploading}
           />
           <p className="text-sm text-muted-foreground">
-            Format attendu: N° Commande, Nom Entreprise, Montant, Date Commande, Statut
+            Format attendu: N° Commande, Nom Entreprise, Montant, Date Commande (YYYY-MM-DD), Statut
           </p>
         </div>
 

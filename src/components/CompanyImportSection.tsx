@@ -39,23 +39,48 @@ export function CompanyImportSection() {
   const parseExcelDate = (excelDate: any): string | undefined => {
     if (!excelDate) return undefined;
     
-    // Si c'est déjà une chaîne de date valide
-    if (typeof excelDate === 'string' && excelDate.includes('-')) {
-      return excelDate;
+    // Si c'est déjà une chaîne de date valide au format ISO
+    if (typeof excelDate === 'string' && /^\d{4}-\d{2}-\d{2}/.test(excelDate)) {
+      return excelDate.split('T')[0]; // Prendre seulement la partie date
     }
     
-    // Si c'est un nombre (format Excel)
+    // Si c'est un nombre (format Excel - jours depuis 1900-01-01)
     if (typeof excelDate === 'number') {
       try {
-        const date = XLSX.SSF.parse_date_code(excelDate);
-        if (date && date.y && date.m && date.d) {
-          return `${date.y}-${String(date.m).padStart(2, '0')}-${String(date.d).padStart(2, '0')}`;
+        // Excel compte les jours depuis le 1er janvier 1900
+        // Mais il y a une erreur dans Excel qui compte 1900 comme une année bissextile
+        const excelEpoch = new Date(1900, 0, 1);
+        const millisecondsPerDay = 24 * 60 * 60 * 1000;
+        
+        // Ajuster pour l'erreur d'Excel avec 1900
+        let adjustedDays = excelDate;
+        if (excelDate > 59) { // après le 28 février 1900
+          adjustedDays = excelDate - 1;
+        }
+        
+        const resultDate = new Date(excelEpoch.getTime() + (adjustedDays - 1) * millisecondsPerDay);
+        
+        if (!isNaN(resultDate.getTime())) {
+          return resultDate.toISOString().split('T')[0];
         }
       } catch (e) {
-        console.warn('Erreur conversion date Excel:', excelDate);
+        console.warn('Erreur conversion date Excel:', excelDate, e);
       }
     }
     
+    // Essayer de parser comme une chaîne normale
+    if (typeof excelDate === 'string') {
+      try {
+        const parsed = new Date(excelDate);
+        if (!isNaN(parsed.getTime())) {
+          return parsed.toISOString().split('T')[0];
+        }
+      } catch (e) {
+        console.warn('Erreur parsing date string:', excelDate, e);
+      }
+    }
+    
+    console.warn('Date non convertible:', excelDate);
     return undefined;
   };
 
@@ -66,7 +91,7 @@ export function CompanyImportSection() {
     setIsUploading(true);
     try {
       const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { cellDates: true });
+      const workbook = XLSX.read(data, { cellDates: true, dateNF: 'yyyy-mm-dd' });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
@@ -443,6 +468,8 @@ export function CompanyImportSection() {
         </CardTitle>
         <CardDescription>
           Importez un fichier Excel avec toutes les informations d'entreprises (N° Société, Nom, Adresse, etc.)
+          <br />
+          <strong>Dates au format:</strong> AAAA-MM-JJ (ex: 2024-01-15) ou format Excel
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

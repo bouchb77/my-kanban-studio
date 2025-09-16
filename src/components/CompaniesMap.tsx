@@ -78,9 +78,33 @@ const CompaniesMap = () => {
     return Array.from(years).sort((a, b) => b - a); // Sort descending
   }, [companies]);
 
-  // Filter companies based on all filters
+  // Filter companies based on all filters including date range
   const filteredCompanies = useMemo(() => {
-    let filtered = companies.filter(company => {
+    let filtered = companies.map(company => {
+      // Filter order stats by date range first
+      let filteredOrderStats = company.orderStats || [];
+      
+      if (startDate || endDate) {
+        // We need to filter based on the order dates, but since we only have yearly data,
+        // we'll filter by years that fall within the date range
+        const startYear = startDate ? startDate.getFullYear() : 0;
+        const endYear = endDate ? endDate.getFullYear() : 9999;
+        
+        filteredOrderStats = filteredOrderStats.filter(stat => 
+          stat.year >= startYear && stat.year <= endYear
+        );
+      }
+      
+      // Recalculate average with filtered data
+      const totalAmount = filteredOrderStats.reduce((sum, stat) => sum + stat.totalAmount, 0);
+      const averageOrderPerYear = filteredOrderStats.length > 0 ? totalAmount / filteredOrderStats.length : 0;
+      
+      return {
+        ...company,
+        orderStats: filteredOrderStats,
+        averageOrderPerYear
+      };
+    }).filter(company => {
       // Department filter
       if (selectedDepartments.length > 0) {
         if (!company.general_department || !selectedDepartments.includes(company.general_department)) {
@@ -168,7 +192,7 @@ const CompaniesMap = () => {
     }
 
     return filtered;
-  }, [companies, selectedDepartments, sipiFilter, cityFilter, companyNameFilter, minAverageFilter, maxAverageFilter, sortColumn, sortDirection]);
+  }, [companies, selectedDepartments, sipiFilter, cityFilter, companyNameFilter, minAverageFilter, maxAverageFilter, sortColumn, sortDirection, startDate, endDate]);
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -318,21 +342,10 @@ const CompaniesMap = () => {
 
       console.log(`Total commandes récupérées: ${allOrders.length}`);
 
-      // Filter orders by date range if specified
-      let filteredOrders = allOrders;
-      if (startDate || endDate) {
-        filteredOrders = allOrders.filter(order => {
-          const orderDate = new Date(order.order_date);
-          if (startDate && orderDate < startDate) return false;
-          if (endDate && orderDate > endDate) return false;
-          return true;
-        });
-      }
-
-      // Group orders by SIPI and year
+      // Group orders by SIPI and year (load all data, filtering will be done client-side)
       const orderStatsByCompany = new Map<string, Map<number, { totalOrders: number; totalAmount: number }>>();
       
-      filteredOrders.forEach(order => {
+      allOrders.forEach(order => {
         const year = new Date(order.order_date).getFullYear();
         
         if (!orderStatsByCompany.has(order.sipi_number)) {
@@ -398,7 +411,7 @@ const CompaniesMap = () => {
     };
 
     loadData();
-  }, [startDate, endDate]);
+  }, []); // Remove startDate and endDate dependencies to prevent reloading
 
   if (loading) {
     return (

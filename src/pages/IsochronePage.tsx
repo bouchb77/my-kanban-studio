@@ -129,18 +129,21 @@ const IsochronePage = () => {
   };
 
   const exportToExcel = async () => {
-    // Filtrer les entreprises dans la zone isochrone
+    // Filtrer les entreprises dans la zone isochrone ET en dessous du seuil
     const companiesInZone = companyStats.filter(company => {
       if (!company.latitude || !company.longitude || isochronePolygon.length === 0) {
         return false;
       }
-      return isPointInPolygon({ lat: company.latitude, lng: company.longitude }, isochronePolygon);
+      // Vérifier que l'entreprise est dans la zone ET que son montant max est <= au seuil
+      const inZone = isPointInPolygon({ lat: company.latitude, lng: company.longitude }, isochronePolygon);
+      const belowThreshold = company.maxAmount <= maxThreshold;
+      return inZone && belowThreshold;
     });
 
     if (companiesInZone.length === 0) {
       toast({
         title: "Aucune donnée",
-        description: "Aucune entreprise dans la zone isochrone à exporter",
+        description: "Aucune entreprise dans la zone isochrone et sous le seuil à exporter",
         variant: "destructive"
       });
       return;
@@ -156,27 +159,23 @@ const IsochronePage = () => {
         { header: 'Nom Entreprise', key: 'company_name', width: 30 },
         { header: 'Ville', key: 'city', width: 20 },
         { header: 'Département', key: 'general_department', width: 15 },
-        { header: 'Année 1', key: 'year1', width: 10 },
-        { header: 'Montant Année 1', key: 'amount1', width: 15 },
-        { header: 'Année 2', key: 'year2', width: 10 },
-        { header: 'Montant Année 2', key: 'amount2', width: 15 },
-        { header: 'Montant Maximum', key: 'maxAmount', width: 15 },
+        { header: 'Période 2023-2024 (€)', key: 'period_2023_2024', width: 18 },
+        { header: 'Période 2024-2025 (€)', key: 'period_2024_2025', width: 18 },
+        { header: 'Montant Maximum (€)', key: 'maxAmount', width: 18 },
         { header: 'Latitude', key: 'latitude', width: 12 },
         { header: 'Longitude', key: 'longitude', width: 12 },
         { header: 'Dans Zone Isochrone', key: 'in_zone', width: 20 }
       ];
 
-      // Données - uniquement les entreprises dans la zone
+      // Données - uniquement les entreprises dans la zone et sous le seuil
       companiesInZone.forEach(company => {
         worksheet.addRow({
           sipi_number: company.sipi_number,
           company_name: company.company_name,
           city: company.city,
           general_department: company.general_department,
-          year1: company.year1,
-          amount1: company.amount1,
-          year2: company.year2,
-          amount2: company.amount2,
+          period_2023_2024: (company.year1 === 2023 && company.year2 === 2024) ? company.amount1 : (company.year1 === 2024 && company.year2 === 2025) ? 0 : company.amount1,
+          period_2024_2025: (company.year1 === 2023 && company.year2 === 2024) ? company.amount2 : (company.year1 === 2024 && company.year2 === 2025) ? company.amount1 : company.amount2,
           maxAmount: company.maxAmount,
           latitude: company.latitude,
           longitude: company.longitude,
@@ -204,7 +203,7 @@ const IsochronePage = () => {
 
       toast({
         title: "Export réussi",
-        description: `${companiesInZone.length} entreprises dans la zone exportées`,
+        description: `${companiesInZone.length} entreprises dans la zone et sous le seuil exportées`,
       });
 
     } catch (err) {

@@ -124,8 +124,11 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
         const isInside = isochronePolygon.length > 0 ? 
           isPointInPolygon({ lat: company.latitude, lng: company.longitude }, isochronePolygon) :
           false;
+        
+        const belowThreshold = company.maxAmount <= maxThreshold;
 
-        if (isInside) {
+        // L'entreprise doit être dans la zone ET sous le seuil pour être considérée "dans la zone"
+        if (isInside && belowThreshold) {
           companiesInZone.push(company);
         } else {
           companiesOutZone.push(company);
@@ -172,7 +175,7 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
                   Montants: ${company.amount1.toLocaleString()}€ / ${company.amount2.toLocaleString()}€
                 </p>
                 <p style="margin: 4px 0 0 0; font-weight: bold; color: #10b981;">
-                  Max: ${company.maxAmount.toLocaleString()}€ (Dans la zone)
+                  Max: ${company.maxAmount.toLocaleString()}€ (Éligible - Dans zone et sous seuil)
                 </p>
               </div>
             `);
@@ -199,7 +202,7 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
                   Montants: ${company.amount1.toLocaleString()}€ / ${company.amount2.toLocaleString()}€
                 </p>
                 <p style="margin: 4px 0 0 0; font-weight: bold; color: #f59e0b;">
-                  Max: ${company.maxAmount.toLocaleString()}€ (Hors zone)
+                  Max: ${company.maxAmount.toLocaleString()}€ (Non éligible)
                 </p>
               </div>
             `);
@@ -245,7 +248,9 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
   // Classification des entreprises pour la légende
   const companiesInZone = companies.filter(company => {
     if (!company.latitude || !company.longitude || isochronePolygon.length === 0) return false;
-    return isPointInPolygon({ lat: company.latitude, lng: company.longitude }, isochronePolygon);
+    const inZone = isPointInPolygon({ lat: company.latitude, lng: company.longitude }, isochronePolygon);
+    const belowThreshold = company.maxAmount <= maxThreshold;
+    return inZone && belowThreshold;
   });
   const companiesOutZone = companies.filter(company => !companiesInZone.includes(company));
 
@@ -263,11 +268,11 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-green-500"></div>
-            <span>Client dans la zone ({companiesInZone.length})</span>
+            <span>Client éligible ({companiesInZone.length})</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-            <span>Client hors zone ({companiesOutZone.length})</span>
+            <span>Client non éligible ({companiesOutZone.length})</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-blue-500 opacity-50"></div>

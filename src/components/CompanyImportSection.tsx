@@ -36,6 +36,12 @@ export function CompanyImportSection() {
   const [isLoading, setIsLoading] = useState(false);
 
   // Fonction pour convertir les dates Excel
+  const cleanCity = (cityName: string): string => {
+    // Retirer CEDEX et tout ce qui suit
+    const cleanedCity = cityName.replace(/\s*CEDEX.*$/i, '').trim();
+    return cleanedCity;
+  };
+
   const parseExcelDate = (excelDate: any): string | undefined => {
     console.log('parseExcelDate appelée avec:', excelDate, 'type:', typeof excelDate);
     
@@ -120,7 +126,7 @@ export function CompanyImportSection() {
           company_name: String(row['Nom de société'] || row['Nom société'] || row['Société'] || row['Company'] || ''),
           address1: String(row['Adresse1'] || row['Adresse 1'] || ''),
           address2: String(row['Adresse2'] || row['Adresse 2'] || ''),
-          city: String(row['Ville'] || ''),
+          city: cleanCity(String(row['Ville'] || '')),
           postal_code: String(row['CP'] || row['Code Postal'] || ''),
           general_department: String(row['Département général'] || row['Département'] || ''),
           quality: String(row['Qualité'] || ''),

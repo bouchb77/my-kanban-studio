@@ -183,67 +183,6 @@ const ReportingPage = () => {
         </Card>
       </div>
 
-      {/* Graphiques */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Graphique nombre de commandes par année */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Nombre de Commandes par Année</CardTitle>
-            <CardDescription>
-              Évolution du nombre de commandes
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={orderStats}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="year" />
-                <YAxis />
-                <Tooltip 
-                  formatter={(value, name) => [
-                    `${value} commandes`, 
-                    'Nombre de commandes'
-                  ]}
-                />
-                <Bar dataKey="totalOrders" fill="hsl(var(--primary))" radius={4} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Graphique montant total par année */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Chiffre d'Affaires par Année</CardTitle>
-            <CardDescription>
-              Évolution du montant total des commandes
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={orderStats}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="year" />
-                <YAxis />
-                <Tooltip 
-                  formatter={(value, name) => [
-                    `${Number(value).toLocaleString()} €`, 
-                    'Chiffre d\'affaires'
-                  ]}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="totalAmount" 
-                  stroke="hsl(var(--success))" 
-                  strokeWidth={3}
-                  dot={{ fill: "hsl(var(--success))", strokeWidth: 2, r: 4 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Tableau détaillé par année */}
       <Card>
         <CardHeader>

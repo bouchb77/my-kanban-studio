@@ -48,8 +48,12 @@ export const useCompanyOrderStats = () => {
       // Grouper les commandes par SIPI et par année
       const ordersByCompany = new Map<string, Map<number, number>>();
       
+      console.log('Début du groupement des commandes...');
+      let processedOrders = 0;
+      
       orders?.forEach(order => {
         const year = new Date(order.order_date).getFullYear();
+        processedOrders++;
         
         if (!ordersByCompany.has(order.sipi_number)) {
           ordersByCompany.set(order.sipi_number, new Map());
@@ -60,17 +64,36 @@ export const useCompanyOrderStats = () => {
         companyOrders.set(year, currentAmount + (order.amount || 0));
       });
 
+      console.log(`Commandes traitées: ${processedOrders}`);
+      console.log(`Entreprises ayant des commandes: ${ordersByCompany.size}`);
+      
+      // Afficher un échantillon des données groupées
+      const sampleEntries = Array.from(ordersByCompany.entries()).slice(0, 3);
+      console.log('Échantillon des commandes groupées:', sampleEntries.map(([sipi, orders]) => ({
+        sipi,
+        orders: Array.from(orders.entries())
+      })));
+
       // Calculer les périodes de 2 années consécutives pour chaque entreprise
       const companyPeriods: CompanyOrderPeriod[] = [];
 
       console.log(`Début du traitement pour ${companies?.length || 0} entreprises`);
       
+      let companiesWithOrders = 0;
+      let totalPeriods = 0;
+      
       companies?.forEach(company => {
         const companyOrders = ordersByCompany.get(company.sipi_number);
-        if (!companyOrders) return;
+        if (!companyOrders) {
+          return;
+        }
+        
+        companiesWithOrders++;
 
         // Chercher toutes les paires d'années consécutives
         const years = Array.from(companyOrders.keys()).sort((a, b) => a - b);
+        
+        console.log(`Entreprise ${company.sipi_number} (${company.company_name}): années disponibles [${years.join(', ')}]`);
         
         for (let i = 0; i < years.length - 1; i++) {
           const year1 = years[i];
@@ -82,6 +105,9 @@ export const useCompanyOrderStats = () => {
             const amount2 = companyOrders.get(year2) || 0;
             const maxAmount = Math.max(amount1, amount2);
             
+            totalPeriods++;
+            console.log(`  Période ${year1}-${year2}: ${amount1}€ / ${amount2}€, max: ${maxAmount}€, seuil: ${maxThreshold}€, OK: ${maxAmount <= maxThreshold}`);
+
             // Vérifier si le montant maximum est inférieur ou égal au seuil
             if (maxAmount <= maxThreshold) {
               companyPeriods.push({
@@ -103,6 +129,10 @@ export const useCompanyOrderStats = () => {
           }
         }
       });
+
+      console.log(`Entreprises avec commandes: ${companiesWithOrders}`);
+      console.log(`Périodes consécutives trouvées: ${totalPeriods}`);
+      console.log(`Périodes répondant au critère: ${companyPeriods.length}`);
 
       // Garder seulement la période avec le montant maximum le plus élevé pour chaque entreprise
       const companyMaxPeriods = new Map<string, CompanyOrderPeriod>();

@@ -19,6 +19,13 @@ interface Company {
   address1?: string;
   city?: string;
   general_department?: string;
+  orderStats?: CompanyOrderStats[];
+}
+
+interface CompanyOrderStats {
+  year: number;
+  totalOrders: number;
+  totalAmount: number;
 }
 
 const CompaniesMap = () => {
@@ -115,24 +122,78 @@ const CompaniesMap = () => {
     }
   };
 
-  // Fetch companies with GPS coordinates
+  // Fetch companies with GPS coordinates and order statistics
   const fetchCompaniesData = async () => {
     try {
       console.log('Fetching companies with GPS coordinates...');
-      const { data, error } = await supabase
+      const { data: companiesData, error: companiesError } = await supabase
         .from('companies')
         .select('id, sipi_number, company_name, latitude, longitude, address1, city, general_department')
         .not('latitude', 'is', null)
         .not('longitude', 'is', null);
 
-      if (error) {
-        console.error('Error fetching companies:', error);
+      if (companiesError) {
+        console.error('Error fetching companies:', companiesError);
         setError('Erreur lors du chargement des entreprises');
         return;
       }
 
-      console.log('Companies loaded:', data?.length || 0);
-      setCompanies(data || []);
+      // Fetch order statistics for each company
+      console.log('Fetching order statistics...');
+      const { data: ordersData, error: ordersError } = await supabase
+        .from('orders')
+        .select('sipi_number, order_date, amount');
+
+      if (ordersError) {
+        console.error('Error fetching orders:', ordersError);
+        setError('Erreur lors du chargement des commandes');
+        return;
+      }
+
+      // Group orders by SIPI and year
+      const orderStatsByCompany = new Map<string, Map<number, { totalOrders: number; totalAmount: number }>>();
+      
+      ordersData?.forEach(order => {
+        const year = new Date(order.order_date).getFullYear();
+        
+        if (!orderStatsByCompany.has(order.sipi_number)) {
+          orderStatsByCompany.set(order.sipi_number, new Map());
+        }
+        
+        const companyStats = orderStatsByCompany.get(order.sipi_number)!;
+        const yearStats = companyStats.get(year) || { totalOrders: 0, totalAmount: 0 };
+        
+        companyStats.set(year, {
+          totalOrders: yearStats.totalOrders + 1,
+          totalAmount: yearStats.totalAmount + (order.amount || 0)
+        });
+      });
+
+      // Combine companies with their order statistics
+      const companiesWithStats: Company[] = (companiesData || []).map(company => {
+        const companyOrderStats = orderStatsByCompany.get(company.sipi_number);
+        const orderStats: CompanyOrderStats[] = [];
+        
+        if (companyOrderStats) {
+          companyOrderStats.forEach((stats, year) => {
+            orderStats.push({
+              year,
+              totalOrders: stats.totalOrders,
+              totalAmount: stats.totalAmount
+            });
+          });
+          // Sort by year descending
+          orderStats.sort((a, b) => b.year - a.year);
+        }
+        
+        return {
+          ...company,
+          orderStats
+        };
+      });
+
+      console.log('Companies loaded:', companiesWithStats?.length || 0);
+      setCompanies(companiesWithStats);
     } catch (error) {
       console.error('Error:', error);
       setError('Erreur de connexion');
@@ -314,6 +375,7 @@ const CompaniesMap = () => {
                       <TableHead>Numéro SIPI</TableHead>
                       <TableHead>Ville</TableHead>
                       <TableHead>Département</TableHead>
+                      <TableHead>Statistiques Commandes</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -323,6 +385,22 @@ const CompaniesMap = () => {
                         <TableCell>{company.sipi_number}</TableCell>
                         <TableCell>{company.city || "-"}</TableCell>
                         <TableCell>{company.general_department || "-"}</TableCell>
+                        <TableCell>
+                          {company.orderStats && company.orderStats.length > 0 ? (
+                            <div className="space-y-1">
+                              {company.orderStats.map((stat) => (
+                                <div key={stat.year} className="text-sm">
+                                  <div className="font-medium">{stat.year}</div>
+                                  <div className="text-muted-foreground">
+                                    {stat.totalOrders} commande{stat.totalOrders > 1 ? 's' : ''} - {stat.totalAmount.toLocaleString()} €
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">Aucune commande</span>
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

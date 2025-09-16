@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo, useState } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -25,19 +25,6 @@ interface MapComponentProps {
 const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
-  const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
-
-  // Filter companies by department
-  const filteredCompanies = useMemo(() => {
-    return selectedDepartment 
-      ? companies.filter(c => c.general_department === selectedDepartment)
-      : companies;
-  }, [companies, selectedDepartment]);
-
-  // Get departments for filter
-  const departments = useMemo(() => {
-    return [...new Set(companies.map(c => c.general_department).filter(Boolean))];
-  }, [companies]);
 
   // Initialize map
   useEffect(() => {
@@ -61,7 +48,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
 
   // Add bubbles to map
   useEffect(() => {
-    if (!map.current || !filteredCompanies.length) return;
+    if (!map.current || !companies.length) return;
 
     // Clear existing layers
     map.current.eachLayer((layer) => {
@@ -71,7 +58,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
     });
 
     // Calculate bubble sizes based on average orders per year
-    const averageOrdersPerYear = filteredCompanies.map(company => {
+    const averageOrdersPerYear = companies.map(company => {
       const orderStats = company.orderStats || [];
       if (orderStats.length === 0) return 0;
       
@@ -82,7 +69,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
     const minAvgOrders = Math.min(...averageOrdersPerYear.filter(avg => avg > 0), 0);
 
     // Add bubbles for each company
-    filteredCompanies.forEach((company) => {
+    companies.forEach((company) => {
       if (company.latitude && company.longitude) {
         const totalOrders = company.orderStats?.reduce((sum, stat) => sum + stat.totalOrders, 0) || 0;
         const totalAmount = company.orderStats?.reduce((sum, stat) => sum + stat.totalAmount, 0) || 0;
@@ -96,25 +83,11 @@ const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
           ? ((avgOrdersPerYear - minAvgOrders) / (maxAvgOrders - minAvgOrders)) * 45 + 5
           : 5;
 
-        // Department colors
-        const departmentColors: { [key: string]: string } = {
-          'Ain': '#3b82f6',
-          'Aisne': '#ef4444',
-          'Allier': '#10b981',
-          'Alpes-de-Haute-Provence': '#f59e0b',
-          'Hautes-Alpes': '#8b5cf6',
-          'Alpes-Maritimes': '#ec4899',
-          'Ardèche': '#06b6d4',
-          'Ardennes': '#84cc16',
-        };
-
-        const color = departmentColors[company.general_department || ''] || '#6b7280';
-
-        // Create bubble
+        // Create bubble in blue
         const bubble = L.circleMarker([company.latitude, company.longitude], {
           radius: normalizedSize,
-          fillColor: color,
-          color: color,
+          fillColor: '#3b82f6',
+          color: '#2563eb',
           weight: 2,
           opacity: 0.8,
           fillOpacity: 0.6
@@ -155,8 +128,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
     });
 
     // Fit map to show all bubbles
-    if (filteredCompanies.length > 0) {
-      const validCompanies = filteredCompanies.filter(c => c.latitude && c.longitude);
+    if (companies.length > 0) {
+      const validCompanies = companies.filter(c => c.latitude && c.longitude);
       if (validCompanies.length > 0) {
         const bounds = L.latLngBounds(
           validCompanies.map(c => [c.latitude, c.longitude])
@@ -164,7 +137,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
         map.current.fitBounds(bounds, { padding: [20, 20] });
       }
     }
-  }, [filteredCompanies]);
+  }, [companies]);
 
   return (
     <div className="space-y-4">
@@ -173,61 +146,16 @@ const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
         <br />
         <span className="text-xs">Taille des bulles = Moyenne de commandes par an</span>
       </div>
-
-      {/* Filtres par département */}
-      <div className="flex flex-wrap gap-2 justify-center">
-        <button
-          onClick={() => setSelectedDepartment(null)}
-          className={`px-3 py-1 rounded-full text-xs transition-colors ${
-            !selectedDepartment 
-              ? 'bg-primary text-primary-foreground' 
-              : 'bg-muted hover:bg-muted/80'
-          }`}
-        >
-          Tous ({companies.length})
-        </button>
-        {departments.map((dept) => {
-          const count = companies.filter(c => c.general_department === dept).length;
-          return (
-            <button
-              key={dept}
-              onClick={() => setSelectedDepartment(dept)}
-              className={`px-3 py-1 rounded-full text-xs transition-colors ${
-                selectedDepartment === dept 
-                  ? 'bg-primary text-primary-foreground' 
-                  : 'bg-muted hover:bg-muted/80'
-              }`}
-            >
-              {dept} ({count})
-            </button>
-          );
-        })}
-      </div>
       
       <div className="h-[500px] w-full rounded-lg border shadow-lg overflow-hidden">
         <div ref={mapRef} className="w-full h-full" />
       </div>
-      
-      {/* Légende */}
-      <div className="bg-muted/20 rounded-lg p-4">
-        <h4 className="font-semibold mb-2">Légende</h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-          <div>
-            <strong>Taille des bulles :</strong> Proportionnelle à la moyenne de commandes par an
-          </div>
-          <div>
-            <strong>Couleurs :</strong> Différenciation par département
-          </div>
-        </div>
-      </div>
 
       {/* Liste des entreprises */}
       <div className="max-h-60 overflow-y-auto bg-muted/20 rounded-lg p-4">
-        <h4 className="font-semibold mb-2">
-          Entreprises {selectedDepartment ? `- ${selectedDepartment}` : ''} ({filteredCompanies.length})
-        </h4>
+        <h4 className="font-semibold mb-2">Liste des entreprises ({companies.length})</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
-          {filteredCompanies.map((company) => {
+          {companies.map((company) => {
             const totalOrders = company.orderStats?.reduce((sum, stat) => sum + stat.totalOrders, 0) || 0;
             const totalAmount = company.orderStats?.reduce((sum, stat) => sum + stat.totalAmount, 0) || 0;
             

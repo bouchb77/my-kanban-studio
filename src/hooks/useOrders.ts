@@ -17,20 +17,37 @@ export const useOrders = () => {
       setLoading(true);
       setError(null);
 
-      // Récupérer toutes les commandes sans limite
-      const { data: orders, error: ordersError } = await supabase
-        .from('orders')
-        .select('order_date, amount')
-        .limit(10000); // Augmenter la limite pour récupérer toutes les commandes
+      // Récupérer toutes les commandes en utilisant une approche de pagination
+      let allOrders: any[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      let hasMore = true;
 
-      if (ordersError) {
-        throw ordersError;
+      while (hasMore) {
+        const { data: orders, error: ordersError } = await supabase
+          .from('orders')
+          .select('order_date, amount')
+          .range(from, from + batchSize - 1);
+
+        if (ordersError) {
+          throw ordersError;
+        }
+
+        if (orders && orders.length > 0) {
+          allOrders = [...allOrders, ...orders];
+          from += batchSize;
+          hasMore = orders.length === batchSize;
+        } else {
+          hasMore = false;
+        }
       }
+
+      console.log(`Total commandes récupérées: ${allOrders.length}`);
 
       // Grouper les données par année
       const statsMap = new Map<number, { totalOrders: number; totalAmount: number }>();
       
-      orders?.forEach(order => {
+      allOrders.forEach(order => {
         const year = new Date(order.order_date).getFullYear();
         const current = statsMap.get(year) || { totalOrders: 0, totalAmount: 0 };
         

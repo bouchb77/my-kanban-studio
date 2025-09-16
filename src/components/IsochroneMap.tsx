@@ -101,7 +101,7 @@ const IsochroneMap: React.FC<IsochroneMapProps> = ({
     }
 
     // Ajouter les marqueurs pour les entreprises avec détection simplifiée et efficace
-    companies.forEach((company) => {
+    companies.forEach((company, index) => {
       if (!company.latitude || !company.longitude) return;
 
       let inZone = false;
@@ -109,6 +109,17 @@ const IsochroneMap: React.FC<IsochroneMapProps> = ({
       if (isochronePolygon.length > 0) {
         // Utiliser uniquement l'algorithme ray casting fiable
         inZone = isPointInPolygonRobust(company.latitude, company.longitude, isochronePolygon);
+        
+        // Debug pour les 5 premiers points
+        if (index < 5) {
+          console.log(`🔍 DEBUG ${company.company_name}:`, {
+            coords: [company.latitude, company.longitude],
+            inZone,
+            polygonFirstPoint: isochronePolygon[0],
+            polygonLastPoint: isochronePolygon[isochronePolygon.length - 1],
+            polygonSize: isochronePolygon.length
+          });
+        }
       }
       
       const marker = new google.maps.Marker({
@@ -157,25 +168,33 @@ const IsochroneMap: React.FC<IsochroneMapProps> = ({
 
     // Fonction ray casting correcte - Point-in-polygon algorithm
     function isPointInPolygonRobust(pointLat: number, pointLng: number, polygon: { lat: number; lng: number }[]): boolean {
-      if (polygon.length < 3) return false;
+      if (polygon.length < 3) {
+        console.log("⚠️ Polygone trop petit:", polygon.length);
+        return false;
+      }
       
       let inside = false;
-      let j = polygon.length - 1;
+      let intersections = 0;
+      
+      for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const xi = polygon[i].lat;
+        const yi = polygon[i].lng;
+        const xj = polygon[j].lat;
+        const yj = polygon[j].lng;
 
-      for (let i = 0; i < polygon.length; i++) {
-        const vertexLat_i = polygon[i].lat;
-        const vertexLng_i = polygon[i].lng;
-        const vertexLat_j = polygon[j].lat;
-        const vertexLng_j = polygon[j].lng;
-
-        // Ray casting: trace une ligne horizontale vers la droite depuis le point
-        // et compte combien de fois elle croise les arêtes du polygone
-        if (((vertexLng_i > pointLng) !== (vertexLng_j > pointLng)) &&
-            (pointLat < (vertexLat_j - vertexLat_i) * (pointLng - vertexLng_i) / (vertexLng_j - vertexLng_i) + vertexLat_i)) {
+        // Vérifier si le rayon horizontal depuis le point croise cette arête
+        if (((yi > pointLng) !== (yj > pointLng)) &&
+            (pointLat < (xj - xi) * (pointLng - yi) / (yj - yi) + xi)) {
           inside = !inside;
+          intersections++;
         }
-        j = i;
       }
+      
+      // Log pour débugger les premiers tests
+      if (intersections > 0) {
+        console.log(`Ray casting: point(${pointLat.toFixed(6)}, ${pointLng.toFixed(6)}) -> ${intersections} intersections -> ${inside ? 'DANS' : 'HORS'}`);
+      }
+      
       return inside;
     }
 

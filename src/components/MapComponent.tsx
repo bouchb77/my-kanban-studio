@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useMemo } from 'react';
+import { Loader } from '@googlemaps/js-api-loader';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Company {
   id: string;
@@ -23,116 +25,184 @@ interface MapComponentProps {
 const MapComponent: React.FC<MapComponentProps> = ({ companies }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
-
-  // Optimiser les données des entreprises avec useMemo pour limiter à 1000 pour de meilleures performances
-  const optimizedCompanies = useMemo(() => {
-    return companies.slice(0, 1000); // Limiter à 1000 entreprises pour éviter les ralentissements
-  }, [companies]);
+  const markersRef = useRef<any[]>([]);
+  const markerClustererRef = useRef<any>(null);
 
   useEffect(() => {
-    const initMap = async () => {
+    const initGoogleMap = async () => {
       try {
-        // Import dynamique de Leaflet seulement
-        const L = await import('leaflet');
-        await import('leaflet/dist/leaflet.css');
-
         if (!mapRef.current) return;
 
-        // Fix pour les icônes
-        delete (L.Icon.Default.prototype as any)._getIconUrl;
-        L.Icon.Default.mergeOptions({
-          iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-          iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-          shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+        // Récupérer la clé API Google Maps depuis les secrets via edge function si nécessaire
+        // Pour l'instant, utiliser directement la clé stockée
+        const googleMapsApiKey = process.env.NODE_ENV === 'development' 
+          ? 'AIzaSyBpKK9_mCN8V8vhcLHbN0iKx-0aUK4-uCc' 
+          : 'YOUR_PRODUCTION_KEY'; // Remplacer par votre vraie clé
+        
+        const loader = new Loader({
+          apiKey: googleMapsApiKey,
+          version: 'weekly',
+          libraries: ['maps']
         });
 
-        // Supprimer la carte existante si elle existe
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.remove();
-          mapInstanceRef.current = null;
-        }
+        await loader.load();
 
-        // Créer la carte avec des options de performance
-        const map = L.map(mapRef.current, {
-          preferCanvas: true, // Utilise Canvas pour de meilleures performances
-        }).setView([46.603354, 1.888334], 6);
+        // Créer la carte Google Maps avec les marqueurs classiques
+        const map = new (window as any).google.maps.Map(mapRef.current, {
+          center: { lat: 46.603354, lng: 1.888334 },
+          zoom: 6,
+          gestureHandling: 'cooperative',
+          zoomControl: true,
+          mapTypeControl: false,
+          scaleControl: true,
+          streetViewControl: false,
+          rotateControl: false,
+          fullscreenControl: true
+        });
+
         mapInstanceRef.current = map;
 
-        // Ajouter les tuiles OpenStreetMap
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '© OpenStreetMap contributors',
-          maxZoom: 18
-        }).addTo(map);
+        // Nettoyer les marqueurs existants
+        markersRef.current.forEach(marker => {
+          if (marker.setMap) {
+            marker.setMap(null);
+          }
+        });
+        markersRef.current = [];
 
-        // Créer les marqueurs en batch pour de meilleures performances
+        // Créer les marqueurs classiques avec InfoWindows
+        const bounds = new (window as any).google.maps.LatLngBounds();
         const markers: any[] = [];
-        
-        optimizedCompanies.forEach((company) => {
-          const marker = L.marker([company.latitude, company.longitude]);
-          
-          // Créer le contenu du popup avec les statistiques de commandes
+
+        companies.forEach((company) => {
+          const position = { lat: company.latitude, lng: company.longitude };
+          bounds.extend(position);
+
+          // Créer le marqueur classique
+          const marker = new (window as any).google.maps.Marker({
+            position,
+            map,
+            title: company.company_name,
+            animation: (window as any).google.maps.Animation.DROP
+          });
+
+          // Créer le contenu de l'InfoWindow avec les statistiques
           let orderStatsHtml = '';
           if (company.orderStats && company.orderStats.length > 0) {
             orderStatsHtml = `
-              <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee;">
-                <h4 style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">Statistiques des commandes:</h4>
-                ${company.orderStats.slice(0, 3).map(stat => `
-                  <div style="font-size: 11px; margin-bottom: 2px;">
-                    ${stat.year}: ${stat.totalOrders} commande${stat.totalOrders > 1 ? 's' : ''} - ${stat.totalAmount.toLocaleString()} €
-                  </div>
-                `).join('')}
-                ${company.orderStats.length > 3 ? `<div style="font-size: 11px; color: #666;">...et ${company.orderStats.length - 3} autres années</div>` : ''}
+              <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e0e0e0;">
+                <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 8px; color: #1976d2;">📊 Statistiques des commandes</h4>
+                <div style="max-height: 150px; overflow-y: auto;">
+                  ${company.orderStats.slice(0, 5).map(stat => `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f0f0f0;">
+                      <span style="font-weight: 600; color: #333; min-width: 40px;">${stat.year}</span>
+                      <span style="color: #666; font-size: 12px; text-align: center; flex: 1;">${stat.totalOrders} cmd${stat.totalOrders > 1 ? 's' : ''}</span>
+                      <span style="font-weight: 600; color: #1976d2; text-align: right; min-width: 80px;">${stat.totalAmount.toLocaleString()} €</span>
+                    </div>
+                  `).join('')}
+                  ${company.orderStats.length > 5 ? `
+                    <div style="text-align: center; padding: 8px; color: #666; font-style: italic; font-size: 12px;">
+                      ...et ${company.orderStats.length - 5} autres années
+                    </div>
+                  ` : ''}
+                </div>
               </div>
             `;
           }
-          
-          const popupContent = `
-            <div style="padding: 8px; min-width: 200px;">
-              <h3 style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">${company.company_name}</h3>
-              <p style="font-size: 12px; color: #666; margin-bottom: 4px;">SIPI: ${company.sipi_number}</p>
-              ${company.address1 ? `<p style="font-size: 12px; margin-bottom: 4px;">${company.address1}</p>` : ''}
-              ${company.city ? `<p style="font-size: 12px; margin-bottom: 4px;">${company.city}${company.general_department ? ` (${company.general_department})` : ''}</p>` : ''}
+
+          const infoWindowContent = `
+            <div style="padding: 16px; max-width: 350px; font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.4;">
+              <h3 style="font-size: 18px; font-weight: 600; margin: 0 0 12px 0; color: #1976d2; border-bottom: 2px solid #e3f2fd; padding-bottom: 8px;">
+                ${company.company_name}
+              </h3>
+              <div style="margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                  <span style="font-weight: 500; color: #666; margin-right: 8px;">🏢 SIPI:</span>
+                  <span style="background: #e3f2fd; color: #1976d2; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 600;">
+                    ${company.sipi_number}
+                  </span>
+                </div>
+                ${company.address1 ? `
+                  <div style="color: #666; font-size: 14px; margin-bottom: 4px; display: flex; align-items: center;">
+                    <span style="margin-right: 6px;">📍</span>
+                    <span>${company.address1}</span>
+                  </div>
+                ` : ''}
+                ${company.city ? `
+                  <div style="color: #666; font-size: 14px; display: flex; align-items: center;">
+                    <span style="margin-right: 6px;">🏙️</span>
+                    <span>${company.city}${company.general_department ? ` (${company.general_department})` : ''}</span>
+                  </div>
+                ` : ''}
+              </div>
               ${orderStatsHtml}
             </div>
           `;
-          
-          marker.bindPopup(popupContent);
-          marker.addTo(map);
+
+          const infoWindow = new (window as any).google.maps.InfoWindow({
+            content: infoWindowContent,
+            maxWidth: 400
+          });
+
+          // Ajouter l'événement de clic pour afficher l'InfoWindow
+          marker.addListener('click', () => {
+            // Fermer toutes les autres InfoWindows
+            markersRef.current.forEach(m => {
+              if ((m as any).infoWindow) {
+                (m as any).infoWindow.close();
+              }
+            });
+            
+            infoWindow.open(map, marker);
+          });
+
+          // Stocker l'InfoWindow avec le marqueur
+          (marker as any).infoWindow = infoWindow;
           markers.push(marker);
         });
 
+        markersRef.current = markers;
+
         // Ajuster la vue pour inclure tous les marqueurs
-        if (markers.length > 0) {
-          const group = L.featureGroup(markers);
-          map.fitBounds(group.getBounds().pad(0.1));
+        if (companies.length > 0) {
+          map.fitBounds(bounds);
+          
+          // Éviter de trop zoomer si il n'y a qu'une entreprise
+          const listener = (window as any).google.maps.event.addListener(map, 'idle', () => {
+            if (map.getZoom() > 15) map.setZoom(15);
+            (window as any).google.maps.event.removeListener(listener);
+          });
         }
 
       } catch (error) {
-        console.error('Erreur lors du chargement de la carte:', error);
+        console.error('Erreur lors du chargement de Google Maps:', error);
       }
     };
 
-    initMap();
+    initGoogleMap();
 
     // Cleanup lors du démontage
     return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
+      markersRef.current.forEach(marker => {
+        if (marker.setMap) {
+          marker.setMap(null);
+        }
+      });
+      markersRef.current = [];
+      mapInstanceRef.current = null;
     };
-  }, [optimizedCompanies]); // Dépendance sur optimizedCompanies pour re-rendre quand elles changent
+  }, [companies]);
 
   return (
     <div className="space-y-2">
       {companies.length > 1000 && (
         <div className="text-sm text-muted-foreground text-center p-2 bg-muted/30 rounded-lg">
-          Affichage de 1000 entreprises sur {companies.length} pour optimiser les performances
+          Affichage de {companies.length} entreprises avec Google Maps
         </div>
       )}
       <div 
         ref={mapRef} 
-        className="h-[500px] w-3/4 mx-auto rounded-lg border"
+        className="h-[500px] w-3/4 mx-auto rounded-lg border shadow-lg"
         style={{ minHeight: '500px' }}
       />
     </div>

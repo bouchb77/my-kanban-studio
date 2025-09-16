@@ -21,30 +21,9 @@ const CompaniesMap = () => {
   const map = useRef<mapboxgl.Map | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
-  const [mapboxToken, setMapboxToken] = useState<string>('');
 
-  // Fetch Mapbox token from edge function
-  useEffect(() => {
-    const fetchMapboxToken = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke('get-mapbox-token');
-        
-        if (error) {
-          console.error('Error fetching Mapbox token:', error);
-          // Fallback to a demo token for development
-          setMapboxToken('pk.eyJ1IjoibG92YWJsZSIsImEiOiJjbHNxNzJtdGEwMDFjMmtwaDdqenVxMDBrIn0.demo');
-        } else {
-          setMapboxToken(data.token);
-        }
-      } catch (error) {
-        console.error('Error:', error);
-        // Use demo token as fallback
-        setMapboxToken('pk.eyJ1IjoidGVzdCIsImEiOiJ0ZXN0In0.demo');
-      }
-    };
-
-    fetchMapboxToken();
-  }, []);
+  // Use a public demo token for now
+  const MAPBOX_TOKEN = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw';
 
   // Fetch companies with GPS coordinates
   useEffect(() => {
@@ -74,9 +53,9 @@ const CompaniesMap = () => {
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || !mapboxToken || map.current) return;
+    if (!mapContainer.current || !MAPBOX_TOKEN || map.current) return;
 
-    mapboxgl.accessToken = mapboxToken;
+    mapboxgl.accessToken = MAPBOX_TOKEN;
     
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
@@ -100,7 +79,7 @@ const CompaniesMap = () => {
     return () => {
       map.current?.remove();
     };
-  }, [mapboxToken]);
+  }, [MAPBOX_TOKEN]);
 
   // Add company markers
   useEffect(() => {

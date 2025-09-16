@@ -30,7 +30,7 @@ serve(async (req) => {
     console.log(`Calculating isochrone for coordinates: ${lat}, ${lng}, time: ${time} minutes, profile: ${profile}`);
 
     // Call OpenRouteService Isochrone API
-    const response = await fetch('https://api.openrouteservice.org/v2/isochrones/driving-car', {
+    const response = await fetch(`https://api.openrouteservice.org/v2/isochrones/${profile}`, {
       method: 'POST',
       headers: {
         'Authorization': openRouteServiceKey,

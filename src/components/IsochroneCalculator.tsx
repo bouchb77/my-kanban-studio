@@ -125,23 +125,37 @@ const IsochroneCalculator = () => {
     return points;
   };
 
-  // Helper function to check if a point is within a polygon using ray casting algorithm
+  // Helper function to check if a point is within a polygon using improved ray casting algorithm
   const isPointInPolygon = (pointLat: number, pointLng: number, polygon: IsochronePoint[]): boolean => {
+    if (polygon.length < 3) return false;
+
     let inside = false;
-    
-    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-      const lat1 = polygon[i].lat;
-      const lng1 = polygon[i].lng;
-      const lat2 = polygon[j].lat;
-      const lng2 = polygon[j].lng;
-      
-      // Ray casting algorithm: cast a ray from the test point to the right
-      if (((lng1 > pointLng) !== (lng2 > pointLng)) && 
-          (pointLat < (lat2 - lat1) * (pointLng - lng1) / (lng2 - lng1) + lat1)) {
+    let j = polygon.length - 1;
+
+    for (let i = 0; i < polygon.length; i++) {
+      const xi = polygon[i].lat;
+      const yi = polygon[i].lng;
+      const xj = polygon[j].lat;
+      const yj = polygon[j].lng;
+
+      // Vérifier si le point de test est sur une arête (cas limite)
+      if (Math.abs((yj - yi) * (pointLat - xi) - (xj - xi) * (pointLng - yi)) < 1e-10) {
+        // Point sur l'arête, considéré comme à l'intérieur
+        if (Math.min(xi, xj) <= pointLat && pointLat <= Math.max(xi, xj) &&
+            Math.min(yi, yj) <= pointLng && pointLng <= Math.max(yi, yj)) {
+          return true;
+        }
+      }
+
+      // Algorithme ray casting amélioré
+      if (((yi > pointLng) !== (yj > pointLng)) &&
+          (pointLat < (xj - xi) * (pointLng - yi) / (yj - yi) + xi)) {
         inside = !inside;
       }
+      
+      j = i;
     }
-    
+
     console.log(`Point (${pointLat}, ${pointLng}): ${inside ? 'DANS' : 'HORS'} isochrone`);
     return inside;
   };

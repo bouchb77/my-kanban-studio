@@ -100,29 +100,47 @@ const IsochroneMap: React.FC<IsochroneMapProps> = ({
       }
     }
 
-    // Ajouter les marqueurs pour les entreprises - Montrer TOUTES les entreprises avec distinction visuelle
+    // Ajouter les marqueurs pour les entreprises - Utiliser algorithme plus robuste
     companies.forEach((company) => {
       if (!company.latitude || !company.longitude) return;
 
-      // Utiliser l'algorithme point-in-polygon pour déterminer si dans la zone
-      let inZone = false;
-      if (isochronePolygon.length > 0) {
-        const testLat = company.latitude;
-        const testLng = company.longitude;
-        
-        for (let i = 0, j = isochronePolygon.length - 1; i < isochronePolygon.length; j = i++) {
-          const lat1 = isochronePolygon[i].lat;
-          const lng1 = isochronePolygon[i].lng;
-          const lat2 = isochronePolygon[j].lat;
-          const lng2 = isochronePolygon[j].lng;
-          
-          // Ray casting algorithm: cast a ray from the test point to the right
-          if (((lng1 > testLng) !== (lng2 > testLng)) && 
-              (testLat < (lat2 - lat1) * (testLng - lng1) / (lng2 - lng1) + lat1)) {
-            inZone = !inZone;
+      // Utiliser un algorithme point-in-polygon plus robuste
+      const isPointInPolygon = (testLat: number, testLng: number, polygon: { lat: number; lng: number }[]): boolean => {
+        if (polygon.length < 3) return false;
+
+        let inside = false;
+        let j = polygon.length - 1;
+
+        for (let i = 0; i < polygon.length; i++) {
+          const xi = polygon[i].lat;
+          const yi = polygon[i].lng;
+          const xj = polygon[j].lat;
+          const yj = polygon[j].lng;
+
+          // Vérifier si le point de test est sur une arête (cas limite)
+          if (Math.abs((yj - yi) * (testLat - xi) - (xj - xi) * (testLng - yi)) < 1e-10) {
+            // Point sur l'arête, considéré comme à l'intérieur
+            if (Math.min(xi, xj) <= testLat && testLat <= Math.max(xi, xj) &&
+                Math.min(yi, yj) <= testLng && testLng <= Math.max(yi, yj)) {
+              return true;
+            }
           }
+
+          // Algorithme ray casting amélioré
+          if (((yi > testLng) !== (yj > testLng)) &&
+              (testLat < (xj - xi) * (testLng - yi) / (yj - yi) + xi)) {
+            inside = !inside;
+          }
+          
+          j = i;
         }
-      }
+
+        return inside;
+      };
+
+      const inZone = isochronePolygon.length > 0 ? 
+        isPointInPolygon(company.latitude, company.longitude, isochronePolygon) : 
+        false;
       
       const marker = new google.maps.Marker({
         position: { lat: company.latitude, lng: company.longitude },
@@ -147,6 +165,9 @@ const IsochroneMap: React.FC<IsochroneMapProps> = ({
             <h3 style="margin: 0 0 8px 0; font-weight: bold;">${company.company_name}</h3>
             <p style="margin: 0; font-size: 12px; color: #666;">SIPI: ${company.sipi_number}</p>
             <p style="margin: 4px 0; font-size: 12px; color: #666;">Ville: ${company.city || 'N/A'}</p>
+            <p style="margin: 4px 0; font-size: 12px; color: #666;">
+              Coordonnées: ${company.latitude?.toFixed(6)}, ${company.longitude?.toFixed(6)}
+            </p>
             <p style="margin: 4px 0; font-size: 12px;">
               Période: ${company.year1}-${company.year2}
             </p>

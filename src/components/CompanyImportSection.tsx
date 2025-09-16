@@ -163,6 +163,95 @@ export function CompanyImportSection() {
     return {};
   };
 
+  const geocodeCompaniesInBackground = async () => {
+    console.log('Début de la géolocalisation en arrière-plan');
+    
+    try {
+      // Récupérer les entreprises sans géolocalisation
+      const { data: companiesWithoutGPS, error: fetchError } = await supabase
+        .from('companies')
+        .select('id, sipi_number, company_name, address1, address2, city, general_department')
+        .is('latitude', null);
+
+      if (fetchError) {
+        console.error('Erreur récupération entreprises:', fetchError);
+        return;
+      }
+
+      if (!companiesWithoutGPS || companiesWithoutGPS.length === 0) {
+        console.log('Aucune entreprise à géolocaliser');
+        return;
+      }
+
+      console.log(`Géolocalisation de ${companiesWithoutGPS.length} entreprises`);
+      
+      // Traiter par petits lots pour éviter les timeouts
+      const batchSize = 10;
+      let processed = 0;
+      
+      for (let i = 0; i < companiesWithoutGPS.length; i += batchSize) {
+        const batch = companiesWithoutGPS.slice(i, Math.min(i + batchSize, companiesWithoutGPS.length));
+        
+        for (const company of batch) {
+          try {
+            const gpsData = await geocodeAddress(company);
+            
+            if (gpsData.latitude && gpsData.longitude) {
+              // Mettre à jour l'entreprise avec les coordonnées GPS
+              const { error: updateError } = await supabase
+                .from('companies')
+                .update({
+                  latitude: gpsData.latitude,
+                  longitude: gpsData.longitude,
+                  geocoded_address: gpsData.geocoded_address,
+                  geocoding_date: new Date().toISOString()
+                })
+                .eq('id', company.id);
+
+              if (updateError) {
+                console.error('Erreur mise à jour GPS pour', company.company_name, ':', updateError);
+              } else {
+                console.log('GPS mis à jour pour:', company.company_name);
+              }
+            }
+            
+            processed++;
+            
+            // Délai pour respecter les limites de l'API
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+          } catch (error) {
+            console.error('Erreur géolocalisation pour', company.company_name, ':', error);
+          }
+        }
+        
+        // Notification de progression
+        if (i + batchSize < companiesWithoutGPS.length) {
+          toast({
+            title: "Géolocalisation en cours",
+            description: `${processed}/${companiesWithoutGPS.length} entreprises géolocalisées`,
+          });
+        }
+        
+        // Pause entre les lots
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
+      toast({
+        title: "Géolocalisation terminée",
+        description: `${processed} entreprises géolocalisées avec succès`,
+      });
+      
+    } catch (error) {
+      console.error('Erreur géolocalisation en arrière-plan:', error);
+      toast({
+        title: "Erreur géolocalisation",
+        description: "Impossible de géolocaliser les entreprises",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleImport = async () => {
     console.log('=== DEBUT IMPORT DEBUG ===');
     
@@ -289,9 +378,12 @@ export function CompanyImportSection() {
 
       toast({
         title: "Import réussi",
-        description: `${companies.length} entreprises importées avec succès. Géolocalisation disponible en arrière-plan.`,
+        description: `${companies.length} entreprises importées avec succès. Démarrage de la géolocalisation...`,
       });
       setCompanies([]);
+      
+      // Démarrer la géolocalisation en arrière-plan
+      geocodeCompaniesInBackground();
     } catch (error) {
       console.error('Error importing companies:', error);
       toast({

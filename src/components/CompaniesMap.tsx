@@ -117,6 +117,27 @@ const CompaniesMap = () => {
     return Array.from(years).sort((a, b) => b - a); // Sort descending
   }, [companies]);
 
+  // Get unique responsables BO and formateurs for dropdowns
+  const uniqueResponsablesBO = useMemo(() => {
+    const responsables = new Set<string>();
+    Object.values(departmentManagement).forEach((dept: any) => {
+      if (dept.responsable_bo) {
+        responsables.add(dept.responsable_bo);
+      }
+    });
+    return Array.from(responsables).sort();
+  }, [departmentManagement]);
+
+  const uniqueFormateurs = useMemo(() => {
+    const formateurs = new Set<string>();
+    Object.values(departmentManagement).forEach((dept: any) => {
+      if (dept.formateur) {
+        formateurs.add(dept.formateur);
+      }
+    });
+    return Array.from(formateurs).sort();
+  }, [departmentManagement]);
+
   // Filter companies based on all filters (date filtering is now done server-side)
   const filteredCompanies = useMemo(() => {
     let filtered = companies.filter(company => {
@@ -828,19 +849,77 @@ const CompaniesMap = () => {
                 </div>
                 <div>
                   <label className="text-sm font-medium">Responsable BO</label>
-                  <Input
-                    placeholder="Rechercher par responsable BO..."
-                    value={responsableBOFilter}
-                    onChange={(e) => setResponsableBOFilter(e.target.value)}
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-between">
+                        {responsableBOFilter === '' 
+                          ? "Tous les responsables BO"
+                          : responsableBOFilter
+                        }
+                        <ChevronDown className="h-4 w-4 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-0 bg-background border shadow-xl z-[9999]" align="start">
+                      <div className="p-2 bg-background">
+                        <div className="space-y-1 max-h-48 overflow-y-auto">
+                          <Button
+                            variant={responsableBOFilter === '' ? 'default' : 'ghost'}
+                            className="w-full justify-start text-sm"
+                            onClick={() => setResponsableBOFilter('')}
+                          >
+                            Tous les responsables BO
+                          </Button>
+                          {uniqueResponsablesBO.map((responsable) => (
+                            <Button
+                              key={responsable}
+                              variant={responsableBOFilter === responsable ? 'default' : 'ghost'}
+                              className="w-full justify-start text-sm"
+                              onClick={() => setResponsableBOFilter(responsable)}
+                            >
+                              {responsable}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div>
                   <label className="text-sm font-medium">Formateur</label>
-                  <Input
-                    placeholder="Rechercher par formateur..."
-                    value={formateurFilter}
-                    onChange={(e) => setFormateurFilter(e.target.value)}
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-between">
+                        {formateurFilter === '' 
+                          ? "Tous les formateurs"
+                          : formateurFilter
+                        }
+                        <ChevronDown className="h-4 w-4 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-0 bg-background border shadow-xl z-[9999]" align="start">
+                      <div className="p-2 bg-background">
+                        <div className="space-y-1 max-h-48 overflow-y-auto">
+                          <Button
+                            variant={formateurFilter === '' ? 'default' : 'ghost'}
+                            className="w-full justify-start text-sm"
+                            onClick={() => setFormateurFilter('')}
+                          >
+                            Tous les formateurs
+                          </Button>
+                          {uniqueFormateurs.map((formateur) => (
+                            <Button
+                              key={formateur}
+                              variant={formateurFilter === formateur ? 'default' : 'ghost'}
+                              className="w-full justify-start text-sm"
+                              onClick={() => setFormateurFilter(formateur)}
+                            >
+                              {formateur}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
               {(sipiFilter || cityFilter || companyNameFilter || minAverageFilter || maxAverageFilter || formationFilter || responsableBOFilter || formateurFilter) && (

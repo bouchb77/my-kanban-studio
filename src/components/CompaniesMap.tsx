@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { MapPin, Building2, Filter, ChevronDown, Globe } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { MapPin, Building2, Filter, ChevronDown, Globe, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const MapComponent = React.lazy(() => import('./MapComponent'));
@@ -20,6 +21,7 @@ interface Company {
   city?: string;
   general_department?: string;
   orderStats?: CompanyOrderStats[];
+  averageOrderPerYear?: number;
 }
 
 interface CompanyOrderStats {
@@ -36,6 +38,14 @@ const CompaniesMap = () => {
   const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
   const [totalCompanies, setTotalCompanies] = useState(0);
   const [geocoding, setGeocoding] = useState(false);
+  
+  // Filtres
+  const [sipiFilter, setSipiFilter] = useState('');
+  const [cityFilter, setCityFilter] = useState('');
+  const [companyNameFilter, setCompanyNameFilter] = useState('');
+  const [minAverageFilter, setMinAverageFilter] = useState('');
+  const [maxAverageFilter, setMaxAverageFilter] = useState('');
+  
   const { toast } = useToast();
 
   // Get unique departments for filter
@@ -47,15 +57,56 @@ const CompaniesMap = () => {
     return uniqueDepartments;
   }, [companies]);
 
-  // Filter companies based on selected departments
+  // Get all unique years from order statistics
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    companies.forEach(company => {
+      if (company.orderStats) {
+        company.orderStats.forEach(stat => years.add(stat.year));
+      }
+    });
+    return Array.from(years).sort((a, b) => b - a); // Sort descending
+  }, [companies]);
+
+  // Filter companies based on all filters
   const filteredCompanies = useMemo(() => {
-    if (selectedDepartments.length === 0) {
-      return companies;
-    }
-    return companies.filter(company => 
-      company.general_department && selectedDepartments.includes(company.general_department)
-    );
-  }, [companies, selectedDepartments]);
+    return companies.filter(company => {
+      // Department filter
+      if (selectedDepartments.length > 0) {
+        if (!company.general_department || !selectedDepartments.includes(company.general_department)) {
+          return false;
+        }
+      }
+      
+      // SIPI filter
+      if (sipiFilter && !company.sipi_number.toLowerCase().includes(sipiFilter.toLowerCase())) {
+        return false;
+      }
+      
+      // City filter
+      if (cityFilter && (!company.city || !company.city.toLowerCase().includes(cityFilter.toLowerCase()))) {
+        return false;
+      }
+      
+      // Company name filter
+      if (companyNameFilter && !company.company_name.toLowerCase().includes(companyNameFilter.toLowerCase())) {
+        return false;
+      }
+      
+      // Average filter
+      if (minAverageFilter || maxAverageFilter) {
+        const average = company.averageOrderPerYear || 0;
+        const min = minAverageFilter ? parseFloat(minAverageFilter) : 0;
+        const max = maxAverageFilter ? parseFloat(maxAverageFilter) : Infinity;
+        
+        if (average < min || average > max) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+  }, [companies, selectedDepartments, sipiFilter, cityFilter, companyNameFilter, minAverageFilter, maxAverageFilter]);
 
   const handleDepartmentToggle = (department: string) => {
     setSelectedDepartments(prev => 
@@ -210,6 +261,8 @@ const CompaniesMap = () => {
       const companiesWithStats: Company[] = allCompanies.map(company => {
         const companyOrderStats = orderStatsByCompany.get(company.sipi_number);
         const orderStats: CompanyOrderStats[] = [];
+        let totalAmount = 0;
+        let totalYears = 0;
         
         if (companyOrderStats) {
           companyOrderStats.forEach((stats, year) => {
@@ -218,14 +271,20 @@ const CompaniesMap = () => {
               totalOrders: stats.totalOrders,
               totalAmount: stats.totalAmount
             });
+            totalAmount += stats.totalAmount;
+            totalYears++;
           });
           // Sort by year descending
           orderStats.sort((a, b) => b.year - a.year);
         }
         
+        // Calculate average order amount per year
+        const averageOrderPerYear = totalYears > 0 ? totalAmount / totalYears : 0;
+        
         return {
           ...company,
-          orderStats
+          orderStats,
+          averageOrderPerYear
         };
       });
 
@@ -398,48 +457,140 @@ const CompaniesMap = () => {
               </div>
             </div>
 
+            {/* Filtres */}
+            <div className="bg-muted/30 p-4 rounded-lg space-y-4">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Search className="w-5 h-5" />
+                Filtres
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Numéro SIPI</label>
+                  <Input
+                    placeholder="Rechercher par SIPI..."
+                    value={sipiFilter}
+                    onChange={(e) => setSipiFilter(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Ville</label>
+                  <Input
+                    placeholder="Rechercher par ville..."
+                    value={cityFilter}
+                    onChange={(e) => setCityFilter(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Nom de l'entreprise</label>
+                  <Input
+                    placeholder="Rechercher par nom..."
+                    value={companyNameFilter}
+                    onChange={(e) => setCompanyNameFilter(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Moyenne min (€)</label>
+                  <Input
+                    type="number"
+                    placeholder="0"
+                    value={minAverageFilter}
+                    onChange={(e) => setMinAverageFilter(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Moyenne max (€)</label>
+                  <Input
+                    type="number"
+                    placeholder="1000000"
+                    value={maxAverageFilter}
+                    onChange={(e) => setMaxAverageFilter(e.target.value)}
+                  />
+                </div>
+              </div>
+              {(sipiFilter || cityFilter || companyNameFilter || minAverageFilter || maxAverageFilter) && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => {
+                    setSipiFilter('');
+                    setCityFilter('');
+                    setCompanyNameFilter('');
+                    setMinAverageFilter('');
+                    setMaxAverageFilter('');
+                  }}
+                  className="w-full mt-2"
+                >
+                  Effacer tous les filtres
+                </Button>
+              )}
+            </div>
+
             {/* Tableau des entreprises */}
             <div>
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Building2 className="w-5 h-5" />
                 Liste des entreprises ({filteredCompanies.length})
               </h3>
-              <div className="border rounded-lg overflow-hidden">
+              <div className="border rounded-lg overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Nom de l'entreprise</TableHead>
-                      <TableHead>Numéro SIPI</TableHead>
-                      <TableHead>Ville</TableHead>
-                      <TableHead>Département</TableHead>
-                      <TableHead>Statistiques Commandes</TableHead>
+                      <TableHead className="min-w-[200px]">Nom de l'entreprise</TableHead>
+                      <TableHead className="min-w-[120px]">Numéro SIPI</TableHead>
+                      <TableHead className="min-w-[100px]">Ville</TableHead>
+                      <TableHead className="min-w-[100px]">Département</TableHead>
+                      <TableHead className="min-w-[120px]">Moyenne/an (€)</TableHead>
+                      {availableYears.map(year => (
+                        <TableHead key={year} className="min-w-[150px] text-center">
+                          {year}
+                          <div className="text-xs text-muted-foreground font-normal">
+                            Commandes / Montant
+                          </div>
+                        </TableHead>
+                      ))}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredCompanies.map((company) => (
-                      <TableRow key={company.id}>
-                        <TableCell className="font-medium">{company.company_name}</TableCell>
-                        <TableCell>{company.sipi_number}</TableCell>
-                        <TableCell>{company.city || "-"}</TableCell>
-                        <TableCell>{company.general_department || "-"}</TableCell>
-                        <TableCell>
-                          {company.orderStats && company.orderStats.length > 0 ? (
-                            <div className="space-y-1">
-                              {company.orderStats.map((stat) => (
-                                <div key={stat.year} className="text-sm">
-                                  <div className="font-medium">{stat.year}</div>
-                                  <div className="text-muted-foreground">
-                                    {stat.totalOrders} commande{stat.totalOrders > 1 ? 's' : ''} - {stat.totalAmount.toLocaleString()} €
+                    {filteredCompanies.map((company) => {
+                      // Create a map for quick lookup of year data
+                      const yearDataMap = new Map(
+                        company.orderStats?.map(stat => [stat.year, stat]) || []
+                      );
+                      
+                      return (
+                        <TableRow key={company.id}>
+                          <TableCell className="font-medium">{company.company_name}</TableCell>
+                          <TableCell>{company.sipi_number}</TableCell>
+                          <TableCell>{company.city || "-"}</TableCell>
+                          <TableCell>{company.general_department || "-"}</TableCell>
+                          <TableCell className="font-medium">
+                            {company.averageOrderPerYear ? 
+                              `${Math.round(company.averageOrderPerYear).toLocaleString()} €` : 
+                              "-"
+                            }
+                          </TableCell>
+                          {availableYears.map(year => {
+                            const yearData = yearDataMap.get(year);
+                            return (
+                              <TableCell key={year} className="text-center">
+                                {yearData ? (
+                                  <div className="space-y-1">
+                                    <div className="font-medium text-primary">
+                                      {yearData.totalOrders}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                      {yearData.totalAmount.toLocaleString()} €
+                                    </div>
                                   </div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">Aucune commande</span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>

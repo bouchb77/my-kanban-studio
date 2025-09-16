@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
-import { MapPin, Building2, Filter, ChevronDown, Globe, Search, CalendarIcon } from "lucide-react";
+import { MapPin, Building2, Filter, ChevronDown, Globe, Search, CalendarIcon, ChevronUp, ArrowUpDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -52,6 +52,10 @@ const CompaniesMap = () => {
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
   
+  // Sort state
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  
   const { toast } = useToast();
 
   // Get unique departments for filter
@@ -76,7 +80,7 @@ const CompaniesMap = () => {
 
   // Filter companies based on all filters
   const filteredCompanies = useMemo(() => {
-    return companies.filter(company => {
+    let filtered = companies.filter(company => {
       // Department filter
       if (selectedDepartments.length > 0) {
         if (!company.general_department || !selectedDepartments.includes(company.general_department)) {
@@ -112,7 +116,77 @@ const CompaniesMap = () => {
       
       return true;
     });
-  }, [companies, selectedDepartments, sipiFilter, cityFilter, companyNameFilter, minAverageFilter, maxAverageFilter]);
+
+    // Apply sorting
+    if (sortColumn) {
+      filtered = [...filtered].sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
+        
+        switch (sortColumn) {
+          case 'company_name':
+            aValue = a.company_name.toLowerCase();
+            bValue = b.company_name.toLowerCase();
+            break;
+          case 'sipi_number':
+            aValue = a.sipi_number;
+            bValue = b.sipi_number;
+            break;
+          case 'city':
+            aValue = (a.city || '').toLowerCase();
+            bValue = (b.city || '').toLowerCase();
+            break;
+          case 'general_department':
+            aValue = (a.general_department || '').toLowerCase();
+            bValue = (b.general_department || '').toLowerCase();
+            break;
+          case 'averageOrderPerYear':
+            aValue = a.averageOrderPerYear || 0;
+            bValue = b.averageOrderPerYear || 0;
+            break;
+          default:
+            // For year columns (format: "year_YYYY")
+            if (sortColumn.startsWith('year_')) {
+              const year = parseInt(sortColumn.replace('year_', ''));
+              const aData = a.orderStats?.find(stat => stat.year === year);
+              const bData = b.orderStats?.find(stat => stat.year === year);
+              aValue = aData?.totalAmount || 0;
+              bValue = bData?.totalAmount || 0;
+            } else {
+              return 0;
+            }
+        }
+        
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          const comparison = aValue.localeCompare(bValue);
+          return sortDirection === 'asc' ? comparison : -comparison;
+        } else {
+          const comparison = aValue - bValue;
+          return sortDirection === 'asc' ? comparison : -comparison;
+        }
+      });
+    }
+
+    return filtered;
+  }, [companies, selectedDepartments, sipiFilter, cityFilter, companyNameFilter, minAverageFilter, maxAverageFilter, sortColumn, sortDirection]);
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (column: string) => {
+    if (sortColumn !== column) {
+      return <ArrowUpDown className="w-4 h-4 opacity-50" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ChevronUp className="w-4 h-4" />
+      : <ChevronDown className="w-4 h-4" />;
+  };
 
   const handleDepartmentToggle = (department: string) => {
     setSelectedDepartments(prev => 
@@ -630,16 +704,65 @@ const CompaniesMap = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="min-w-[200px]">Nom de l'entreprise</TableHead>
-                      <TableHead className="min-w-[120px]">Numéro SIPI</TableHead>
-                      <TableHead className="min-w-[100px]">Ville</TableHead>
-                      <TableHead className="min-w-[100px]">Département</TableHead>
-                      <TableHead className="min-w-[120px]">Moyenne/an (€)</TableHead>
+                      <TableHead 
+                        className="min-w-[200px] cursor-pointer hover:bg-muted/50 select-none"
+                        onClick={() => handleSort('company_name')}
+                      >
+                        <div className="flex items-center gap-2">
+                          Nom de l'entreprise
+                          {getSortIcon('company_name')}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="min-w-[120px] cursor-pointer hover:bg-muted/50 select-none"
+                        onClick={() => handleSort('sipi_number')}
+                      >
+                        <div className="flex items-center gap-2">
+                          Numéro SIPI
+                          {getSortIcon('sipi_number')}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="min-w-[100px] cursor-pointer hover:bg-muted/50 select-none"
+                        onClick={() => handleSort('city')}
+                      >
+                        <div className="flex items-center gap-2">
+                          Ville
+                          {getSortIcon('city')}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="min-w-[100px] cursor-pointer hover:bg-muted/50 select-none"
+                        onClick={() => handleSort('general_department')}
+                      >
+                        <div className="flex items-center gap-2">
+                          Département
+                          {getSortIcon('general_department')}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="min-w-[120px] cursor-pointer hover:bg-muted/50 select-none"
+                        onClick={() => handleSort('averageOrderPerYear')}
+                      >
+                        <div className="flex items-center gap-2">
+                          Moyenne/an (€)
+                          {getSortIcon('averageOrderPerYear')}
+                        </div>
+                      </TableHead>
                       {availableYears.map(year => (
-                        <TableHead key={year} className="min-w-[150px] text-center">
-                          {year}
-                          <div className="text-xs text-muted-foreground font-normal">
-                            Commandes / Montant
+                        <TableHead 
+                          key={year} 
+                          className="min-w-[150px] text-center cursor-pointer hover:bg-muted/50 select-none"
+                          onClick={() => handleSort(`year_${year}`)}
+                        >
+                          <div className="flex items-center justify-center gap-2">
+                            <div>
+                              {year}
+                              <div className="text-xs text-muted-foreground font-normal">
+                                Commandes / Montant
+                              </div>
+                            </div>
+                            {getSortIcon(`year_${year}`)}
                           </div>
                         </TableHead>
                       ))}

@@ -100,47 +100,36 @@ const IsochroneMap: React.FC<IsochroneMapProps> = ({
       }
     }
 
-    // Ajouter les marqueurs pour les entreprises - Utiliser algorithme plus robuste
+    // Ajouter les marqueurs pour les entreprises - Utiliser Google Maps geometry
     companies.forEach((company) => {
       if (!company.latitude || !company.longitude) return;
 
-      // Utiliser un algorithme point-in-polygon plus robuste
-      const isPointInPolygon = (testLat: number, testLng: number, polygon: { lat: number; lng: number }[]): boolean => {
-        if (polygon.length < 3) return false;
+      // Utiliser l'API de géométrie native de Google Maps
+      let inZone = false;
+      
+      if (isochronePolygon.length > 0 && window.google?.maps?.geometry) {
+        try {
+          // Créer un polygone Google Maps pour la détection précise
+          const polygon = new google.maps.Polygon({
+            paths: isochronePolygon
+          });
 
-        let inside = false;
-        let j = polygon.length - 1;
-
-        for (let i = 0; i < polygon.length; i++) {
-          const xi = polygon[i].lat;
-          const yi = polygon[i].lng;
-          const xj = polygon[j].lat;
-          const yj = polygon[j].lng;
-
-          // Vérifier si le point de test est sur une arête (cas limite)
-          if (Math.abs((yj - yi) * (testLat - xi) - (xj - xi) * (testLng - yi)) < 1e-10) {
-            // Point sur l'arête, considéré comme à l'intérieur
-            if (Math.min(xi, xj) <= testLat && testLat <= Math.max(xi, xj) &&
-                Math.min(yi, yj) <= testLng && testLng <= Math.max(yi, yj)) {
-              return true;
-            }
+          // Utiliser l'API geometry native de Google Maps
+          const testPoint = new google.maps.LatLng(company.latitude, company.longitude);
+          inZone = google.maps.geometry.poly.containsLocation(testPoint, polygon);
+        } catch (error) {
+          console.error('Erreur détection géométrie:', error);
+          // Fallback sur calcul de distance
+          if (centerLocation) {
+            const distance = google.maps.geometry.spherical.computeDistanceBetween(
+              new google.maps.LatLng(company.latitude, company.longitude),
+              new google.maps.LatLng(centerLocation.lat, centerLocation.lng)
+            );
+            // Approximation: considérer dans la zone si distance < 50km (peut être ajusté)
+            inZone = distance < 50000; // 50km en mètres
           }
-
-          // Algorithme ray casting amélioré
-          if (((yi > testLng) !== (yj > testLng)) &&
-              (testLat < (xj - xi) * (testLng - yi) / (yj - yi) + xi)) {
-            inside = !inside;
-          }
-          
-          j = i;
         }
-
-        return inside;
-      };
-
-      const inZone = isochronePolygon.length > 0 ? 
-        isPointInPolygon(company.latitude, company.longitude, isochronePolygon) : 
-        false;
+      }
       
       const marker = new google.maps.Marker({
         position: { lat: company.latitude, lng: company.longitude },

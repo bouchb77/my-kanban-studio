@@ -82,13 +82,37 @@ const IsochroneCalculator = () => {
       const isochroneData = isochroneResponse.data;
       setIsochronePolygon(isochroneData.polygon);
 
-      // 4. Filtrer les entreprises dans la zone en utilisant la géométrie exacte
-      const companiesInZone = companyStats.filter(company => {
-        if (!company.latitude || !company.longitude) return false;
-        return isPointInPolygon(company.latitude, company.longitude, isochroneData.polygon);
-      });
+      // 4. Filtrer les entreprises dans la zone en utilisant la géométrie native de Google Maps
+      if (window.google?.maps?.geometry) {
+        // Utiliser l'API de géométrie native de Google Maps
+        const companiesInZone = companyStats.filter(company => {
+          if (!company.latitude || !company.longitude) return false;
+          
+          try {
+            // Créer un polygone Google Maps pour la détection précise
+            const polygon = new google.maps.Polygon({
+              paths: isochroneData.polygon
+            });
 
-      setCompaniesInZone(companiesInZone);
+            // Utiliser l'API geometry native de Google Maps
+            const testPoint = new google.maps.LatLng(company.latitude, company.longitude);
+            return google.maps.geometry.poly.containsLocation(testPoint, polygon);
+          } catch (error) {
+            console.error('Erreur détection géométrie pour', company.company_name, error);
+            return false;
+          }
+        });
+        
+        setCompaniesInZone(companiesInZone);
+      } else {
+        // Fallback sur l'ancien algorithme si Google Maps geometry n'est pas disponible
+        const companiesInZone = companyStats.filter(company => {
+          if (!company.latitude || !company.longitude) return false;
+          return isPointInPolygon(company.latitude, company.longitude, isochroneData.polygon);
+        });
+        
+        setCompaniesInZone(companiesInZone);
+      }
 
       toast({
         title: "Calcul terminé",

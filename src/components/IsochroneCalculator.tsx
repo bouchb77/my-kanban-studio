@@ -232,22 +232,32 @@ const IsochroneCalculator = () => {
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet('Entreprises Zone Isochrone');
 
-      // En-têtes avec informations de contact
+      // Définir les en-têtes manuellement
+      const headers = [
+        'SIPI', 'Nom Entreprise', 'Contact', 'E-mail', 'Téléphone', 
+        'Ville', 'Département', 'Année 1', 'Montant Année 1', 
+        'Année 2', 'Montant Année 2', 'Montant Maximum', 'Latitude', 'Longitude'
+      ];
+      
+      // Ajouter la ligne d'en-têtes
+      worksheet.addRow(headers);
+      
+      // Définir la largeur des colonnes
       worksheet.columns = [
-        { header: 'SIPI', key: 'sipi_number', width: 15 },
-        { header: 'Nom Entreprise', key: 'company_name', width: 30 },
-        { header: 'Contact', key: 'contact_name', width: 25 },
-        { header: 'E-mail', key: 'email', width: 30 },
-        { header: 'Téléphone', key: 'phone', width: 20 },
-        { header: 'Ville', key: 'city', width: 20 },
-        { header: 'Département', key: 'general_department', width: 15 },
-        { header: 'Année 1', key: 'year1', width: 10 },
-        { header: 'Montant Année 1', key: 'amount1', width: 15 },
-        { header: 'Année 2', key: 'year2', width: 10 },
-        { header: 'Montant Année 2', key: 'amount2', width: 15 },
-        { header: 'Montant Maximum', key: 'maxAmount', width: 15 },
-        { header: 'Latitude', key: 'latitude', width: 12 },
-        { header: 'Longitude', key: 'longitude', width: 12 }
+        { width: 15 }, // SIPI
+        { width: 30 }, // Nom Entreprise
+        { width: 25 }, // Contact
+        { width: 30 }, // E-mail
+        { width: 20 }, // Téléphone
+        { width: 20 }, // Ville
+        { width: 15 }, // Département
+        { width: 10 }, // Année 1
+        { width: 15 }, // Montant Année 1
+        { width: 10 }, // Année 2
+        { width: 15 }, // Montant Année 2
+        { width: 15 }, // Montant Maximum
+        { width: 12 }, // Latitude
+        { width: 12 }  // Longitude
       ];
 
       // Données avec informations de contact
@@ -255,22 +265,22 @@ const IsochroneCalculator = () => {
         const contact = contactsMap.get(company.sipi_number);
         console.log(`Contact pour ${company.sipi_number}:`, contact);
         
-        const rowData = {
-          sipi_number: company.sipi_number,
-          company_name: company.company_name,
-          contact_name: contact?.contact_name || 'Non renseigné',
-          email: contact?.email || 'Non renseigné',
-          phone: contact?.phone || 'Non renseigné',
-          city: company.city,
-          general_department: company.general_department,
-          year1: company.year1,
-          amount1: company.amount1,
-          year2: company.year2,
-          amount2: company.amount2,
-          maxAmount: company.maxAmount,
-          latitude: company.latitude,
-          longitude: company.longitude
-        };
+        const rowData = [
+          company.sipi_number,
+          company.company_name,
+          contact?.contact_name || 'Non renseigné',
+          contact?.email || 'Non renseigné',
+          contact?.phone || 'Non renseigné',
+          company.city || 'Non renseigné',
+          company.general_department || 'Non renseigné',
+          company.year1,
+          company.amount1,
+          company.year2,
+          company.amount2,
+          company.maxAmount,
+          company.latitude,
+          company.longitude
+        ];
         
         console.log('Ajout ligne:', rowData);
         worksheet.addRow(rowData);

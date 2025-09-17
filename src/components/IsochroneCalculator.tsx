@@ -210,16 +210,33 @@ const IsochroneCalculator = () => {
       console.log('=== DÉBUT EXPORT EXCEL ===');
       console.log('Entreprises dans la zone:', companiesInZone.length);
       
-      // Récupérer TOUS les contacts de la base
-      const { data: allContacts, error: contactsError } = await supabase
-        .from('contacts')
-        .select('sipi_number, contact_name, email, phone');
+      // Récupérer TOUS les contacts avec pagination pour gérer la limite de 1000
+      let allContacts: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (contactsError) {
-        console.error('Erreur récupération contacts:', contactsError);
+      while (hasMore) {
+        const { data: contacts, error: contactsError } = await supabase
+          .from('contacts')
+          .select('sipi_number, contact_name, email, phone')
+          .range(from, from + pageSize - 1);
+
+        if (contactsError) {
+          console.error('Erreur récupération contacts:', contactsError);
+          break;
+        }
+
+        if (contacts && contacts.length > 0) {
+          allContacts = [...allContacts, ...contacts];
+          from += pageSize;
+          hasMore = contacts.length === pageSize; // Continue si on a récupéré une page complète
+        } else {
+          hasMore = false;
+        }
       }
       
-      console.log('Tous les contacts récupérés:', allContacts?.length || 0);
+      console.log('Tous les contacts récupérés avec pagination:', allContacts.length);
       
       // Créer le workbook Excel
       const workbook = new ExcelJS.Workbook();
@@ -260,11 +277,9 @@ const IsochroneCalculator = () => {
 
       // Créer un map des contacts pour recherche rapide
       const contactsMap = new Map();
-      if (allContacts) {
-        allContacts.forEach(contact => {
-          contactsMap.set(contact.sipi_number, contact);
-        });
-      }
+      allContacts.forEach(contact => {
+        contactsMap.set(contact.sipi_number, contact);
+      });
       console.log('Map des contacts créée avec', contactsMap.size, 'entrées');
 
       // Ajouter les données
@@ -319,13 +334,13 @@ const IsochroneCalculator = () => {
       const a = document.createElement('a');
       a.href = url;
       
-      // Nom de fichier simple et clair
-      const today = new Date();
-      const dateStr = today.toISOString().split('T')[0];
-      const timeStr = today.toTimeString().split(' ')[0].replace(/:/g, '-');
+      // Nom de fichier simple et clair AVEC HEURE
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+      const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, 'h'); // HHhMMhSS
       const cleanLocation = centerLocation.replace(/[^a-zA-Z0-9]/g, '_');
       
-      a.download = `export_isochrone_${cleanLocation}_${dateStr}_${timeStr}.xlsx`;
+      a.download = `export_isochrone_${cleanLocation}_${dateStr}_${timeStr}_AVEC_CONTACTS.xlsx`;
       
       // Déclencher le téléchargement
       document.body.appendChild(a);

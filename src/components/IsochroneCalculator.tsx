@@ -209,15 +209,25 @@ const IsochroneCalculator = () => {
     try {
       // Récupérer les informations de contact pour les entreprises
       const sipiNumbers = companiesInZone.map(c => c.sipi_number);
-      const { data: contactsData } = await supabase
+      console.log('SIPI numbers pour export:', sipiNumbers);
+      
+      const { data: contactsData, error: contactsError } = await supabase
         .from('contacts')
         .select('sipi_number, contact_name, email, phone')
         .in('sipi_number', sipiNumbers);
+
+      if (contactsError) {
+        console.error('Erreur récupération contacts:', contactsError);
+      }
+      
+      console.log('Données contacts récupérées:', contactsData);
 
       // Créer un map des contacts par SIPI
       const contactsMap = new Map(
         contactsData?.map(contact => [contact.sipi_number, contact]) || []
       );
+      
+      console.log('ContactsMap créée:', Array.from(contactsMap.entries()));
 
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet('Entreprises Zone Isochrone');
@@ -243,12 +253,14 @@ const IsochroneCalculator = () => {
       // Données avec informations de contact
       companiesInZone.forEach(company => {
         const contact = contactsMap.get(company.sipi_number);
-        worksheet.addRow({
+        console.log(`Contact pour ${company.sipi_number}:`, contact);
+        
+        const rowData = {
           sipi_number: company.sipi_number,
           company_name: company.company_name,
-          contact_name: contact?.contact_name || '',
-          email: contact?.email || '',
-          phone: contact?.phone || '',
+          contact_name: contact?.contact_name || 'Non renseigné',
+          email: contact?.email || 'Non renseigné',
+          phone: contact?.phone || 'Non renseigné',
           city: company.city,
           general_department: company.general_department,
           year1: company.year1,
@@ -258,7 +270,10 @@ const IsochroneCalculator = () => {
           maxAmount: company.maxAmount,
           latitude: company.latitude,
           longitude: company.longitude
-        });
+        };
+        
+        console.log('Ajout ligne:', rowData);
+        worksheet.addRow(rowData);
       });
 
       // Style de l'en-tête

@@ -1,5 +1,13 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { CompanyOrderPeriod } from '@/hooks/useCompanyOrderStats';
+import { supabase } from '@/integrations/supabase/client';
+
+interface Contact {
+  sipi_number: string;
+  contact_name?: string;
+  email?: string;
+  phone?: string;
+}
 
 interface LeafletMapProps {
   companies: CompanyOrderPeriod[];
@@ -22,6 +30,27 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
+  const [contactsData, setContactsData] = useState<Map<string, Contact>>(new Map());
+
+  // Charger les données de contact
+  useEffect(() => {
+    const loadContacts = async () => {
+      if (companies.length === 0) return;
+
+      const sipiNumbers = companies.map(c => c.sipi_number);
+      const { data: contacts } = await supabase
+        .from('contacts')
+        .select('sipi_number, contact_name, email, phone')
+        .in('sipi_number', sipiNumbers);
+
+      const contactsMap = new Map(
+        contacts?.map(contact => [contact.sipi_number, contact]) || []
+      );
+      setContactsData(contactsMap);
+    };
+
+    loadContacts();
+  }, [companies]);
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -158,12 +187,17 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
       // Ajouter les marqueurs des entreprises dans la zone
       companiesInZone.forEach((company) => {
         if (company.latitude && company.longitude) {
+          const contact = contactsData.get(company.sipi_number);
+          
           window.L.marker([company.latitude, company.longitude], { icon: inZoneIcon })
             .addTo(map)
             .bindPopup(`
               <div style="max-width: 250px;">
                 <h3 style="margin: 0 0 8px 0; font-weight: bold;">${company.company_name}</h3>
                 <p style="margin: 0; font-size: 12px; color: #666;">SIPI: ${company.sipi_number}</p>
+                ${contact?.contact_name ? `<p style="margin: 4px 0; font-size: 12px; color: #666;">Contact: ${contact.contact_name}</p>` : ''}
+                ${contact?.email ? `<p style="margin: 4px 0; font-size: 12px; color: #666;">E-mail: ${contact.email}</p>` : ''}
+                ${contact?.phone ? `<p style="margin: 4px 0; font-size: 12px; color: #666;">Téléphone: ${contact.phone}</p>` : ''}
                 <p style="margin: 4px 0; font-size: 12px; color: #666;">Ville: ${company.city || 'N/A'}</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #666;">
                   Coordonnées: ${company.latitude.toFixed(6)}, ${company.longitude.toFixed(6)}
@@ -185,12 +219,17 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
       // Ajouter les marqueurs des entreprises hors zone
       companiesOutZone.forEach((company) => {
         if (company.latitude && company.longitude) {
+          const contact = contactsData.get(company.sipi_number);
+          
           window.L.marker([company.latitude, company.longitude], { icon: outZoneIcon })
             .addTo(map)
             .bindPopup(`
               <div style="max-width: 250px;">
                 <h3 style="margin: 0 0 8px 0; font-weight: bold;">${company.company_name}</h3>
                 <p style="margin: 0; font-size: 12px; color: #666;">SIPI: ${company.sipi_number}</p>
+                ${contact?.contact_name ? `<p style="margin: 4px 0; font-size: 12px; color: #666;">Contact: ${contact.contact_name}</p>` : ''}
+                ${contact?.email ? `<p style="margin: 4px 0; font-size: 12px; color: #666;">E-mail: ${contact.email}</p>` : ''}
+                ${contact?.phone ? `<p style="margin: 4px 0; font-size: 12px; color: #666;">Téléphone: ${contact.phone}</p>` : ''}
                 <p style="margin: 4px 0; font-size: 12px; color: #666;">Ville: ${company.city || 'N/A'}</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #666;">
                   Coordonnées: ${company.latitude.toFixed(6)}, ${company.longitude.toFixed(6)}
@@ -220,7 +259,7 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
         mapInstanceRef.current = null;
       }
     };
-  }, [companies, centerLocation, isochronePolygon]);
+  }, [companies, centerLocation, isochronePolygon, contactsData]);
 
   // Fonction point-in-polygon utilisant l'algorithme ray casting
   const isPointInPolygon = (point: { lat: number; lng: number }, polygon: { lat: number; lng: number }[]): boolean => {

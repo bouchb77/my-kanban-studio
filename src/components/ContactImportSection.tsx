@@ -42,8 +42,13 @@ const ContactImportSection: React.FC = () => {
           phone: String(row['Téléphone'] || row['telephone'] || row['phone'] || row['Phone'] || '').trim() || undefined,
         })).filter(contact => contact.sipi_number);
 
-        setContacts(parsedContacts);
-        toast.success(`${parsedContacts.length} contacts prêts à importer`);
+        // Dédupliquer par sipi_number
+        const uniqueContacts = parsedContacts.filter((contact, index, array) => 
+          array.findIndex(c => c.sipi_number === contact.sipi_number) === index
+        );
+
+        setContacts(uniqueContacts);
+        toast.success(`${uniqueContacts.length} contacts prêts à importer${parsedContacts.length !== uniqueContacts.length ? ` (${parsedContacts.length - uniqueContacts.length} doublons supprimés)` : ''}`);
       } catch (error) {
         console.error('Erreur lors de la lecture du fichier:', error);
         toast.error('Erreur lors de la lecture du fichier Excel');

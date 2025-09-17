@@ -197,7 +197,11 @@ const IsochroneCalculator = () => {
   };
 
   const exportToExcel = async () => {
+    console.log('🚀 BOUTON EXPORT CLIQUÉ!');
+    console.log('Nombre d\'entreprises dans la zone:', companiesInZone.length);
+    
     if (companiesInZone.length === 0) {
+      console.log('❌ ARRÊT: Aucune entreprise dans la zone');
       toast({
         title: "Aucune donnée",
         description: "Aucune entreprise à exporter",
@@ -524,19 +528,25 @@ const IsochroneCalculator = () => {
             </Button>
             
             <Button 
-              onClick={exportToExcel}
+              onClick={() => {
+                console.log('🔥 CLIC EXPORT! Entreprises disponibles:', companiesInZone.length);
+                exportToExcel();
+              }}
               disabled={companiesInZone.length === 0}
               variant="outline"
               className="flex items-center gap-2"
             >
               <Download className="w-4 h-4" />
-              Exporter Excel
+              Exporter Excel ({companiesInZone.length})
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      {companiesInZone.length > 0 && (
+      {(() => {
+        console.log('🔍 RENDU: Entreprises dans la zone =', companiesInZone.length);
+        return companiesInZone.length > 0;
+      })() && (
         <Card>
           <CardHeader>
             <CardTitle>

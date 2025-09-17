@@ -207,41 +207,65 @@ const IsochroneCalculator = () => {
     }
 
     try {
+      console.log('=== DÉBUT EXPORT EXCEL ===');
+      
       // Récupérer les informations de contact pour les entreprises
       const sipiNumbers = companiesInZone.map(c => c.sipi_number);
-      console.log('SIPI numbers pour export:', sipiNumbers);
+      console.log('SIPI numbers à rechercher:', sipiNumbers);
       
       const { data: contactsData, error: contactsError } = await supabase
         .from('contacts')
-        .select('sipi_number, contact_name, email, phone')
-        .in('sipi_number', sipiNumbers);
+        .select('*');
 
       if (contactsError) {
         console.error('Erreur récupération contacts:', contactsError);
       }
       
-      console.log('Données contacts récupérées:', contactsData);
+      console.log('TOUS les contacts dans la base:', contactsData);
+      
+      // Filtrer les contacts pour les entreprises dans la zone
+      const relevantContacts = contactsData?.filter(contact => 
+        sipiNumbers.includes(contact.sipi_number)
+      ) || [];
+      
+      console.log('Contacts pertinents trouvés:', relevantContacts);
 
       // Créer un map des contacts par SIPI
       const contactsMap = new Map(
-        contactsData?.map(contact => [contact.sipi_number, contact]) || []
+        relevantContacts.map(contact => [contact.sipi_number, contact])
       );
       
-      console.log('ContactsMap créée:', Array.from(contactsMap.entries()));
+      console.log('ContactsMap:', Array.from(contactsMap.entries()));
 
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet('Entreprises Zone Isochrone');
 
-      // Définir les en-têtes manuellement
-      const headers = [
-        'SIPI', 'Nom Entreprise', 'Contact', 'E-mail', 'Téléphone', 
-        'Ville', 'Département', 'Année 1', 'Montant Année 1', 
-        'Année 2', 'Montant Année 2', 'Montant Maximum', 'Latitude', 'Longitude'
-      ];
-      
-      // Ajouter la ligne d'en-têtes
-      worksheet.addRow(headers);
-      
+      // Ajouter les en-têtes manuellement
+      const headerRow = worksheet.addRow([
+        'SIPI',
+        'Nom Entreprise', 
+        'Contact',
+        'E-mail',
+        'Téléphone',
+        'Ville',
+        'Département',
+        'Année 1',
+        'Montant Année 1',
+        'Année 2', 
+        'Montant Année 2',
+        'Montant Maximum',
+        'Latitude',
+        'Longitude'
+      ]);
+
+      // Style de l'en-tête
+      headerRow.font = { bold: true };
+      headerRow.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE0E0E0' }
+      };
+
       // Définir la largeur des colonnes
       worksheet.columns = [
         { width: 15 }, // SIPI
@@ -260,16 +284,17 @@ const IsochroneCalculator = () => {
         { width: 12 }  // Longitude
       ];
 
-      // Données avec informations de contact
+      // Ajouter les données avec informations de contact
+      let rowIndex = 2;
       companiesInZone.forEach(company => {
         const contact = contactsMap.get(company.sipi_number);
-        console.log(`Contact pour ${company.sipi_number}:`, contact);
+        console.log(`Ligne ${rowIndex} - Contact pour ${company.sipi_number}:`, contact);
         
-        const rowData = [
+        const row = worksheet.addRow([
           company.sipi_number,
           company.company_name,
           contact?.contact_name || 'Non renseigné',
-          contact?.email || 'Non renseigné',
+          contact?.email || 'Non renseigné', 
           contact?.phone || 'Non renseigné',
           company.city || 'Non renseigné',
           company.general_department || 'Non renseigné',
@@ -280,19 +305,13 @@ const IsochroneCalculator = () => {
           company.maxAmount,
           company.latitude,
           company.longitude
-        ];
+        ]);
         
-        console.log('Ajout ligne:', rowData);
-        worksheet.addRow(rowData);
+        console.log(`Ligne ${rowIndex} ajoutée:`, row.values);
+        rowIndex++;
       });
 
-      // Style de l'en-tête
-      worksheet.getRow(1).font = { bold: true };
-      worksheet.getRow(1).fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FFE0E0E0' }
-      };
+      console.log('Nombre total de lignes dans le worksheet:', worksheet.rowCount);
 
       // Générer et télécharger le fichier
       const buffer = await workbook.xlsx.writeBuffer();
@@ -304,9 +323,11 @@ const IsochroneCalculator = () => {
       // Nettoyer le nom de la ville pour le nom de fichier
       const cleanLocation = centerLocation.replace(/[^a-zA-Z0-9\-_\s]/g, '').replace(/\s+/g, '_');
       const date = new Date().toISOString().split('T')[0];
-      link.download = `entreprises_isochrone_${cleanLocation}_${maxThreshold}€_${date}.xlsx`;
+      link.download = `entreprises_isochrone_${cleanLocation}_${maxThreshold}€_${date}_avec_contacts.xlsx`;
       link.click();
       window.URL.revokeObjectURL(url);
+
+      console.log('=== EXPORT EXCEL TERMINÉ ===');
 
       toast({
         title: "Export réussi",

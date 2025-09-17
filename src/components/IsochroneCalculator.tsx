@@ -323,7 +323,8 @@ const IsochroneCalculator = () => {
       // Nettoyer le nom de la ville pour le nom de fichier
       const cleanLocation = centerLocation.replace(/[^a-zA-Z0-9\-_\s]/g, '').replace(/\s+/g, '_');
       const date = new Date().toISOString().split('T')[0];
-      link.download = `entreprises_isochrone_${cleanLocation}_${maxThreshold}€_${date}_avec_contacts.xlsx`;
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[1].slice(0, 8);
+      link.download = `entreprises_isochrone_${cleanLocation}_${maxThreshold}€_${date}_${timestamp}_AVEC_CONTACTS.xlsx`;
       link.click();
       window.URL.revokeObjectURL(url);
 

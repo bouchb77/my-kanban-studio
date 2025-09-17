@@ -241,14 +241,27 @@ const IsochroneCalculator = () => {
       
       console.log(`TOTAL CONTACTS RÉCUPÉRÉS: ${allContacts.length}`);
       
-      // Créer un index des contacts par SIPI
+      // Créer un index des contacts par SIPI avec debug détaillé
       const contactsByWsipi = new Map();
-      allContacts.forEach(contact => {
+      let contactsAvecSipi = 0;
+      let contactsSansSipi = 0;
+      
+      allContacts.forEach((contact, index) => {
         if (contact.sipi_number) {
-          contactsByWsipi.set(contact.sipi_number.toString(), contact);
+          // Normaliser la clé SIPI en string et la nettoyer
+          const sipiKey = String(contact.sipi_number).trim();
+          contactsByWsipi.set(sipiKey, contact);
+          contactsAvecSipi++;
+          if (index < 5) {
+            console.log(`Contact ${index + 1}: SIPI="${sipiKey}", Nom="${contact.contact_name}", Email="${contact.email}"`);
+          }
+        } else {
+          contactsSansSipi++;
         }
       });
-      console.log(`Index contacts créé: ${contactsByWsipi.size} entrées`);
+      
+      console.log(`INDEX CONTACTS - AVEC SIPI: ${contactsAvecSipi}, SANS SIPI: ${contactsSansSipi}`);
+      console.log(`TAILLE MAP CONTACTS: ${contactsByWsipi.size}`);
 
       // Créer le workbook Excel
       const workbook = new ExcelJS.Workbook();
@@ -312,19 +325,36 @@ const IsochroneCalculator = () => {
         { width: 15 }  // Longitude
       ];
 
-      // Ajouter les données des entreprises avec contacts
+      // Ajouter les données des entreprises avec contacts AVEC DEBUG DETAILLE
       let contactsFound = 0;
       let contactsMissing = 0;
 
       companiesInZone.forEach((company, index) => {
-        const contactInfo = contactsByWsipi.get(company.sipi_number?.toString());
+        // Normaliser la clé de recherche de la même manière
+        const sipiKey = company.sipi_number ? String(company.sipi_number).trim() : '';
+        const contactInfo = contactsByWsipi.get(sipiKey);
+        
+        console.log(`=== ENTREPRISE ${index + 1} ===`);
+        console.log(`SIPI original: "${company.sipi_number}" (type: ${typeof company.sipi_number})`);
+        console.log(`SIPI normalisé: "${sipiKey}"`);
+        console.log(`Contact trouvé: ${contactInfo ? 'OUI' : 'NON'}`);
         
         if (contactInfo) {
           contactsFound++;
-          console.log(`Entreprise ${index + 1}: SIPI ${company.sipi_number} - Contact trouvé: ${contactInfo.contact_name}`);
+          console.log(`✅ Contact: "${contactInfo.contact_name}", Email: "${contactInfo.email}", Phone: "${contactInfo.phone}"`);
         } else {
           contactsMissing++;
-          console.log(`Entreprise ${index + 1}: SIPI ${company.sipi_number} - AUCUN CONTACT`);
+          // Tester quelques variations pour le debug
+          const alternatives = [
+            company.sipi_number?.toString(),
+            String(company.sipi_number),
+            company.sipi_number
+          ];
+          console.log(`❌ Aucun contact. Testé: ${alternatives.map(a => `"${a}"`).join(', ')}`);
+          
+          // Montrer les 3 premiers SIPI de la map pour comparaison
+          const premiersCouples = Array.from(contactsByWsipi.keys()).slice(0, 3);
+          console.log(`Premiers SIPI dans map: ${premiersCouples.map(k => `"${k}"`).join(', ')}`);
         }
 
         const rowData = [
@@ -345,6 +375,17 @@ const IsochroneCalculator = () => {
         ];
 
         const row = worksheet.addRow(rowData);
+        
+        // DEBUG: Vérifier ce qui est écrit dans la ligne Excel
+        if (index < 3) {
+          console.log(`📊 Ligne Excel ${index + 1}:`, {
+            sipi: rowData[0],
+            nom: rowData[1],
+            contact: rowData[2],
+            email: rowData[3],
+            phone: rowData[4]
+          });
+        }
         
         // Bordures pour les données
         rowData.forEach((_, cellIndex) => {

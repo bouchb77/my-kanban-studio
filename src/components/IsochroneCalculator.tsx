@@ -229,7 +229,25 @@ const IsochroneCalculator = () => {
           .range(page * pageSize, (page + 1) * pageSize - 1);
 
         if (contactsError) {
-          console.error('Erreur récupération contacts page', page + 1, ':', contactsError);
+          console.error('🚨 ERREUR CRITIQUE récupération contacts page', page + 1, ':', contactsError);
+          console.error('Message d\'erreur:', contactsError.message);
+          console.error('Code d\'erreur:', contactsError.code);
+          console.error('Détails:', contactsError.details);
+          
+          // Vérifier les permissions utilisateur
+          const { data: currentUser } = await supabase.auth.getUser();
+          console.log('Utilisateur actuel:', currentUser?.user?.id);
+          
+          // Tester si on peut accéder aux profils (pour vérifier l'approbation)
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('approved')
+            .eq('id', currentUser?.user?.id)
+            .single();
+          
+          console.log('Profil utilisateur:', profile);
+          console.log('Erreur profil:', profileError);
+          
           break;
         }
 

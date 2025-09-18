@@ -217,37 +217,67 @@ const IsochroneCalculator = () => {
       // Récupérer TOUS les contacts avec pagination complète
       console.log('Récupération des contacts avec pagination...');
       let allContacts: any[] = [];
+      // Vérifier d'abord l'authentification avant de récupérer les contacts
+      console.log('🔍 Vérification authentification pour export Excel...');
+      const { data: currentUser, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !currentUser?.user) {
+        console.error('❌ Erreur authentification:', userError);
+        toast({
+          title: "Erreur d'authentification",
+          description: "Vous devez être connecté pour accéder aux contacts",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      console.log('✅ Utilisateur connecté:', currentUser.user.id, currentUser.user.email);
+      
+      // Vérifier le statut d'approbation
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('approved, full_name')
+        .eq('id', currentUser.user.id)
+        .single();
+      
+      console.log('📋 Profil utilisateur:', profile);
+      console.log('❓ Utilisateur approuvé:', profile?.approved);
+      
+      if (profileError) {
+        console.error('❌ Erreur récupération profil:', profileError);
+      }
+      
+      if (!profile?.approved) {
+        console.warn('⚠️ Utilisateur non approuvé - contacts peuvent être inaccessibles');
+        toast({
+          title: "Accès refusé",
+          description: "Votre compte doit être approuvé par un administrateur pour accéder aux contacts",
+          variant: "destructive",
+        });
+        return;
+      }
+
       let page = 0;
       const pageSize = 1000;
       let hasMoreData = true;
 
       while (hasMoreData) {
-        console.log(`Récupération page ${page + 1} des contacts...`);
+        console.log(`📞 Récupération page ${page + 1} des contacts...`);
         const { data: contactsBatch, error: contactsError } = await supabase
           .from('contacts')
           .select('sipi_number, contact_name, email, phone')
           .range(page * pageSize, (page + 1) * pageSize - 1);
 
         if (contactsError) {
-          console.error('🚨 ERREUR CRITIQUE récupération contacts page', page + 1, ':', contactsError);
-          console.error('Message d\'erreur:', contactsError.message);
-          console.error('Code d\'erreur:', contactsError.code);
-          console.error('Détails:', contactsError.details);
-          
-          // Vérifier les permissions utilisateur
-          const { data: currentUser } = await supabase.auth.getUser();
-          console.log('Utilisateur actuel:', currentUser?.user?.id);
-          
-          // Tester si on peut accéder aux profils (pour vérifier l'approbation)
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('approved')
-            .eq('id', currentUser?.user?.id)
-            .single();
-          
-          console.log('Profil utilisateur:', profile);
-          console.log('Erreur profil:', profileError);
-          
+          console.error('🚨 ERREUR récupération contacts page', page + 1, ':', contactsError);
+          console.error('- Message:', contactsError.message);
+          console.error('- Code:', contactsError.code);
+          console.error('- Détails:', contactsError.details);
+          toast({
+            title: "Erreur de récupération des contacts",
+            description: `${contactsError.message}`,
+            variant: "destructive",
+          });
           break;
         }
 

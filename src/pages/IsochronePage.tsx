@@ -11,6 +11,7 @@ import { useCompanyOrderStats, CompanyOrderPeriod } from "@/hooks/useCompanyOrde
 import { supabase } from '@/integrations/supabase/client';
 import * as ExcelJS from 'exceljs';
 import LeafletMap from '@/components/LeafletMap';
+import exportToExcel from '@/components/IsochroneCalculator';
 
 interface IsochronePoint {
   lat: number;

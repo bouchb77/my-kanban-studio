@@ -214,91 +214,55 @@ const IsochroneCalculator = () => {
       console.log('=== DÉBUT EXPORT EXCEL COMPLET ===');
       console.log('Entreprises dans la zone:', companiesInZone.length);
       
-      // Récupérer TOUS les contacts avec pagination complète
-      console.log('Récupération des contacts avec pagination...');
-      let allContacts: any[] = [];
-      // Vérifier d'abord l'authentification avant de récupérer les contacts
-      console.log('🔍 Vérification authentification pour export Excel...');
-      const { data: currentUser, error: userError } = await supabase.auth.getUser();
+      // Récupérer les contacts correspondants aux entreprises dans la zone
+      console.log('Récupération des contacts pour les entreprises dans la zone...');
+      const inZoneCompanySipis = companiesInZone
+        .map(c => c.sipi_number)
+        .filter(Boolean); // Enlever les valeurs nulles/undefined
       
-      if (userError || !currentUser?.user) {
-        console.error('❌ Erreur authentification:', userError);
-        toast({
-          title: "Erreur d'authentification",
-          description: "Vous devez être connecté pour accéder aux contacts",
-          variant: "destructive",
-        });
-        return;
-      }
+      console.log('Numéros SIPI à rechercher:', inZoneCompanySipis.length, 'entreprises');
       
-      console.log('✅ Utilisateur connecté:', currentUser.user.id, currentUser.user.email);
+      let allMatchingContacts: any[] = [];
+      const batchSize = 50; // Traiter par lots de 50 SIPI pour éviter les URLs trop longues
       
-      // Vérifier le statut d'approbation
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('approved, full_name')
-        .eq('id', currentUser.user.id)
-        .single();
-      
-      console.log('📋 Profil utilisateur:', profile);
-      console.log('❓ Utilisateur approuvé:', profile?.approved);
-      
-      if (profileError) {
-        console.error('❌ Erreur récupération profil:', profileError);
-      }
-      
-      if (!profile?.approved) {
-        console.warn('⚠️ Utilisateur non approuvé - contacts peuvent être inaccessibles');
-        toast({
-          title: "Accès refusé",
-          description: "Votre compte doit être approuvé par un administrateur pour accéder aux contacts",
-          variant: "destructive",
-        });
-        return;
-      }
+      for (let i = 0; i < inZoneCompanySipis.length; i += batchSize) {
+        const sipiBatch = inZoneCompanySipis.slice(i, i + batchSize);
+        console.log(`📞 Récupération des contacts pour le lot ${Math.floor(i/batchSize) + 1}/${Math.ceil(inZoneCompanySipis.length/batchSize)} (${sipiBatch.length} SIPI)...`);
+        
+        try {
+          const { data: contactsBatch, error: contactsError } = await supabase
+            .from('contacts')
+            .select('sipi_number, contact_name, email, phone')
+            .in('sipi_number', sipiBatch);
 
-      let page = 0;
-      const pageSize = 1000;
-      let hasMoreData = true;
+          if (contactsError) {
+            console.error('🚨 ERREUR récupération contacts batch:', contactsError);
+            toast({
+              title: "Erreur de récupération des contacts",
+              description: `Lot ${Math.floor(i/batchSize) + 1}: ${contactsError.message}`,
+              variant: "destructive",
+            });
+            continue; // Continue avec le prochain lot même si celui-ci échoue
+          }
 
-      while (hasMoreData) {
-        console.log(`📞 Récupération page ${page + 1} des contacts...`);
-        const { data: contactsBatch, error: contactsError } = await supabase
-          .from('contacts')
-          .select('sipi_number, contact_name, email, phone')
-          .range(page * pageSize, (page + 1) * pageSize - 1);
-
-        if (contactsError) {
-          console.error('🚨 ERREUR récupération contacts page', page + 1, ':', contactsError);
-          console.error('- Message:', contactsError.message);
-          console.error('- Code:', contactsError.code);
-          console.error('- Détails:', contactsError.details);
-          toast({
-            title: "Erreur de récupération des contacts",
-            description: `${contactsError.message}`,
-            variant: "destructive",
-          });
-          break;
-        }
-
-        if (contactsBatch && contactsBatch.length > 0) {
-          allContacts.push(...contactsBatch);
-          console.log(`Page ${page + 1}: ${contactsBatch.length} contacts récupérés`);
-          hasMoreData = contactsBatch.length === pageSize;
-          page++;
-        } else {
-          hasMoreData = false;
+          if (contactsBatch && contactsBatch.length > 0) {
+            allMatchingContacts.push(...contactsBatch);
+            console.log(`✅ ${contactsBatch.length} contacts récupérés pour ce lot`);
+          }
+        } catch (error) {
+          console.error('❌ Erreur inattendue lors de la récupération des contacts:', error);
+          continue;
         }
       }
       
-      console.log(`TOTAL CONTACTS RÉCUPÉRÉS: ${allContacts.length}`);
+      console.log(`TOTAL CONTACTS CORRESPONDANTS RÉCUPÉRÉS: ${allMatchingContacts.length}`);
       
       // Créer un index des contacts par SIPI avec debug détaillé
       const contactsByWsipi = new Map();
       let contactsAvecSipi = 0;
       let contactsSansSipi = 0;
       
-      allContacts.forEach((contact, index) => {
+      allMatchingContacts.forEach((contact, index) => {
         if (contact.sipi_number) {
           // Normaliser la clé SIPI en string et la nettoyer
           const sipiKey = String(contact.sipi_number).trim();

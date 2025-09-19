@@ -37,16 +37,42 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
     const loadContacts = async () => {
       if (companies.length === 0) return;
 
-      const sipiNumbers = companies.map(c => c.sipi_number);
-      const { data: contacts } = await supabase
-        .from('contacts')
-        .select('sipi_number, contact_name, email, phone')
-        .in('sipi_number', sipiNumbers);
+      const sipiNumbers = companies.map(c => c.sipi_number).filter(Boolean);
+      console.log(`📞 Chargement des contacts pour ${sipiNumbers.length} entreprises...`);
+      
+      let allContacts: Contact[] = [];
+      const batchSize = 50; // Traiter par lots de 50 SIPI pour éviter les URLs trop longues
+      
+      for (let i = 0; i < sipiNumbers.length; i += batchSize) {
+        const sipiBatch = sipiNumbers.slice(i, i + batchSize);
+        console.log(`📞 Lot ${Math.floor(i/batchSize) + 1}/${Math.ceil(sipiNumbers.length/batchSize)} (${sipiBatch.length} SIPI)...`);
+        
+        try {
+          const { data: contactsBatch, error: contactsError } = await supabase
+            .from('contacts')
+            .select('sipi_number, contact_name, email, phone')
+            .in('sipi_number', sipiBatch);
+
+          if (contactsError) {
+            console.error('🚨 Erreur récupération contacts:', contactsError);
+            continue; // Continue avec le prochain lot
+          }
+
+          if (contactsBatch && contactsBatch.length > 0) {
+            allContacts.push(...contactsBatch);
+            console.log(`✅ ${contactsBatch.length} contacts récupérés`);
+          }
+        } catch (error) {
+          console.error('❌ Erreur inattendue lors de la récupération des contacts:', error);
+          continue;
+        }
+      }
 
       const contactsMap = new Map(
-        contacts?.map(contact => [contact.sipi_number, contact]) || []
+        allContacts.map(contact => [contact.sipi_number, contact])
       );
       setContactsData(contactsMap);
+      console.log(`✅ Total contacts chargés: ${contactsMap.size}`);
     };
 
     loadContacts();

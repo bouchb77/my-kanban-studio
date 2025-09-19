@@ -127,7 +127,7 @@ const IsochronePage = () => {
     return inside;
   };
 
-  const exportToExcel2 = async () => {
+  const exportToExcel = async () => {
     // Filtrer les entreprises dans la zone isochrone ET en dessous du seuil
     const companiesInZone = companyStats.filter(company => {
       if (!company.latitude || !company.longitude || isochronePolygon.length === 0) {

@@ -215,12 +215,13 @@ const IsochroneCalculator = () => {
       console.log('Entreprises dans la zone:', companiesInZone.length);
       
       // Récupérer les contacts correspondants aux entreprises dans la zone
-      console.log('Récupération des contacts pour les entreprises dans la zone...');
+      console.log('🚀 Récupération des contacts pour les entreprises dans la zone...');
       const inZoneCompanySipis = companiesInZone
         .map(c => c.sipi_number)
         .filter(Boolean); // Enlever les valeurs nulles/undefined
       
-      console.log('Numéros SIPI à rechercher:', inZoneCompanySipis.length, 'entreprises');
+      console.log('📊 Numéros SIPI à rechercher:', inZoneCompanySipis.length, 'entreprises');
+      console.log('📊 Échantillon SIPI zone:', inZoneCompanySipis.slice(0, 10));
       
       let allMatchingContacts: any[] = [];
       const batchSize = 50; // Traiter par lots de 50 SIPI pour éviter les URLs trop longues
@@ -237,17 +238,16 @@ const IsochroneCalculator = () => {
 
           if (contactsError) {
             console.error('🚨 ERREUR récupération contacts batch:', contactsError);
-            toast({
-              title: "Erreur de récupération des contacts",
-              description: `Lot ${Math.floor(i/batchSize) + 1}: ${contactsError.message}`,
-              variant: "destructive",
-            });
-            continue; // Continue avec le prochain lot même si celui-ci échoue
+            // Continuer même en cas d'erreur pour ne pas bloquer l'export
+            continue; 
           }
 
           if (contactsBatch && contactsBatch.length > 0) {
             allMatchingContacts.push(...contactsBatch);
             console.log(`✅ ${contactsBatch.length} contacts récupérés pour ce lot`);
+            console.log(`📞 Échantillon contacts lot:`, contactsBatch.slice(0, 3).map(c => `${c.sipi_number}: ${c.contact_name}`));
+          } else {
+            console.log(`⚠️ Aucun contact trouvé pour ce lot de ${sipiBatch.length} SIPI`);
           }
         } catch (error) {
           console.error('❌ Erreur inattendue lors de la récupération des contacts:', error);
@@ -255,7 +255,7 @@ const IsochroneCalculator = () => {
         }
       }
       
-      console.log(`TOTAL CONTACTS CORRESPONDANTS RÉCUPÉRÉS: ${allMatchingContacts.length}`);
+      console.log(`🎯 TOTAL CONTACTS CORRESPONDANTS RÉCUPÉRÉS: ${allMatchingContacts.length}`);
       
       // Créer un index des contacts par SIPI avec debug détaillé
       const contactsByWsipi = new Map();
@@ -344,33 +344,38 @@ const IsochroneCalculator = () => {
       // Ajouter les données des entreprises avec contacts AVEC DEBUG DETAILLE
       let contactsFound = 0;
       let contactsMissing = 0;
+      
+      console.log('🔍 DÉBUT DE LA CORRESPONDANCE ENTREPRISES <-> CONTACTS');
+      console.log(`📊 Entreprises dans la zone: ${companiesInZone.length}`);
+      console.log(`📊 Contacts disponibles: ${contactsByWsipi.size}`);
+      
+      // Montrer les premières clés de la map pour debug
+      const premieresCles = Array.from(contactsByWsipi.keys()).slice(0, 10);
+      console.log('🔑 Premiers SIPI dans la map des contacts:', premieresCles);
+      
+      // Montrer les premiers SIPI des entreprises pour comparaison
+      const premiersSipiEntreprises = companiesInZone.slice(0, 10).map(c => c.sipi_number);
+      console.log('🏢 Premiers SIPI des entreprises zone:', premiersSipiEntreprises);
 
       companiesInZone.forEach((company, index) => {
         // Normaliser la clé de recherche de la même manière
         const sipiKey = company.sipi_number ? String(company.sipi_number).trim() : '';
         const contactInfo = contactsByWsipi.get(sipiKey);
         
-        console.log(`=== ENTREPRISE ${index + 1} ===`);
-        console.log(`SIPI original: "${company.sipi_number}" (type: ${typeof company.sipi_number})`);
-        console.log(`SIPI normalisé: "${sipiKey}"`);
-        console.log(`Contact trouvé: ${contactInfo ? 'OUI' : 'NON'}`);
+        if (index < 5) { // Debug seulement pour les 5 premiers
+          console.log(`=== ENTREPRISE ${index + 1} ===`);
+          console.log(`SIPI original: "${company.sipi_number}" (type: ${typeof company.sipi_number})`);
+          console.log(`SIPI normalisé: "${sipiKey}"`);
+          console.log(`Contact trouvé: ${contactInfo ? 'OUI' : 'NON'}`);
+        }
         
         if (contactInfo) {
           contactsFound++;
-          console.log(`✅ Contact: "${contactInfo.contact_name}", Email: "${contactInfo.email}", Phone: "${contactInfo.phone}"`);
+          if (index < 5) {
+            console.log(`✅ Contact: "${contactInfo.contact_name}", Email: "${contactInfo.email}", Phone: "${contactInfo.phone}"`);
+          }
         } else {
           contactsMissing++;
-          // Tester quelques variations pour le debug
-          const alternatives = [
-            company.sipi_number?.toString(),
-            String(company.sipi_number),
-            company.sipi_number
-          ];
-          console.log(`❌ Aucun contact. Testé: ${alternatives.map(a => `"${a}"`).join(', ')}`);
-          
-          // Montrer les 3 premiers SIPI de la map pour comparaison
-          const premiersCouples = Array.from(contactsByWsipi.keys()).slice(0, 3);
-          console.log(`Premiers SIPI dans map: ${premiersCouples.map(k => `"${k}"`).join(', ')}`);
         }
 
         const rowData = [
@@ -412,10 +417,14 @@ const IsochroneCalculator = () => {
             bottom: { style: 'thin' },
             right: { style: 'thin' }
           };
-        });
+         });
       });
-
-      console.log(`RÉSUMÉ CONTACTS: ${contactsFound} trouvés, ${contactsMissing} manquants`);
+      
+      // RÉSUMÉ FINAL DE LA CORRESPONDANCE
+      console.log('🎯 RÉSUMÉ FINAL DE LA CORRESPONDANCE:');
+      console.log(`✅ Entreprises avec contact: ${contactsFound}`);
+      console.log(`❌ Entreprises sans contact: ${contactsMissing}`);
+      console.log(`📊 Taux de correspondance: ${((contactsFound / companiesInZone.length) * 100).toFixed(1)}%`);
 
       // Générer le fichier Excel
       const buffer = await workbook.xlsx.writeBuffer();

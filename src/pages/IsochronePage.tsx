@@ -128,7 +128,7 @@ const IsochronePage = () => {
     return inside;
   };
 
-  const exportToExcel = async () => {
+  const exportToExcel2 = async () => {
     // Filtrer les entreprises dans la zone isochrone ET en dessous du seuil
     const companiesInZone = companyStats.filter(company => {
       if (!company.latitude || !company.longitude || isochronePolygon.length === 0) {
@@ -182,10 +182,7 @@ const IsochronePage = () => {
           maxAmount: company.maxAmount,
           latitude: company.latitude,
           longitude: company.longitude,
-          in_zone: 'OUI',
-          contact_name: company.contact,
-          mail: company.mail,
-          phone: company.phone
+          in_zone: 'OUI'
         });
       });
 

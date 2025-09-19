@@ -182,9 +182,9 @@ const IsochronePage = () => {
           latitude: company.latitude,
           longitude: company.longitude,
           in_zone: 'OUI',
-          contact_name: company.contact_name,
-          mail: company.email,
-          phone: company.phone
+          contact_name: contactInfo.contact,
+          mail: contactInfo.mail,
+          phone: contactInfo.phone
         });
       });
 

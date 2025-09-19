@@ -128,281 +128,96 @@ const IsochronePage = () => {
     return inside;
   };
 
-  const exportToExcel = async () => {
-    console.log('🚀 BOUTON EXPORT CLIQUÉ!');
-    console.log('Nombre d\'entreprises dans la zone:', companiesInZone.length);
-    
+  const exportToExcel2 = async () => {
+    // Filtrer les entreprises dans la zone isochrone ET en dessous du seuil
+    const companiesInZone = companyStats.filter(company => {
+      if (!company.latitude || !company.longitude || isochronePolygon.length === 0) {
+        return false;
+      }
+      // Vérifier que l'entreprise est dans la zone ET que son montant max est <= au seuil
+      const inZone = isPointInPolygon({ lat: company.latitude, lng: company.longitude }, isochronePolygon);
+      const belowThreshold = company.maxAmount <= maxThreshold;
+      return inZone && belowThreshold;
+    });
+
     if (companiesInZone.length === 0) {
-      console.log('❌ ARRÊT: Aucune entreprise dans la zone');
       toast({
         title: "Aucune donnée",
-        description: "Aucune entreprise à exporter",
+        description: "Aucune entreprise dans la zone isochrone et sous le seuil à exporter",
         variant: "destructive"
       });
       return;
     }
 
     try {
-      console.log('=== DÉBUT EXPORT EXCEL COMPLET ===');
-      console.log('Entreprises dans la zone:', companiesInZone.length);
-      
-      // Récupérer les contacts correspondants aux entreprises dans la zone
-      console.log('🚀 Récupération des contacts pour les entreprises dans la zone...');
-      const inZoneCompanySipis = companiesInZone
-        .map(c => c.sipi_number)
-        .filter(Boolean); // Enlever les valeurs nulles/undefined
-      
-      console.log('📊 Numéros SIPI à rechercher:', inZoneCompanySipis.length, 'entreprises');
-      console.log('📊 Échantillon SIPI zone:', inZoneCompanySipis.slice(0, 10));
-      
-      let allMatchingContacts: any[] = [];
-      const batchSize = 50; // Traiter par lots de 50 SIPI pour éviter les URLs trop longues
-      
-      for (let i = 0; i < inZoneCompanySipis.length; i += batchSize) {
-        const sipiBatch = inZoneCompanySipis.slice(i, i + batchSize);
-        console.log(`📞 Récupération des contacts pour le lot ${Math.floor(i/batchSize) + 1}/${Math.ceil(inZoneCompanySipis.length/batchSize)} (${sipiBatch.length} SIPI)...`);
-        
-        try {
-          const { data: contactsBatch, error: contactsError } = await supabase
-            .from('contacts')
-            .select('sipi_number, contact_name, email, phone')
-            .in('sipi_number', sipiBatch);
-
-          if (contactsError) {
-            console.error('🚨 ERREUR récupération contacts batch:', contactsError);
-            // Continuer même en cas d'erreur pour ne pas bloquer l'export
-            continue; 
-          }
-
-          if (contactsBatch && contactsBatch.length > 0) {
-            allMatchingContacts.push(...contactsBatch);
-            console.log(`✅ ${contactsBatch.length} contacts récupérés pour ce lot`);
-            console.log(`📞 Échantillon contacts lot:`, contactsBatch.slice(0, 3).map(c => `${c.sipi_number}: ${c.contact_name}`));
-          } else {
-            console.log(`⚠️ Aucun contact trouvé pour ce lot de ${sipiBatch.length} SIPI`);
-          }
-        } catch (error) {
-          console.error('❌ Erreur inattendue lors de la récupération des contacts:', error);
-          continue;
-        }
-      }
-      
-      console.log(`🎯 TOTAL CONTACTS CORRESPONDANTS RÉCUPÉRÉS: ${allMatchingContacts.length}`);
-      
-      // Créer un index des contacts par SIPI avec debug détaillé
-      const contactsByWsipi = new Map();
-      let contactsAvecSipi = 0;
-      let contactsSansSipi = 0;
-      
-      allMatchingContacts.forEach((contact, index) => {
-        if (contact.sipi_number) {
-          // Normaliser la clé SIPI en string et la nettoyer
-          const sipiKey = String(contact.sipi_number).trim();
-          contactsByWsipi.set(sipiKey, contact);
-          contactsAvecSipi++;
-          if (index < 5) {
-            console.log(`Contact ${index + 1}: SIPI="${sipiKey}", Nom="${contact.contact_name}", Email="${contact.email}"`);
-          }
-        } else {
-          contactsSansSipi++;
-        }
-      });
-      
-      console.log(`INDEX CONTACTS - AVEC SIPI: ${contactsAvecSipi}, SANS SIPI: ${contactsSansSipi}`);
-      console.log(`TAILLE MAP CONTACTS: ${contactsByWsipi.size}`);
-
-      // Créer le workbook Excel
       const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet('Entreprises_Isochrone_avec_Contacts');
+      const worksheet = workbook.addWorksheet('Entreprises Zone Isochrone');
 
-      // Définir les en-têtes de colonnes
-      const headers = [
-        'SIPI',
-        'Nom Entreprise', 
-        'Nom Contact',
-        'Email Contact',
-        'Téléphone Contact',
-        'Ville',
-        'Département',
-        'Année 1',
-        'Montant Année 1 (€)',
-        'Année 2', 
-        'Montant Année 2 (€)',
-        'Montant Maximum (€)',
-        'Latitude',
-        'Longitude'
+      // En-têtes
+      worksheet.columns = [
+        { header: 'SIPI', key: 'sipi_number', width: 15 },
+        { header: 'Nom Entreprise', key: 'company_name', width: 30 },
+        { header: 'Ville', key: 'city', width: 20 },
+        { header: 'Département', key: 'general_department', width: 15 },
+        { header: 'Période 2023-2024 (€)', key: 'period_2023_2024', width: 18 },
+        { header: 'Période 2024-2025 (€)', key: 'period_2024_2025', width: 18 },
+        { header: 'Montant Maximum (€)', key: 'maxAmount', width: 18 },
+        { header: 'Latitude', key: 'latitude', width: 12 },
+        { header: 'Longitude', key: 'longitude', width: 12 },
+        { header: 'Dans Zone Isochrone', key: 'in_zone', width: 20 },
+        { header: 'Contact', key: 'contact_name', width: 20 },
+        { header: 'Mail', key: 'mail', width: 20 },
+        { header: 'Téléphone', key: 'phone', width: 20 }
       ];
 
-      // Ajouter les en-têtes
-      worksheet.addRow(headers);
+      // Données - uniquement les entreprises dans la zone et sous le seuil
+      companiesInZone.forEach(company => {
+        worksheet.addRow({
+          sipi_number: company.sipi_number,
+          company_name: company.company_name,
+          city: company.city,
+          general_department: company.general_department,
+          period_2023_2024: (company.year1 === 2023 && company.year2 === 2024) ? company.amount1 : (company.year1 === 2024 && company.year2 === 2025) ? 0 : company.amount1,
+          period_2024_2025: (company.year1 === 2023 && company.year2 === 2024) ? company.amount2 : (company.year1 === 2024 && company.year2 === 2025) ? company.amount1 : company.amount2,
+          maxAmount: company.maxAmount,
+          latitude: company.latitude,
+          longitude: company.longitude,
+          in_zone: 'OUI'
+        });
+      });
 
-      // Styler les en-têtes
-      const headerRow = worksheet.getRow(1);
-      headerRow.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
-      headerRow.fill = {
+      // Style de l'en-tête
+      worksheet.getRow(1).font = { bold: true };
+      worksheet.getRow(1).fill = {
         type: 'pattern',
         pattern: 'solid',
-        fgColor: { argb: 'FF366092' }
+        fgColor: { argb: 'FFE0E0E0' }
       };
-      
-      headers.forEach((_, index) => {
-        const cell = headerRow.getCell(index + 1);
-        cell.border = {
-          top: { style: 'thin' },
-          left: { style: 'thin' },
-          bottom: { style: 'thin' },
-          right: { style: 'thin' }
-        };
-      });
 
-      // Définir les largeurs de colonnes
-      worksheet.columns = [
-        { width: 15 }, // SIPI
-        { width: 40 }, // Nom Entreprise
-        { width: 30 }, // Nom Contact
-        { width: 40 }, // Email
-        { width: 20 }, // Téléphone
-        { width: 25 }, // Ville
-        { width: 15 }, // Département
-        { width: 12 }, // Année 1
-        { width: 20 }, // Montant 1
-        { width: 12 }, // Année 2
-        { width: 20 }, // Montant 2
-        { width: 20 }, // Montant Max
-        { width: 15 }, // Latitude
-        { width: 15 }  // Longitude
-      ];
-
-      // Ajouter les données des entreprises avec contacts AVEC DEBUG DETAILLE
-      let contactsFound = 0;
-      let contactsMissing = 0;
-      
-      console.log('🔍 DÉBUT DE LA CORRESPONDANCE ENTREPRISES <-> CONTACTS');
-      console.log(`📊 Entreprises dans la zone: ${companiesInZone.length}`);
-      console.log(`📊 Contacts disponibles: ${contactsByWsipi.size}`);
-      
-      // Montrer les premières clés de la map pour debug
-      const premieresCles = Array.from(contactsByWsipi.keys()).slice(0, 10);
-      console.log('🔑 Premiers SIPI dans la map des contacts:', premieresCles);
-      
-      // Montrer les premiers SIPI des entreprises pour comparaison
-      const premiersSipiEntreprises = companiesInZone.slice(0, 10).map(c => c.sipi_number);
-      console.log('🏢 Premiers SIPI des entreprises zone:', premiersSipiEntreprises);
-
-      companiesInZone.forEach((company, index) => {
-        // Normaliser la clé de recherche de la même manière
-        const sipiKey = company.sipi_number ? String(company.sipi_number).trim() : '';
-        const contactInfo = contactsByWsipi.get(sipiKey);
-        
-        if (index < 5) { // Debug seulement pour les 5 premiers
-          console.log(`=== ENTREPRISE ${index + 1} ===`);
-          console.log(`SIPI original: "${company.sipi_number}" (type: ${typeof company.sipi_number})`);
-          console.log(`SIPI normalisé: "${sipiKey}"`);
-          console.log(`Contact trouvé: ${contactInfo ? 'OUI' : 'NON'}`);
-        }
-        
-        if (contactInfo) {
-          contactsFound++;
-          if (index < 5) {
-            console.log(`✅ Contact: "${contactInfo.contact_name}", Email: "${contactInfo.email}", Phone: "${contactInfo.phone}"`);
-          }
-        } else {
-          contactsMissing++;
-        }
-
-        const rowData = [
-          company.sipi_number || '',
-          company.company_name || '',
-          contactInfo?.contact_name || 'Non renseigné',
-          contactInfo?.email || 'Non renseigné', 
-          contactInfo?.phone || 'Non renseigné',
-          company.city || '',
-          company.general_department || '',
-          company.year1 || '',
-          company.amount1 || 0,
-          company.year2 || '',
-          company.amount2 || 0,
-          company.maxAmount || 0,
-          company.latitude || '',
-          company.longitude || ''
-        ];
-
-        const row = worksheet.addRow(rowData);
-        
-        // DEBUG: Vérifier ce qui est écrit dans la ligne Excel
-        if (index < 3) {
-          console.log(`📊 Ligne Excel ${index + 1}:`, {
-            sipi: rowData[0],
-            nom: rowData[1],
-            contact: rowData[2],
-            email: rowData[3],
-            phone: rowData[4]
-          });
-        }
-        
-        // Bordures pour les données
-        rowData.forEach((_, cellIndex) => {
-          const cell = row.getCell(cellIndex + 1);
-          cell.border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' }
-          };
-         });
-      });
-      
-      // RÉSUMÉ FINAL DE LA CORRESPONDANCE
-      console.log('🎯 RÉSUMÉ FINAL DE LA CORRESPONDANCE:');
-      console.log(`✅ Entreprises avec contact: ${contactsFound}`);
-      console.log(`❌ Entreprises sans contact: ${contactsMissing}`);
-      console.log(`📊 Taux de correspondance: ${((contactsFound / companiesInZone.length) * 100).toFixed(1)}%`);
-
-      // Générer le fichier Excel
+      // Générer et télécharger le fichier
       const buffer = await workbook.xlsx.writeBuffer();
-      const blob = new Blob([buffer], { 
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-      });
-
-      // Créer le nom de fichier avec date et heure complète
-      const maintenant = new Date();
-      const annee = maintenant.getFullYear();
-      const mois = String(maintenant.getMonth() + 1).padStart(2, '0');
-      const jour = String(maintenant.getDate()).padStart(2, '0');
-      const heures = String(maintenant.getHours()).padStart(2, '0');
-      const minutes = String(maintenant.getMinutes()).padStart(2, '0');
-      const secondes = String(maintenant.getSeconds()).padStart(2, '0');
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
       
-      const horodatage = `${annee}-${mois}-${jour}_${heures}h${minutes}m${secondes}s`;
-      const locationClean = centerLocation.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 20);
-      
-      const nomFichier = `Export_Isochrone_${locationClean}_${horodatage}_AVEC_CONTACTS.xlsx`;
-      
-      console.log('Nom du fichier généré:', nomFichier);
-
-      // Télécharger le fichier
-      const url = URL.createObjectURL(blob);
-      const lien = document.createElement('a');
-      lien.href = url;
-      lien.download = nomFichier;
-      
-      document.body.appendChild(lien);
-      lien.click();
-      document.body.removeChild(lien);
-      URL.revokeObjectURL(url);
-
-      console.log('=== EXPORT EXCEL TERMINÉ AVEC SUCCÈS ===');
+      // Nettoyer le nom de la ville pour le nom de fichier
+      const cleanLocation = centerLocation.replace(/[^a-zA-Z0-9\-_\s]/g, '').replace(/\s+/g, '_');
+      const date = new Date().toISOString().split('T')[0];
+      link.download = `entreprises_zone_isochrone_${cleanLocation}_${maxThreshold}€_${date}.xlsx`;
+      link.click();
+      window.URL.revokeObjectURL(url);
 
       toast({
-        title: "Export terminé",
-        description: `${companiesInZone.length} entreprises exportées avec ${contactsFound} contacts trouvés`,
+        title: "Export réussi",
+        description: `${companiesInZone.length} entreprises dans la zone et sous le seuil exportées`,
       });
 
-    } catch (error) {
-      console.error('ERREUR EXPORT EXCEL:', error);
+    } catch (err) {
+      console.error('Erreur lors de l\'export:', err);
       toast({
-        title: "Erreur d'export",
-        description: `Erreur: ${error.message}`,
+        title: "Erreur",
+        description: "Erreur lors de l'export Excel",
         variant: "destructive"
       });
     }

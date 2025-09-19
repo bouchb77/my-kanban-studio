@@ -163,7 +163,10 @@ const IsochronePage = () => {
         { header: 'Montant Maximum (€)', key: 'maxAmount', width: 18 },
         { header: 'Latitude', key: 'latitude', width: 12 },
         { header: 'Longitude', key: 'longitude', width: 12 },
-        { header: 'Dans Zone Isochrone', key: 'in_zone', width: 20 }
+        { header: 'Dans Zone Isochrone', key: 'in_zone', width: 20 },
+        { header: 'Contact', key: 'contact_name', width: 20 },
+        { header: 'Mail', key: 'mail', width: 20 },
+        { header: 'Téléphone', key: 'phone', width: 20 }
       ];
 
       // Données - uniquement les entreprises dans la zone et sous le seuil
@@ -178,7 +181,10 @@ const IsochronePage = () => {
           maxAmount: company.maxAmount,
           latitude: company.latitude,
           longitude: company.longitude,
-          in_zone: 'OUI'
+          in_zone: 'OUI',
+          contact_name: company.contact,
+          mail: company.mail,
+          phone: company.phone
         });
       });
 

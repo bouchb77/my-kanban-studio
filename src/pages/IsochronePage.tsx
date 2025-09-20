@@ -8,8 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MapPin, Download, Calculator, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useCompanyOrderStats, CompanyOrderPeriod } from "@/hooks/useCompanyOrderStats";
+import { useIsochroneExport } from "@/hooks/useIsochroneExport";
 import { supabase } from '@/integrations/supabase/client';
-import * as ExcelJS from 'exceljs';
 import LeafletMap from '@/components/LeafletMap';
 
 
@@ -28,6 +28,7 @@ const IsochronePage = () => {
   const [centerCoords, setCenterCoords] = useState<{lat: number, lng: number} | null>(null);
   
   const { companyStats, loading, error, fetchCompanyOrderStats } = useCompanyOrderStats();
+  const { exportToExcel, isExporting } = useIsochroneExport();
   const { toast } = useToast();
 
   const handleCalculateIsochrone = async () => {
@@ -128,7 +129,7 @@ const IsochronePage = () => {
     return inside;
   };
 
-  const exportToExcel2 = async () => {
+  const handleExportToExcel = () => {
     // Filtrer les entreprises dans la zone isochrone ET en dessous du seuil
     const companiesInZone = companyStats.filter(company => {
       if (!company.latitude || !company.longitude || isochronePolygon.length === 0) {
@@ -140,87 +141,7 @@ const IsochronePage = () => {
       return inZone && belowThreshold;
     });
 
-    if (companiesInZone.length === 0) {
-      toast({
-        title: "Aucune donnée",
-        description: "Aucune entreprise dans la zone isochrone et sous le seuil à exporter",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet('Entreprises Zone Isochrone');
-
-      // En-têtes
-      worksheet.columns = [
-        { header: 'SIPI', key: 'sipi_number', width: 15 },
-        { header: 'Nom Entreprise', key: 'company_name', width: 30 },
-        { header: 'Ville', key: 'city', width: 20 },
-        { header: 'Département', key: 'general_department', width: 15 },
-        { header: 'Période 2023-2024 (€)', key: 'period_2023_2024', width: 18 },
-        { header: 'Période 2024-2025 (€)', key: 'period_2024_2025', width: 18 },
-        { header: 'Montant Maximum (€)', key: 'maxAmount', width: 18 },
-        { header: 'Latitude', key: 'latitude', width: 12 },
-        { header: 'Longitude', key: 'longitude', width: 12 },
-        { header: 'Dans Zone Isochrone', key: 'in_zone', width: 20 },
-        { header: 'Contact', key: 'contact_name', width: 20 },
-        { header: 'Mail', key: 'mail', width: 20 },
-        { header: 'Téléphone', key: 'phone', width: 20 }
-      ];
-
-      // Données - uniquement les entreprises dans la zone et sous le seuil
-      companiesInZone.forEach(company => {
-        worksheet.addRow({
-          sipi_number: company.sipi_number,
-          company_name: company.company_name,
-          city: company.city,
-          general_department: company.general_department,
-          period_2023_2024: (company.year1 === 2023 && company.year2 === 2024) ? company.amount1 : (company.year1 === 2024 && company.year2 === 2025) ? 0 : company.amount1,
-          period_2024_2025: (company.year1 === 2023 && company.year2 === 2024) ? company.amount2 : (company.year1 === 2024 && company.year2 === 2025) ? company.amount1 : company.amount2,
-          maxAmount: company.maxAmount,
-          latitude: company.latitude,
-          longitude: company.longitude,
-          in_zone: 'OUI'
-        });
-      });
-
-      // Style de l'en-tête
-      worksheet.getRow(1).font = { bold: true };
-      worksheet.getRow(1).fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FFE0E0E0' }
-      };
-
-      // Générer et télécharger le fichier
-      const buffer = await workbook.xlsx.writeBuffer();
-      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      
-      // Nettoyer le nom de la ville pour le nom de fichier
-      const cleanLocation = centerLocation.replace(/[^a-zA-Z0-9\-_\s]/g, '').replace(/\s+/g, '_');
-      const date = new Date().toISOString().split('T')[0];
-      link.download = `entreprises_zone_isochrone_${cleanLocation}_${maxThreshold}€_${date}.xlsx`;
-      link.click();
-      window.URL.revokeObjectURL(url);
-
-      toast({
-        title: "Export réussi",
-        description: `${companiesInZone.length} entreprises dans la zone et sous le seuil exportées`,
-      });
-
-    } catch (err) {
-      console.error('Erreur lors de l\'export:', err);
-      toast({
-        title: "Erreur",
-        description: "Erreur lors de l'export Excel",
-        variant: "destructive"
-      });
-    }
+    exportToExcel(companiesInZone, centerLocation, maxThreshold);
   };
 
   if (loading) {
@@ -316,12 +237,16 @@ const IsochronePage = () => {
               </Button>
               
               <Button 
-                onClick={exportToExcel2}
-                disabled={companyStats.length === 0 || isochronePolygon.length === 0}
+                onClick={handleExportToExcel}
+                disabled={companyStats.length === 0 || isochronePolygon.length === 0 || isExporting}
                 variant="outline"
                 className="flex items-center gap-2"
               >
-                <Download className="w-4 h-4" />
+                {isExporting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
                 Exporter Clients Zone
               </Button>
             </div>

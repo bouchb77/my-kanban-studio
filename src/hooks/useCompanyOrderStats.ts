@@ -80,23 +80,31 @@ export const useCompanyOrderStats = () => {
 
       console.log(`Commandes trouvées: ${allOrders.length}`);
 
-      // Grouper les commandes par SIPI et par année
-      const ordersByCompany = new Map<string, Map<number, number>>();
+      // Grouper les commandes par SIPI et par période
+      const ordersByCompany = new Map<string, { period2023_2024: number, period2024_2025: number }>();
       
       console.log('Début du groupement des commandes...');
       let processedOrders = 0;
       
       allOrders?.forEach(order => {
-        const year = new Date(order.order_date).getFullYear();
+        const orderDate = new Date(order.order_date);
         processedOrders++;
         
         if (!ordersByCompany.has(order.sipi_number)) {
-          ordersByCompany.set(order.sipi_number, new Map());
+          ordersByCompany.set(order.sipi_number, { period2023_2024: 0, period2024_2025: 0 });
         }
         
         const companyOrders = ordersByCompany.get(order.sipi_number)!;
-        const currentAmount = companyOrders.get(year) || 0;
-        companyOrders.set(year, currentAmount + (order.amount || 0));
+        
+        // Période 2023-2024: du 1/1/2023 au 31/12/2024
+        if (orderDate >= new Date('2023-01-01') && orderDate <= new Date('2024-12-31')) {
+          companyOrders.period2023_2024 += (order.amount || 0);
+        }
+        
+        // Période 2024-2025: du 1/1/2024 au 31/12/2025
+        if (orderDate >= new Date('2024-01-01') && orderDate <= new Date('2025-12-31')) {
+          companyOrders.period2024_2025 += (order.amount || 0);
+        }
       });
 
       console.log(`Commandes traitées: ${processedOrders}`);
@@ -104,10 +112,7 @@ export const useCompanyOrderStats = () => {
       
       // Afficher un échantillon des données groupées
       const sampleEntries = Array.from(ordersByCompany.entries()).slice(0, 3);
-      console.log('Échantillon des commandes groupées:', sampleEntries.map(([sipi, orders]) => ({
-        sipi,
-        orders: Array.from(orders.entries())
-      })));
+      console.log('Échantillon des commandes groupées par période:', sampleEntries);
 
       // Vérifier le matching entre entreprises et commandes
       const companySipis = new Set(allCompanies?.map(c => c.sipi_number) || []);
@@ -141,16 +146,11 @@ export const useCompanyOrderStats = () => {
         
         companiesWithOrders++;
 
-        // Calculer les sommes pour les périodes spécifiques 2023+2024 et 2024+2025
-        const amount2023 = companyOrders.get(2023) || 0;
-        const amount2024 = companyOrders.get(2024) || 0;
-        const amount2025 = companyOrders.get(2025) || 0;
+        // Les montants sont déjà calculés par période
+        const sum2023_2024 = companyOrders.period2023_2024;
+        const sum2024_2025 = companyOrders.period2024_2025;
         
-        const sum2023_2024 = amount2023 + amount2024;
-        const sum2024_2025 = amount2024 + amount2025;
-        
-        console.log(`Entreprise ${company.sipi_number} (${company.company_name}): 2023=${amount2023}€, 2024=${amount2024}€, 2025=${amount2025}€`);
-        console.log(`  Sommes: 2023+2024=${sum2023_2024}€, 2024+2025=${sum2024_2025}€, seuil=${maxThreshold}€`);
+        console.log(`Entreprise ${company.sipi_number} (${company.company_name}): période 2023-2024=${sum2023_2024}€, période 2024-2025=${sum2024_2025}€, seuil=${maxThreshold}€`);
         
         // Vérifier si au moins une période respecte le critère ET qu'il y a des données
         if ((sum2023_2024 > 0 || sum2024_2025 > 0)) {
@@ -166,8 +166,8 @@ export const useCompanyOrderStats = () => {
               company_name: company.company_name,
               year1: 2024,
               year2: 2025,
-              amount1: amount2024,
-              amount2: amount2025,
+              amount1: sum2024_2025, // Montant total de la période
+              amount2: 0, // Pas utilisé dans ce contexte
               maxAmount: sum2024_2025,
               latitude: company.latitude,
               longitude: company.longitude,
@@ -183,8 +183,8 @@ export const useCompanyOrderStats = () => {
               company_name: company.company_name,
               year1: 2023,
               year2: 2024,
-              amount1: amount2023,
-              amount2: amount2024,
+              amount1: sum2023_2024, // Montant total de la période
+              amount2: 0, // Pas utilisé dans ce contexte
               maxAmount: sum2023_2024,
               latitude: company.latitude,
               longitude: company.longitude,

@@ -11,7 +11,7 @@ import { useCompanyOrderStats, CompanyOrderPeriod } from "@/hooks/useCompanyOrde
 import { supabase } from '@/integrations/supabase/client';
 import * as ExcelJS from 'exceljs';
 import LeafletMap from '@/components/LeafletMap';
-import exportToExcel from '@/components/IsochroneCalculator';
+
 
 interface IsochronePoint {
   lat: number;
@@ -316,7 +316,7 @@ const IsochronePage = () => {
               </Button>
               
               <Button 
-                onClick={exportToExcel}
+                onClick={exportToExcel2}
                 disabled={companyStats.length === 0 || isochronePolygon.length === 0}
                 variant="outline"
                 className="flex items-center gap-2"

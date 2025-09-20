@@ -647,6 +647,9 @@ const mapDbTask = (row: any): Task => ({
         title: "Tâche modifiée",
         description: "La modification a été sauvegardée",
       });
+
+      // Rafraîchir immédiatement les tâches
+      await loadTasks();
     } catch (error) {
       throw error;
     }

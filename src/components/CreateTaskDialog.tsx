@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,6 +31,7 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
   const { columns } = useUserColumns();
   const { customFields } = useUserCustomFields();
   const { categories } = useUserCategories();
+  const isMobile = useIsMobile();
   
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -149,14 +152,19 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
     }
   };
 
+  const DialogWrapper = isMobile ? Drawer : Dialog;
+  const ContentWrapper = isMobile ? DrawerContent : DialogContent;
+  const HeaderWrapper = isMobile ? DrawerHeader : DialogHeader;
+  const TitleWrapper = isMobile ? DrawerTitle : DialogTitle;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Nouvelle tâche</DialogTitle>
-        </DialogHeader>
+    <DialogWrapper open={open} onOpenChange={onOpenChange}>
+      <ContentWrapper className={isMobile ? "px-4 pb-4" : "sm:max-w-md"}>
+        <HeaderWrapper className={isMobile ? "px-0" : ""}>
+          <TitleWrapper>Nouvelle tâche</TitleWrapper>
+        </HeaderWrapper>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className={isMobile ? "space-y-3" : "space-y-4"}>
 
           <div className="space-y-2">
             <Label htmlFor="title">Titre *</Label>
@@ -165,6 +173,7 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Nom de la tâche"
+              className={isMobile ? "h-12 text-base" : ""}
               required
             />
           </div>
@@ -176,15 +185,16 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Description de la tâche"
-              rows={3}
+              className={isMobile ? "text-base" : ""}
+              rows={isMobile ? 2 : 3}
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className={isMobile ? "space-y-3" : "grid grid-cols-2 gap-4"}>
             <div className="space-y-2">
               <Label>Statut</Label>
               <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger>
+                <SelectTrigger className={isMobile ? "h-12" : ""}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -200,7 +210,7 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
             <div className="space-y-2">
               <Label>Priorité</Label>
               <Select value={priority} onValueChange={setPriority}>
-                <SelectTrigger>
+                <SelectTrigger className={isMobile ? "h-12" : ""}>
                   <SelectValue placeholder="Sélectionner" />
                 </SelectTrigger>
                 <SelectContent>
@@ -259,13 +269,14 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
             </Popover>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className={isMobile ? "space-y-3" : "grid grid-cols-2 gap-4"}>
             <div className="space-y-2">
               <Label>Numéro SIPI</Label>
               <Input
                 value={sipiNumber}
                 onChange={(e) => handleSipiChange(e.target.value)}
                 placeholder="12345678"
+                className={isMobile ? "h-12 text-base" : ""}
               />
             </div>
 
@@ -275,7 +286,7 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
                 value={companyName}
                 placeholder="Nom de l'entreprise"
                 disabled={true}
-                className="bg-muted"
+                className={isMobile ? "bg-muted h-12 text-base" : "bg-muted"}
               />
             </div>
           </div>
@@ -347,13 +358,18 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
             </div>
           ))}
 
-          <div className="flex gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
+          <div className={`flex gap-2 ${isMobile ? "pt-6 pb-2" : "pt-4"}`}>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => onOpenChange(false)} 
+              className={`flex-1 ${isMobile ? "h-12 text-base" : ""}`}
+            >
               Annuler
             </Button>
             <Button 
               type="submit" 
-              className="flex-1"
+              className={`flex-1 ${isMobile ? "h-12 text-base" : ""}`}
               style={{ background: "var(--gradient-primary)" }}
               disabled={!title.trim() || isLoading}
             >
@@ -361,7 +377,7 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </ContentWrapper>
+    </DialogWrapper>
   );
 }

@@ -9,10 +9,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Bell, User, LogOut } from "lucide-react";
+import { Bell, User, LogOut, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useNotifications } from "@/hooks/useNotifications";
+import { AITaskGeneratorDialog } from "./AITaskGeneratorDialog";
+import { useState } from "react";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -22,6 +24,7 @@ export function MainLayout({ children }: MainLayoutProps) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { unreadCount } = useNotifications();
+  const [isAIDialogOpen, setIsAIDialogOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -40,6 +43,16 @@ export function MainLayout({ children }: MainLayoutProps) {
             </div>
 
             <div className="flex items-center gap-3">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="relative" 
+                onClick={() => setIsAIDialogOpen(true)}
+                title="Créer une tâche avec l'IA"
+              >
+                <Sparkles className="w-5 h-5 text-primary" />
+              </Button>
+
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -90,6 +103,14 @@ export function MainLayout({ children }: MainLayoutProps) {
           </main>
         </div>
       </div>
+      
+      <AITaskGeneratorDialog 
+        open={isAIDialogOpen}
+        onOpenChange={setIsAIDialogOpen}
+        onTaskCreated={() => {
+          // Optionnel: ajouter une logique de callback
+        }}
+      />
     </SidebarProvider>
   );
 }

@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +40,8 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
   const [sipiNumber, setSipiNumber] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [isLoadingSipi, setIsLoadingSipi] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [isGeneratingWithAI, setIsGeneratingWithAI] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -70,6 +72,55 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
       }
     } else {
       setCompanyName("");
+    }
+  };
+
+  const generateWithAI = async () => {
+    if (!aiPrompt.trim()) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez entrer une description pour l'IA",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGeneratingWithAI(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-task-ai', {
+        body: { 
+          prompt: aiPrompt,
+          userCategories: categories 
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.success && data?.task) {
+        const task = data.task;
+        setTitle(task.title || "");
+        setDescription(task.description || "");
+        setPriority(task.priority || "medium");
+        setCategory(task.category || "general");
+        
+        toast({
+          title: "Tâche générée",
+          description: "L'IA a généré votre tâche avec succès",
+        });
+      } else {
+        throw new Error(data?.error || "Erreur lors de la génération");
+      }
+    } catch (error) {
+      console.error('Error generating task with AI:', error);
+      toast({
+        title: "Erreur IA",
+        description: "Impossible de générer la tâche avec l'IA",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingWithAI(false);
     }
   };
 
@@ -130,6 +181,7 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
       setCustomFieldValues({});
       setSipiNumber("");
       setCompanyName("");
+      setAiPrompt("");
       
       // Close dialog
       onOpenChange(false);
@@ -156,6 +208,31 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* AI Generation Section */}
+          <div className="space-y-3 p-4 border rounded-lg bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-blue-600" />
+              <Label className="text-sm font-medium">Génération IA</Label>
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                placeholder="Décrivez la tâche que vous voulez créer..."
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                onClick={generateWithAI}
+                disabled={isGeneratingWithAI || !aiPrompt.trim()}
+                variant="outline"
+                className="shrink-0"
+              >
+                {isGeneratingWithAI ? "Génération..." : "Générer"}
+              </Button>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="title">Titre *</Label>
             <Input

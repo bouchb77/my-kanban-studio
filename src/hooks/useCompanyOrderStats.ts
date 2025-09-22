@@ -149,7 +149,7 @@ export const useCompanyOrderStats = () => {
     // Condition : Inclure l'entreprise seulement si au moins une période a un montant supérieur à 0
     // ET si les deux montants sont inférieurs ou égaux au seuil maximum
     if ((sum2023_2024 > 0 || sum2024_2025 > 0) && sum2023_2024 <= maxThreshold && sum2024_2025 <= maxThreshold) {
-      const newPeriod: CompanyOrderPeriod = {
+      const selectedPeriod: CompanyOrderPeriod = {
         company_id: company.id,
         sipi_number: company.sipi_number,
         company_name: company.company_name,
@@ -169,7 +169,7 @@ export const useCompanyOrderStats = () => {
         general_department: company.general_department,
         quality: company.quality
       };
-      companyPeriods.push(newPeriod);
+      companyPeriods.push(selectedPeriod);
     }
   }
 });

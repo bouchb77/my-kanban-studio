@@ -159,12 +159,13 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
 
   return (
     <DialogWrapper open={open} onOpenChange={onOpenChange}>
-      <ContentWrapper className={isMobile ? "px-4 pb-4 max-h-[95vh] overflow-y-auto" : "sm:max-w-md"}>
-        <HeaderWrapper className={isMobile ? "px-0 text-center sticky top-0 bg-background z-10 pb-2" : ""}>
+      <ContentWrapper className={isMobile ? "px-4 pb-4 h-[95vh]" : "sm:max-w-md"}>
+        <HeaderWrapper className={isMobile ? "px-0 text-center border-b pb-3 mb-4" : ""}>
           <TitleWrapper>Nouvelle tâche</TitleWrapper>
         </HeaderWrapper>
         
-        <form onSubmit={handleSubmit} className={isMobile ? "space-y-3" : "space-y-4"}>
+        <div className={isMobile ? "overflow-y-auto flex-1 pr-2" : ""}>
+        <form onSubmit={handleSubmit} className={isMobile ? "space-y-3 pb-6" : "space-y-4"}>
 
           <div className="space-y-2">
             <Label htmlFor="title">Titre *</Label>
@@ -377,6 +378,7 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
             </Button>
           </div>
         </form>
+        </div>
       </ContentWrapper>
     </DialogWrapper>
   );

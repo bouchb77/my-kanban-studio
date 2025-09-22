@@ -214,13 +214,15 @@ export function AITaskGeneratorDialog({ open, onOpenChange, onTaskCreated }: AIT
 
   return (
     <DialogWrapper open={open} onOpenChange={onOpenChange}>
-      <ContentWrapper className={isMobile ? "px-4 pb-4 max-h-[95vh] overflow-y-auto" : "sm:max-w-md max-h-[90vh] overflow-y-auto"}>
-        <HeaderWrapper className={isMobile ? "px-0 text-center sticky top-0 bg-background z-10 pb-2" : ""}>
+      <ContentWrapper className={isMobile ? "px-4 pb-4 h-[95vh]" : "sm:max-w-md max-h-[90vh] overflow-y-auto"}>
+        <HeaderWrapper className={isMobile ? "px-0 text-center border-b pb-3 mb-4" : ""}>
           <TitleWrapper className="flex items-center gap-2 justify-center">
             <Sparkles className="h-5 w-5 text-primary" />
             Création de tâche avec IA
           </TitleWrapper>
         </HeaderWrapper>
+        
+        <div className={isMobile ? "overflow-y-auto flex-1 pr-2" : ""}>
         
         {!hasGenerated ? (
           <div className={isMobile ? "space-y-3" : "space-y-4"}>
@@ -463,6 +465,7 @@ export function AITaskGeneratorDialog({ open, onOpenChange, onTaskCreated }: AIT
             </div>
           </form>
         )}
+        </div>
       </ContentWrapper>
     </DialogWrapper>
   );

@@ -135,72 +135,41 @@ export const useCompanyOrderStats = () => {
 
       console.log(`Début du traitement pour ${allCompanies?.length || 0} entreprises`);
       
-      let companiesWithOrders = 0;
-      let totalPeriods = 0;
-      
       allCompanies?.forEach(company => {
-        const companyOrders = ordersByCompany.get(company.sipi_number);
-        if (!companyOrders) {
-          return;
-        }
-        
-        companiesWithOrders++;
-
-        // Les montants sont déjà calculés par période
-        const sum2023_2024 = companyOrders.period2023_2024;
-        const sum2024_2025 = companyOrders.period2024_2025;
-        
-        console.log(`Entreprise ${company.sipi_number} (${company.company_name}): période 2023-2024=${sum2023_2024}€, période 2024-2025=${sum2024_2025}€, seuil=${maxThreshold}€`);
-        
-        // Vérifier si au moins une période respecte le critère ET qu'il y a des données
-        if ((sum2023_2024 > 0 || sum2024_2025 > 0)) {
-          
-          // Prendre la période avec le montant le plus élevé qui respecte le critère
-          let selectedPeriod: CompanyOrderPeriod | null = null;
-          
-          // Choisir la meilleure période (priorité à 2024+2025 si disponible)
-          if (sum2024_2025 <= maxThreshold && sum2024_2025 > 0) {
-            selectedPeriod = {
-              company_id: company.id,
-              sipi_number: company.sipi_number,
-              company_name: company.company_name,
-              year1: 2024,
-              year2: 2025,
-              amount1: sum2024_2025, // Montant total de la période
-              amount2: 0, // Pas utilisé dans ce contexte
-              maxAmount: sum2024_2025,
-              latitude: company.latitude,
-              longitude: company.longitude,
-              address1: company.address1,
-              city: company.city,
-              general_department: company.general_department,
-              quality: company.quality
-            };
-          } else if (sum2023_2024 <= maxThreshold && sum2023_2024 > 0) {
-            selectedPeriod = {
-              company_id: company.id,
-              sipi_number: company.sipi_number,
-              company_name: company.company_name,
-              year1: 2023,
-              year2: 2024,
-              amount1: sum2023_2024, // Montant total de la période
-              amount2: 0, // Pas utilisé dans ce contexte
-              maxAmount: sum2023_2024,
-              latitude: company.latitude,
-              longitude: company.longitude,
-              address1: company.address1,
-              city: company.city,
-              general_department: company.general_department,
-              quality: company.quality
-            };
-          }
-          
-          if (selectedPeriod) {
-            totalPeriods++;
-            companyPeriods.push(selectedPeriod);
-          }
-        }
-      });
+  const companyOrders = ordersByCompany.get(company.sipi_number);
+  
+  // N'ajouter l'entreprise que si elle a des commandes dans l'une des périodes
+  if (companyOrders) {
+    const sum2023_2024 = companyOrders.period2023_2024;
+    const sum2024_2025 = companyOrders.period2024_2025;
+    
+    // Condition : Inclure l'entreprise seulement si au moins une période a un montant supérieur à 0
+    // ET si les deux montants sont inférieurs ou égaux au seuil maximum
+    if ((sum2023_2024 > 0 || sum2024_2025 > 0) && sum2023_2024 <= maxThreshold && sum2024_2025 <= maxThreshold) {
+      const newPeriod: CompanyOrderPeriod = {
+        company_id: company.id,
+        sipi_number: company.sipi_number,
+        company_name: company.company_name,
+        // Ces années ne sont plus pertinentes comme "période principale"
+        // mais nous les gardons pour la structure
+        year1: 2023, 
+        year2: 2024,
+        // Assigner les montants totaux pour chaque période
+        amount1: sum2023_2024,
+        amount2: sum2024_2025,
+        // maxAmount peut être utilisé pour le tri ou le filtrage
+        maxAmount: Math.max(sum2023_2024, sum2024_2025),
+        latitude: company.latitude,
+        longitude: company.longitude,
+        address1: company.address1,
+        city: company.city,
+        general_department: company.general_department,
+        quality: company.quality
+      };
+      companyPeriods.push(newPeriod);
+    }
+  }
+});
 
       console.log(`Entreprises avec commandes: ${companiesWithOrders}`);
       console.log(`Périodes trouvées répondant aux critères: ${totalPeriods}`);

@@ -159,8 +159,8 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
 
   return (
     <DialogWrapper open={open} onOpenChange={onOpenChange}>
-      <ContentWrapper className={isMobile ? "px-4 pb-4" : "sm:max-w-md"}>
-        <HeaderWrapper className={isMobile ? "px-0" : ""}>
+      <ContentWrapper className={isMobile ? "px-4 pb-4 max-h-[95vh] overflow-y-auto" : "sm:max-w-md"}>
+        <HeaderWrapper className={isMobile ? "px-0 text-center sticky top-0 bg-background z-10 pb-2" : ""}>
           <TitleWrapper>Nouvelle tâche</TitleWrapper>
         </HeaderWrapper>
         

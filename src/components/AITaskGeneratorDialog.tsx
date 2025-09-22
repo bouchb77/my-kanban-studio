@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -203,30 +205,38 @@ export function AITaskGeneratorDialog({ open, onOpenChange, onTaskCreated }: AIT
     }
   };
 
+  const isMobile = useIsMobile();
+  
+  const DialogWrapper = isMobile ? Drawer : Dialog;
+  const ContentWrapper = isMobile ? DrawerContent : DialogContent;
+  const HeaderWrapper = isMobile ? DrawerHeader : DialogHeader;
+  const TitleWrapper = isMobile ? DrawerTitle : DialogTitle;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+    <DialogWrapper open={open} onOpenChange={onOpenChange}>
+      <ContentWrapper className={isMobile ? "px-4 pb-4 max-h-[95vh] overflow-y-auto" : "sm:max-w-md max-h-[90vh] overflow-y-auto"}>
+        <HeaderWrapper className={isMobile ? "px-0 text-center sticky top-0 bg-background z-10 pb-2" : ""}>
+          <TitleWrapper className="flex items-center gap-2 justify-center">
             <Sparkles className="h-5 w-5 text-primary" />
             Création de tâche avec IA
-          </DialogTitle>
-        </DialogHeader>
+          </TitleWrapper>
+        </HeaderWrapper>
         
         {!hasGenerated ? (
-          <div className="space-y-4">
+          <div className={isMobile ? "space-y-3" : "space-y-4"}>
             <div className="space-y-3 p-4 border rounded-lg bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20">
               <Label className="text-sm font-medium">Décrivez votre tâche</Label>
               <Textarea
                 value={aiPrompt}
                 onChange={(e) => setAiPrompt(e.target.value)}
                 placeholder="Ex: Créer un rapport de ventes pour le mois de janvier avec graphiques et analyses des tendances..."
-                rows={4}
+                rows={isMobile ? 3 : 4}
+                className={isMobile ? "text-base" : ""}
               />
               <Button
                 onClick={generateWithAI}
                 disabled={isGeneratingWithAI || !aiPrompt.trim()}
-                className="w-full"
+                className={`w-full ${isMobile ? "h-12 text-base" : ""}`}
                 style={{ background: "var(--gradient-primary)" }}
               >
                 {isGeneratingWithAI ? "L'IA travaille..." : "Générer la tâche"}
@@ -234,7 +244,7 @@ export function AITaskGeneratorDialog({ open, onOpenChange, onTaskCreated }: AIT
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className={isMobile ? "space-y-3" : "space-y-4"}>
             <div className="space-y-2">
               <Label htmlFor="title">Titre *</Label>
               <Input
@@ -242,6 +252,7 @@ export function AITaskGeneratorDialog({ open, onOpenChange, onTaskCreated }: AIT
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Nom de la tâche"
+                className={isMobile ? "h-12 text-base" : ""}
                 required
               />
             </div>
@@ -253,15 +264,16 @@ export function AITaskGeneratorDialog({ open, onOpenChange, onTaskCreated }: AIT
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Description de la tâche"
-                rows={3}
+                className={isMobile ? "text-base" : ""}
+                rows={isMobile ? 2 : 3}
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className={isMobile ? "space-y-3" : "grid grid-cols-2 gap-4"}>
               <div className="space-y-2">
                 <Label>Statut</Label>
                 <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger>
+                  <SelectTrigger className={isMobile ? "h-12" : ""}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -277,7 +289,7 @@ export function AITaskGeneratorDialog({ open, onOpenChange, onTaskCreated }: AIT
               <div className="space-y-2">
                 <Label>Priorité</Label>
                 <Select value={priority} onValueChange={setPriority}>
-                  <SelectTrigger>
+                  <SelectTrigger className={isMobile ? "h-12" : ""}>
                     <SelectValue placeholder="Sélectionner" />
                   </SelectTrigger>
                   <SelectContent>
@@ -293,7 +305,7 @@ export function AITaskGeneratorDialog({ open, onOpenChange, onTaskCreated }: AIT
             <div className="space-y-2">
               <Label>Catégorie</Label>
               <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger>
+                <SelectTrigger className={isMobile ? "h-12" : ""}>
                   <SelectValue placeholder="Sélectionner une catégorie" />
                 </SelectTrigger>
                 <SelectContent>
@@ -336,13 +348,14 @@ export function AITaskGeneratorDialog({ open, onOpenChange, onTaskCreated }: AIT
               </Popover>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className={isMobile ? "space-y-3" : "grid grid-cols-2 gap-4"}>
               <div className="space-y-2">
                 <Label>Numéro SIPI</Label>
                 <Input
                   value={sipiNumber}
                   onChange={(e) => handleSipiChange(e.target.value)}
                   placeholder="12345678"
+                  className={isMobile ? "h-12 text-base" : ""}
                 />
               </div>
 
@@ -352,7 +365,7 @@ export function AITaskGeneratorDialog({ open, onOpenChange, onTaskCreated }: AIT
                   value={companyName}
                   placeholder="Nom de l'entreprise"
                   disabled={true}
-                  className="bg-muted"
+                  className={isMobile ? "bg-muted h-12 text-base" : "bg-muted"}
                 />
               </div>
             </div>
@@ -424,7 +437,7 @@ export function AITaskGeneratorDialog({ open, onOpenChange, onTaskCreated }: AIT
               </div>
             ))}
 
-            <div className="flex gap-2 pt-4">
+            <div className={`flex gap-2 ${isMobile ? "pt-6 pb-2" : "pt-4"}`}>
               <Button 
                 type="button" 
                 variant="outline" 
@@ -435,13 +448,13 @@ export function AITaskGeneratorDialog({ open, onOpenChange, onTaskCreated }: AIT
                   setPriority("");
                   setCategory("general");
                 }} 
-                className="flex-1"
+                className={`flex-1 ${isMobile ? "h-12 text-base" : ""}`}
               >
                 Regenerer
               </Button>
               <Button 
                 type="submit" 
-                className="flex-1"
+                className={`flex-1 ${isMobile ? "h-12 text-base" : ""}`}
                 style={{ background: "var(--gradient-primary)" }}
                 disabled={!title.trim() || isLoading}
               >
@@ -450,7 +463,7 @@ export function AITaskGeneratorDialog({ open, onOpenChange, onTaskCreated }: AIT
             </div>
           </form>
         )}
-      </DialogContent>
-    </Dialog>
+      </ContentWrapper>
+    </DialogWrapper>
   );
 }

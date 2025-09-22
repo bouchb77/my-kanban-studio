@@ -1,7 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,8 +21,8 @@ serve(async (req) => {
       throw new Error('Prompt is required');
     }
 
-    if (!openAIApiKey) {
-      throw new Error('OpenAI API key not configured');
+    if (!geminiApiKey) {
+      throw new Error('Gemini API key not configured');
     }
 
     const categoryList = userCategories.length > 0 
@@ -51,31 +51,32 @@ serve(async (req) => {
     - Les tags doivent être pertinents et en français
     - Choisis la catégorie la plus appropriée parmi celles disponibles`;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: prompt }
-        ],
-        max_tokens: 1000,
-        temperature: 0.7,
+        contents: [{
+          parts: [{
+            text: `${systemPrompt}\n\nUtilisateur: ${prompt}`
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 1000,
+        }
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('OpenAI API error:', errorData);
-      throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
+      console.error('Gemini API error:', errorData);
+      throw new Error(`Gemini API error: ${errorData.error?.message || 'Unknown error'}`);
     }
 
     const data = await response.json();
-    const generatedContent = data.choices[0].message.content;
+    const generatedContent = data.candidates[0].content.parts[0].text;
 
     console.log('Generated content:', generatedContent);
 

@@ -134,6 +134,9 @@ export const useCompanyOrderStats = () => {
       const companyPeriods: CompanyOrderPeriod[] = [];
 
       console.log(`Début du traitement pour ${allCompanies?.length || 0} entreprises`);
+
+      let companiesWithOrders = 0;
+      let totalPeriods = 0;
       
       allCompanies?.forEach(company => {
   const companyOrders = ordersByCompany.get(company.sipi_number);

@@ -222,18 +222,34 @@ const ReportingPage = () => {
         </CardContent>
       </Card>
 
-      {/* Carte des entreprises */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Localisation des Entreprises</CardTitle>
-        <CardDescription>
-          Répartition géographique des entreprises clientes
-        </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <CompaniesMap clientTypeFilter="all" />
-        </CardContent>
-      </Card>
+      {/* Cartes et visualisations */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Carte des entreprises */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Localisation des Entreprises</CardTitle>
+            <CardDescription>
+              Répartition géographique des entreprises clientes
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <CompaniesMap clientTypeFilter="all" />
+          </CardContent>
+        </Card>
+
+        {/* Carte de chaleur de concentration */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Concentration de Clients</CardTitle>
+            <CardDescription>
+              Carte de chaleur basée sur la densité des commandes
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <CompaniesMap clientTypeFilter="all" heatmapMode={true} />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

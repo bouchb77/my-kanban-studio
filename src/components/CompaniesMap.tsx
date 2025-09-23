@@ -40,9 +40,10 @@ interface CompanyOrderStats {
 
 interface CompaniesMapProps {
   clientTypeFilter?: string;
+  heatmapMode?: boolean;
 }
 
-const CompaniesMap = ({ clientTypeFilter: initialClientTypeFilter = 'all' }: CompaniesMapProps) => {
+const CompaniesMap = ({ clientTypeFilter: initialClientTypeFilter = 'all', heatmapMode = false }: CompaniesMapProps) => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -608,7 +609,7 @@ const CompaniesMap = ({ clientTypeFilter: initialClientTypeFilter = 'all' }: Com
           <div className="space-y-6">
             {/* Carte */}
             <div>
-              <MapComponent companies={filteredCompanies} />
+              <MapComponent companies={filteredCompanies} heatmapMode={heatmapMode} />
               
               <div className="flex items-center gap-4 pt-4 border-t">
                 <div className="flex items-center gap-2">

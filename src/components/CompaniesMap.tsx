@@ -41,9 +41,16 @@ interface CompanyOrderStats {
 interface CompaniesMapProps {
   clientTypeFilter?: string;
   heatmapMode?: boolean;
+  externalFilters?: {
+    startDate?: Date;
+    endDate?: Date;
+    sipiFilter?: string;
+    cityFilter?: string;
+    companyNameFilter?: string;
+  };
 }
 
-const CompaniesMap = ({ clientTypeFilter: initialClientTypeFilter = 'all', heatmapMode = false }: CompaniesMapProps) => {
+const CompaniesMap = ({ clientTypeFilter: initialClientTypeFilter = 'all', heatmapMode = false, externalFilters }: CompaniesMapProps) => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,8 +78,27 @@ const CompaniesMap = ({ clientTypeFilter: initialClientTypeFilter = 'all', heatm
   const [departmentManagement, setDepartmentManagement] = useState<Record<string, any>>({});
   
   // Date filters
-  const [startDate, setStartDate] = useState<Date>();
-  const [endDate, setEndDate] = useState<Date>();
+  const [startDate, setStartDate] = useState<Date>(externalFilters?.startDate);
+  const [endDate, setEndDate] = useState<Date>(externalFilters?.endDate);
+
+  // Sync external filters with internal state
+  useEffect(() => {
+    if (externalFilters?.startDate !== undefined) {
+      setStartDate(externalFilters.startDate);
+    }
+    if (externalFilters?.endDate !== undefined) {
+      setEndDate(externalFilters.endDate);
+    }
+    if (externalFilters?.sipiFilter !== undefined) {
+      setSipiFilter(externalFilters.sipiFilter);
+    }
+    if (externalFilters?.cityFilter !== undefined) {
+      setCityFilter(externalFilters.cityFilter);
+    }
+    if (externalFilters?.companyNameFilter !== undefined) {
+      setCompanyNameFilter(externalFilters.companyNameFilter);
+    }
+  }, [externalFilters]);
   
   // Sort state
   const [sortColumn, setSortColumn] = useState<string | null>(null);

@@ -290,7 +290,7 @@ const mapDbTask = (row: any): Task => ({
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          task.description?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || 
-                      (statusFilter === "active" && task.status !== 'done') ||
+                      (statusFilter === "active" && task.status !== 'done' && !task.status.toLowerCase().includes('terminé')) ||
                       task.status === statusFilter;
     const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter;
 

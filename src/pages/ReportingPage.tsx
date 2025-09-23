@@ -1,6 +1,9 @@
 import React, { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { 
   Select, 
   SelectContent, 
@@ -15,14 +18,18 @@ import {
   TrendingUp, 
   TrendingDown, 
   Download, 
-  Calendar,
+  Calendar as CalendarIcon,
   Clock,
   CheckSquare,
   AlertTriangle,
   ShoppingCart,
   Euro,
-  Users
+  Users,
+  Filter,
+  Search
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 import {
   BarChart,
   Bar,
@@ -70,6 +77,13 @@ const ReportingPage = () => {
   const { tasks, getTaskStats, loading } = useTasks();
   const { orderStats, loading: ordersLoading, error: ordersError } = useOrders();
   const stats = getTaskStats();
+
+  // Filtres communs pour les deux cartes
+  const [startDate, setStartDate] = useState<Date>();
+  const [endDate, setEndDate] = useState<Date>();
+  const [sipiFilter, setSipiFilter] = useState('');
+  const [cityFilter, setCityFilter] = useState('');
+  const [companyNameFilter, setCompanyNameFilter] = useState('');
 
   const statusData = useMemo(() => [
     { name: "À faire", value: stats.todo, color: "hsl(var(--muted-foreground))" },
@@ -127,6 +141,133 @@ const ReportingPage = () => {
         </Button>
       </div>
 
+      {/* Filtres communs */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="w-5 h-5" />
+            Filtres de visualisation
+          </CardTitle>
+          <CardDescription>
+            Ces filtres s'appliquent aux deux cartes ci-dessous
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {/* Filtre de date de début */}
+            <div className="flex flex-col space-y-2">
+              <label className="text-sm font-medium">Date de début</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "justify-start text-left font-normal",
+                      !startDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {startDate ? format(startDate, "dd/MM/yyyy") : "Sélectionner"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={startDate}
+                    onSelect={setStartDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Filtre de date de fin */}
+            <div className="flex flex-col space-y-2">
+              <label className="text-sm font-medium">Date de fin</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "justify-start text-left font-normal",
+                      !endDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {endDate ? format(endDate, "dd/MM/yyyy") : "Sélectionner"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={endDate}
+                    onSelect={setEndDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Filtre SIPI */}
+            <div className="flex flex-col space-y-2">
+              <label className="text-sm font-medium">Numéro SIPI</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher SIPI..."
+                  value={sipiFilter}
+                  onChange={(e) => setSipiFilter(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            {/* Filtre Ville */}
+            <div className="flex flex-col space-y-2">
+              <label className="text-sm font-medium">Ville</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher ville..."
+                  value={cityFilter}
+                  onChange={(e) => setCityFilter(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            {/* Filtre Nom d'entreprise */}
+            <div className="flex flex-col space-y-2">
+              <label className="text-sm font-medium">Entreprise</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher entreprise..."
+                  value={companyNameFilter}
+                  onChange={(e) => setCompanyNameFilter(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Bouton pour réinitialiser les filtres */}
+          <div className="flex justify-end mt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setStartDate(undefined);
+                setEndDate(undefined);
+                setSipiFilter('');
+                setCityFilter('');
+                setCompanyNameFilter('');
+              }}
+            >
+              Réinitialiser les filtres
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
       {/* Statistiques des commandes */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
@@ -233,7 +374,16 @@ const ReportingPage = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <CompaniesMap clientTypeFilter="all" />
+            <CompaniesMap 
+              clientTypeFilter="all" 
+              externalFilters={{
+                startDate,
+                endDate,
+                sipiFilter,
+                cityFilter,
+                companyNameFilter
+              }}
+            />
           </CardContent>
         </Card>
 
@@ -246,7 +396,17 @@ const ReportingPage = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <CompaniesMap clientTypeFilter="all" heatmapMode={true} />
+            <CompaniesMap 
+              clientTypeFilter="all" 
+              heatmapMode={true}
+              externalFilters={{
+                startDate,
+                endDate,
+                sipiFilter,
+                cityFilter,
+                companyNameFilter
+              }}
+            />
           </CardContent>
         </Card>
       </div>

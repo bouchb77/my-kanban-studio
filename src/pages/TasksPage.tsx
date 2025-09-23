@@ -56,7 +56,7 @@ const TasksPage = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("active");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
@@ -289,9 +289,7 @@ const mapDbTask = (row: any): Task => ({
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          task.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || 
-                      (statusFilter === "active" && task.status !== 'custom_1757493296034' && !task.status.toLowerCase().includes('terminé')) ||
-                      task.status === statusFilter;
+    const matchesStatus = statusFilter === "all" || task.status === statusFilter;
     const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter;
 
     const now = new Date();
@@ -750,7 +748,6 @@ const mapDbTask = (row: any): Task => ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les statuts</SelectItem>
-                <SelectItem value="active">Actives (sauf terminées)</SelectItem>
                 {availableColumns.map((column) => (
                   <SelectItem key={column.status} value={column.status}>
                     {column.title}

@@ -147,7 +147,7 @@ const systemColumns = [
     { status: "todo", title: "À faire" },
     { status: "in-progress", title: "En cours" },
     { status: "review", title: "En révision" },
-    { status: "done", title: "Terminé" },
+    { status: "done", title: "Terminée" },
   ];
 
   const availableColumns = columns.length > 0 ? columns : defaultColumns;
@@ -290,7 +290,7 @@ const mapDbTask = (row: any): Task => ({
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          task.description?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || 
-                      (statusFilter === "active" && task.status !== 'custom_1757493296034' && !task.status.toLowerCase().includes('terminé')) ||
+                      (statusFilter === "active" && task.status !== 'done' && !task.status.toLowerCase().includes('terminé')) ||
                       task.status === statusFilter;
     const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter;
 

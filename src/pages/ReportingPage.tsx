@@ -48,7 +48,7 @@ import { useTasks } from "@/hooks/useTasks";
 import { useOrders } from "@/hooks/useOrders";
 import CompaniesMap from "@/components/CompaniesMap";
 
-// Mock data (laissez ceci en place)
+// Mock data
 const weeklyData = [
   { name: "Lun", completed: 4, created: 6 },
   { name: "Mar", completed: 6, created: 8 },
@@ -189,7 +189,7 @@ const ReportingPage = () => {
         </Card>
       </div>
 
-      {/* Filtres communs (déplacé ici, en dessous) */}
+      {/* Filtres communs */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -197,7 +197,7 @@ const ReportingPage = () => {
             Filtres de visualisation
           </CardTitle>
           <CardDescription>
-            Ces filtres s'appliquent aux cartes ci-dessus
+            Ces filtres s'appliquent aux cartes ci-dessus et au tableau ci-dessous
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -316,8 +316,8 @@ const ReportingPage = () => {
           </div>
         </CardContent>
       </Card>
-
-      {/* Statistiques des commandes (déplacé ici) */}
+      
+      {/* Statistiques des commandes */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -374,7 +374,7 @@ const ReportingPage = () => {
         </Card>
       </div>
 
-      {/* Tableau détaillé par année (déplacé ici) */}
+      {/* Tableau détaillé par année */}
       <Card>
         <CardHeader>
           <CardTitle>Détail par Année</CardTitle>

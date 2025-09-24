@@ -1,6 +1,11 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   Select, 
   SelectContent, 
@@ -15,7 +20,7 @@ import {
   TrendingUp, 
   TrendingDown, 
   Download, 
-  Calendar,
+  Calendar as CalendarIcon,
   Clock,
   CheckSquare,
   AlertTriangle,
@@ -37,6 +42,9 @@ import {
   LineChart,
   Line,
 } from "recharts";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 import { useTasks } from "@/hooks/useTasks";
 import { useOrders } from "@/hooks/useOrders";
 import CompaniesMap from "@/components/CompaniesMap";
@@ -66,10 +74,28 @@ const productivityData = [
   { week: "S4", tasks: 14, productivity: 87 },
 ];
 
+interface Company {
+  id: string;
+  sipi_number: string;
+  company_name: string;
+  city?: string;
+  general_department?: string;
+  latitude?: number;
+  longitude?: number;
+  periodOrders?: number;
+  periodAmount?: number;
+}
+
 const ReportingPage = () => {
   const { tasks, getTaskStats, loading } = useTasks();
   const { orderStats, loading: ordersLoading, error: ordersError } = useOrders();
   const stats = getTaskStats();
+  
+  // State for date filters and companies table
+  const [startDate, setStartDate] = useState<Date>();
+  const [endDate, setEndDate] = useState<Date>();
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [companiesLoading, setCompaniesLoading] = useState(false);
 
   const statusData = useMemo(() => [
     { name: "À faire", value: stats.todo, color: "hsl(var(--muted-foreground))" },
@@ -104,6 +130,64 @@ const ReportingPage = () => {
       };
     });
   }, [tasks]);
+
+  // Fetch companies with period-specific order data
+  const fetchCompaniesWithPeriodData = async () => {
+    if (!startDate || !endDate) {
+      setCompanies([]);
+      return;
+    }
+
+    setCompaniesLoading(true);
+    try {
+      // Fetch all companies
+      const { data: companiesData, error: companiesError } = await supabase
+        .from('companies')
+        .select('id, sipi_number, company_name, city, general_department, latitude, longitude');
+
+      if (companiesError) throw companiesError;
+
+      // Fetch orders for the selected period
+      const { data: ordersData, error: ordersError } = await supabase
+        .from('orders')
+        .select('sipi_number, amount')
+        .gte('order_date', startDate.toISOString().split('T')[0])
+        .lte('order_date', endDate.toISOString().split('T')[0]);
+
+      if (ordersError) throw ordersError;
+
+      // Group orders by SIPI number
+      const ordersByCompany = new Map<string, { totalOrders: number; totalAmount: number }>();
+      ordersData?.forEach(order => {
+        const existing = ordersByCompany.get(order.sipi_number) || { totalOrders: 0, totalAmount: 0 };
+        ordersByCompany.set(order.sipi_number, {
+          totalOrders: existing.totalOrders + 1,
+          totalAmount: existing.totalAmount + (order.amount || 0)
+        });
+      });
+
+      // Combine companies with their period-specific order data
+      const companiesWithPeriodData: Company[] = companiesData?.map(company => {
+        const orderData = ordersByCompany.get(company.sipi_number);
+        return {
+          ...company,
+          periodOrders: orderData?.totalOrders || 0,
+          periodAmount: orderData?.totalAmount || 0
+        };
+      }) || [];
+
+      setCompanies(companiesWithPeriodData);
+    } catch (error) {
+      console.error('Error fetching companies with period data:', error);
+    } finally {
+      setCompaniesLoading(false);
+    }
+  };
+
+  // Refetch companies data when dates change
+  useEffect(() => {
+    fetchCompaniesWithPeriodData();
+  }, [startDate, endDate]);
 
   // Calculs des totaux
   const totalOrders = orderStats.reduce((sum, stat) => sum + stat.totalOrders, 0);
@@ -222,13 +306,136 @@ const ReportingPage = () => {
         </CardContent>
       </Card>
 
+      {/* Filtres de période et tableau des entreprises */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Analyse par Période</CardTitle>
+          <CardDescription>
+            Sélectionnez une période pour analyser les commandes des entreprises
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Filtres de date */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col space-y-2">
+              <Label>Date de début</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[200px] justify-start text-left font-normal",
+                      !startDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {startDate ? format(startDate, "dd/MM/yyyy") : "Sélectionner"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={startDate}
+                    onSelect={setStartDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            
+            <div className="flex flex-col space-y-2">
+              <Label>Date de fin</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[200px] justify-start text-left font-normal",
+                      !endDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {endDate ? format(endDate, "dd/MM/yyyy") : "Sélectionner"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={endDate}
+                    onSelect={setEndDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+
+          {/* Tableau des entreprises */}
+          {startDate && endDate && (
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold mb-4">
+                Liste des Entreprises - Période du {format(startDate, "dd/MM/yyyy")} au {format(endDate, "dd/MM/yyyy")}
+              </h3>
+              
+              {companiesLoading ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Chargement des données...
+                </div>
+              ) : (
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>SIPI</TableHead>
+                        <TableHead>Nom de l'entreprise</TableHead>
+                        <TableHead>Ville</TableHead>
+                        <TableHead>Département</TableHead>
+                        <TableHead className="text-right">Commandes période sélectionnée</TableHead>
+                        <TableHead className="text-right">Montant période sélectionnée</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {companies.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                            Aucune donnée trouvée pour cette période
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        companies
+                          .filter(company => company.periodOrders && company.periodOrders > 0)
+                          .sort((a, b) => (b.periodAmount || 0) - (a.periodAmount || 0))
+                          .map((company) => (
+                            <TableRow key={company.id}>
+                              <TableCell className="font-medium">{company.sipi_number}</TableCell>
+                              <TableCell>{company.company_name}</TableCell>
+                              <TableCell>{company.city || '-'}</TableCell>
+                              <TableCell>{company.general_department || '-'}</TableCell>
+                              <TableCell className="text-right font-medium">
+                                {company.periodOrders || 0}
+                              </TableCell>
+                              <TableCell className="text-right font-medium">
+                                {(company.periodAmount || 0).toLocaleString()} €
+                              </TableCell>
+                            </TableRow>
+                          ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Carte des entreprises */}
       <Card>
         <CardHeader>
           <CardTitle>Localisation des Entreprises</CardTitle>
-        <CardDescription>
-          Répartition géographique des entreprises clientes
-        </CardDescription>
+          <CardDescription>
+            Répartition géographique des entreprises clientes
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <CompaniesMap clientTypeFilter="all" />

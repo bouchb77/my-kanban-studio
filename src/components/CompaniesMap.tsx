@@ -30,6 +30,8 @@ interface Company {
   quality?: string;
   orderStats?: CompanyOrderStats[];
   averageOrderPerYear?: number;
+  periodOrders?: number; // New field for period-specific orders
+  periodAmount?: number; // New field for period-specific amount
 }
 
 interface CompanyOrderStats {
@@ -40,9 +42,20 @@ interface CompanyOrderStats {
 
 interface CompaniesMapProps {
   clientTypeFilter?: string;
+  startDate?: Date;
+  endDate?: Date;
+  onDateChange?: {
+    setStartDate: (date: Date | undefined) => void;
+    setEndDate: (date: Date | undefined) => void;
+  };
 }
 
-const CompaniesMap = ({ clientTypeFilter: initialClientTypeFilter = 'all' }: CompaniesMapProps) => {
+const CompaniesMap = ({ 
+  clientTypeFilter: initialClientTypeFilter = 'all',
+  startDate: externalStartDate,
+  endDate: externalEndDate,
+  onDateChange
+}: CompaniesMapProps) => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,9 +82,15 @@ const CompaniesMap = ({ clientTypeFilter: initialClientTypeFilter = 'all' }: Com
   // Department management data
   const [departmentManagement, setDepartmentManagement] = useState<Record<string, any>>({});
   
-  // Date filters
-  const [startDate, setStartDate] = useState<Date>();
-  const [endDate, setEndDate] = useState<Date>();
+  // Date filters - use external ones if provided, otherwise local state
+  const [localStartDate, setLocalStartDate] = useState<Date>();
+  const [localEndDate, setLocalEndDate] = useState<Date>();
+  
+  const startDate = externalStartDate ?? localStartDate;
+  const endDate = externalEndDate ?? localEndDate;
+  
+  const setStartDate = onDateChange?.setStartDate ?? setLocalStartDate;
+  const setEndDate = onDateChange?.setEndDate ?? setLocalEndDate;
   
   // Sort state
   const [sortColumn, setSortColumn] = useState<string | null>(null);
@@ -250,6 +269,10 @@ const CompaniesMap = ({ clientTypeFilter: initialClientTypeFilter = 'all' }: Com
             aValue = a.averageOrderPerYear || 0;
             bValue = b.averageOrderPerYear || 0;
             break;
+          case 'periodAmount':
+            aValue = a.periodAmount || 0;
+            bValue = b.periodAmount || 0;
+            break;
           default:
             // For year columns (format: "year_YYYY")
             if (sortColumn.startsWith('year_')) {
@@ -416,7 +439,6 @@ const CompaniesMap = ({ clientTypeFilter: initialClientTypeFilter = 'all' }: Com
 
       console.log(`Total entreprises récupérées: ${allCompanies.length}`);
 
-      // Récupérer les commandes avec filtrage par date si spécifié
       console.log('Fetching order statistics...');
       let allOrders: any[] = [];
       from = 0;
@@ -427,14 +449,7 @@ const CompaniesMap = ({ clientTypeFilter: initialClientTypeFilter = 'all' }: Com
           .from('orders')
           .select('sipi_number, order_date, amount');
         
-        // Apply date filters at database level
-        if (startDate) {
-          query = query.gte('order_date', startDate.toISOString().split('T')[0]);
-        }
-        if (endDate) {
-          query = query.lte('order_date', endDate.toISOString().split('T')[0]);
-        }
-
+        // No date filters here - we'll calculate period orders later
         const { data: ordersBatch, error: ordersError } = await query
           .range(from, from + batchSize - 1);
 
@@ -455,12 +470,15 @@ const CompaniesMap = ({ clientTypeFilter: initialClientTypeFilter = 'all' }: Com
 
       console.log(`Total commandes récupérées: ${allOrders.length}`);
 
-      // Group orders by SIPI and year
+      // Group orders by SIPI and year + calculate period-specific data
       const orderStatsByCompany = new Map<string, Map<number, { totalOrders: number; totalAmount: number }>>();
+      const ordersByCompanyPeriod = new Map<string, { totalOrders: number; totalAmount: number }>();
       
       allOrders.forEach(order => {
         const year = new Date(order.order_date).getFullYear();
+        const orderDate = new Date(order.order_date);
         
+        // Group by year (existing logic)
         if (!orderStatsByCompany.has(order.sipi_number)) {
           orderStatsByCompany.set(order.sipi_number, new Map());
         }
@@ -472,11 +490,26 @@ const CompaniesMap = ({ clientTypeFilter: initialClientTypeFilter = 'all' }: Com
           totalOrders: yearStats.totalOrders + 1,
           totalAmount: yearStats.totalAmount + (order.amount || 0)
         });
+
+        // Calculate period-specific data if dates are provided
+        if (startDate && endDate) {
+          const startDateOnly = new Date(startDate.toISOString().split('T')[0]);
+          const endDateOnly = new Date(endDate.toISOString().split('T')[0]);
+          
+          if (orderDate >= startDateOnly && orderDate <= endDateOnly) {
+            const existing = ordersByCompanyPeriod.get(order.sipi_number) || { totalOrders: 0, totalAmount: 0 };
+            ordersByCompanyPeriod.set(order.sipi_number, {
+              totalOrders: existing.totalOrders + 1,
+              totalAmount: existing.totalAmount + (order.amount || 0)
+            });
+          }
+        }
       });
 
       // Combine companies with their order statistics
       const companiesWithStats: Company[] = allCompanies.map(company => {
         const companyOrderStats = orderStatsByCompany.get(company.sipi_number);
+        const periodData = ordersByCompanyPeriod.get(company.sipi_number);
         const orderStats: CompanyOrderStats[] = [];
         let totalAmount = 0;
         let totalYears = 0;
@@ -501,7 +534,9 @@ const CompaniesMap = ({ clientTypeFilter: initialClientTypeFilter = 'all' }: Com
         return {
           ...company,
           orderStats,
-          averageOrderPerYear
+          averageOrderPerYear,
+          periodOrders: periodData?.totalOrders || 0,
+          periodAmount: periodData?.totalAmount || 0
         };
       });
 
@@ -979,6 +1014,8 @@ const CompaniesMap = ({ clientTypeFilter: initialClientTypeFilter = 'all' }: Com
                   variant="ghost" 
                   size="sm" 
                   onClick={() => {
+                    setStartDate(undefined);
+                    setEndDate(undefined);
                     setSipiFilter('');
                     setCityFilter('');
                     setCompanyNameFilter('');
@@ -1054,8 +1091,24 @@ const CompaniesMap = ({ clientTypeFilter: initialClientTypeFilter = 'all' }: Com
                           Moyenne/an (€)
                           {getSortIcon('averageOrderPerYear')}
                         </div>
-                      </TableHead>
-                      {availableYears.map(year => (
+                       </TableHead>
+                       {startDate && endDate && (
+                         <TableHead 
+                           className="min-w-[150px] cursor-pointer hover:bg-muted/50 select-none"
+                           onClick={() => handleSort('periodAmount')}
+                         >
+                           <div className="flex items-center gap-2">
+                             <div className="text-center">
+                               Commandes période sélectionnée
+                               <div className="text-xs text-muted-foreground font-normal">
+                                 {format(startDate, "dd/MM/yyyy")} - {format(endDate, "dd/MM/yyyy")}
+                               </div>
+                             </div>
+                             {getSortIcon('periodAmount')}
+                           </div>
+                         </TableHead>
+                       )}
+                       {availableYears.map(year => (
                         <TableHead 
                           key={year} 
                           className="min-w-[150px] text-center cursor-pointer hover:bg-muted/50 select-none"
@@ -1117,13 +1170,29 @@ const CompaniesMap = ({ clientTypeFilter: initialClientTypeFilter = 'all' }: Com
                             </div>
                           </TableCell>
                           <TableCell>{company.general_department || "-"}</TableCell>
-                          <TableCell className="font-medium">
-                            {company.averageOrderPerYear ? 
-                              `${Math.round(company.averageOrderPerYear).toLocaleString()} €` : 
-                              "-"
-                            }
-                          </TableCell>
-                          {availableYears.map(year => {
+                           <TableCell className="font-medium">
+                             {company.averageOrderPerYear ? 
+                               `${Math.round(company.averageOrderPerYear).toLocaleString()} €` : 
+                               "-"
+                             }
+                           </TableCell>
+                           {startDate && endDate && (
+                             <TableCell className="text-center font-medium">
+                               {company.periodOrders && company.periodOrders > 0 ? (
+                                 <div className="space-y-1">
+                                   <div className="font-medium text-primary">
+                                     {company.periodOrders} commandes
+                                   </div>
+                                   <div className="text-sm text-muted-foreground">
+                                     {(company.periodAmount || 0).toLocaleString()} €
+                                   </div>
+                                 </div>
+                               ) : (
+                                 <span className="text-muted-foreground">-</span>
+                               )}
+                             </TableCell>
+                           )}
+                           {availableYears.map(year => {
                             const yearData = yearDataMap.get(year);
                             return (
                               <TableCell key={year} className="text-center">

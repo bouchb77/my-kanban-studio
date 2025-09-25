@@ -291,8 +291,14 @@ const KanbanPage = () => {
   const { preferences: kanbanPreferences } = useUserViewPreferences('kanban');
   const { categories: userCategories } = useUserCategories();
 
-  // Use user columns or fall back to defaults
-  const columns = userColumns.length > 0 ? userColumns : defaultColumns;
+  // System columns that are always present
+  const systemColumns = [
+    { id: "done", title: "Terminée", status: "done" as const, color: "#22c55e", order: 999, system: true }
+  ];
+  
+  // Combine user columns with system columns
+  const allColumns = [...userColumns, ...systemColumns].sort((a, b) => a.order - b.order);
+  const columns = allColumns.length > 0 ? allColumns : defaultColumns;
   
   // Use user categories or fall back to default
   const categories = userCategories.length > 0 ? userCategories : [{ id: '1', name: 'Général', color: '#64748b', order: 0 }];

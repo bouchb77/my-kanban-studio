@@ -51,10 +51,17 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
     { status: "todo", title: "À faire" },
     { status: "in-progress", title: "En cours" },
     { status: "review", title: "En révision" },
-    { status: "done", title: "Terminé" },
+    { status: "done", title: "Terminée" },
   ];
 
-  const availableColumns = columns.length > 0 ? columns : defaultColumns;
+  // System columns that are always present
+  const systemColumns = [
+    { status: "done", title: "Terminée" }
+  ];
+  
+  // Combine user columns with system columns
+  const allColumns = [...columns, ...systemColumns];
+  const availableColumns = allColumns.length > 0 ? allColumns : defaultColumns;
 
   const handleSipiChange = async (value: string) => {
     setSipiNumber(value);

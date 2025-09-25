@@ -10,8 +10,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Building2, MapPin, Calendar, Euro, Package, TrendingUp, Loader2 } from "lucide-react";
+import { Building2, MapPin, Calendar, Euro, Package, TrendingUp, Loader2, CheckSquare } from "lucide-react";
 import { format } from "date-fns";
+import { useCompanyTasks } from '@/hooks/useCompanyTasks';
+import { useUserColumns } from '@/hooks/useUserSettings';
 
 interface Company {
   id: string;
@@ -61,6 +63,10 @@ const CompanyDetailDialog: React.FC<CompanyDetailDialogProps> = ({
     lastOrderDate: null as string | null,
   });
 
+  // Hook pour récupérer les tâches liées à l'entreprise
+  const { tasks: companyTasks, loading: tasksLoading } = useCompanyTasks(company?.company_name || null);
+  const { columns } = useUserColumns();
+
   useEffect(() => {
     if (company && open) {
       fetchCompanyOrders();
@@ -102,6 +108,29 @@ const CompanyDetailDialog: React.FC<CompanyDetailDialogProps> = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  // Fonction pour obtenir le libellé du statut depuis les colonnes utilisateur
+  const getStatusLabel = (status: string) => {
+    const column = columns.find(col => col.status === status);
+    if (column) return column.title;
+    
+    // Fallback vers les statuts par défaut
+    const defaultLabels: Record<string, string> = {
+      'todo': 'À faire',
+      'in-progress': 'En cours',
+      'review': 'En révision',
+      'done': 'Terminée'
+    };
+    return defaultLabels[status] || status;
+  };
+
+  // Fonction pour obtenir la couleur du badge selon le statut
+  const getStatusVariant = (status: string): "default" | "secondary" | "outline" | "destructive" => {
+    if (status === 'done' || status.toLowerCase().includes('terminé')) return 'default';
+    if (status === 'in-progress') return 'secondary';
+    if (status === 'review') return 'outline';
+    return 'secondary';
   };
 
   if (!company) return null;
@@ -299,6 +328,69 @@ const CompanyDetailDialog: React.FC<CompanyDetailDialogProps> = ({
               </CardContent>
             </Card>
           </div>
+
+          {/* Tâches liées à l'entreprise */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <CheckSquare className="w-5 h-5" />
+                Tâches liées à cette entreprise ({companyTasks.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {tasksLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                  <span>Chargement des tâches...</span>
+                </div>
+              ) : companyTasks.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Aucune tâche trouvée pour cette entreprise
+                </div>
+              ) : (
+                <div className="border rounded-lg overflow-x-auto max-h-96">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Titre</TableHead>
+                        <TableHead>Statut</TableHead>
+                        <TableHead>Priorité</TableHead>
+                        <TableHead>Échéance</TableHead>
+                        <TableHead>Créée le</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {companyTasks.map((task) => (
+                        <TableRow key={task.id}>
+                          <TableCell className="font-medium">{task.title}</TableCell>
+                          <TableCell>
+                            <Badge variant={getStatusVariant(task.status)}>
+                              {getStatusLabel(task.status)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              task.priority === 'high' ? 'destructive' : 
+                              task.priority === 'medium' ? 'default' : 'secondary'
+                            }>
+                              {task.priority === 'high' ? 'Haute' : 
+                               task.priority === 'medium' ? 'Moyenne' : 'Basse'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {task.due_date ? format(new Date(task.due_date), 'dd/MM/yyyy') : '-'}
+                          </TableCell>
+                          <TableCell>
+                            {format(new Date(task.created_at), 'dd/MM/yyyy')}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Historique des commandes */}
           <Card>

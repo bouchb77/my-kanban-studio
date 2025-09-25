@@ -75,6 +75,11 @@ const SettingsPage = () => {
     { id: 'sipi_number', name: 'Numéro SIPI', type: 'text', required: false, system: true },
     { id: 'company_name', name: 'Société', type: 'text', required: false, system: true }
   ];
+
+  // System columns that are mandatory for Kanban
+  const systemColumns = [
+    { id: 'done', title: 'Terminée', status: 'done', color: '#22c55e', required: true, system: true }
+  ];
   
   // Categories management
   const { categories: userCategories, saveCategory, updateCategory, deleteCategory, reorderCategories } = useUserCategories();
@@ -438,47 +443,83 @@ const SettingsPage = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <DragDropList
-                items={columns}
-                onReorder={updateColumnOrder}
-                renderItem={(column) => (
-                  <div className="flex-1 grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm">Nom de la colonne</Label>
-                      <Input 
-                        value={column.title} 
-                        className="mt-1"
-                        onChange={(e) => updateColumn(column.id, { title: e.target.value })}
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm">Couleur</Label>
-                      <div className="mt-1 flex items-center gap-2">
-                        <div 
-                          className="w-8 h-8 rounded border"
-                          style={{ backgroundColor: column.color }}
-                        />
+              {/* System Columns - Read Only */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Colonnes système (obligatoires)</Label>
+                {systemColumns.map((column) => (
+                  <div key={column.id} className="p-4 bg-surface-variant rounded-lg border-l-4" style={{ borderLeftColor: column.color }}>
+                    <div className="flex-1 grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm">Nom de la colonne</Label>
                         <Input 
-                          type="color" 
-                          value={column.color} 
-                          className="w-16 h-8 p-0 border-0"
-                          onChange={(e) => updateColumn(column.id, { color: e.target.value })}
+                          value={column.title} 
+                          className="mt-1 opacity-75"
+                          disabled
                         />
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-destructive ml-auto"
-                          onClick={() => deleteColumn(column.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                      </div>
+                      
+                      <div>
+                        <Label className="text-sm">Couleur</Label>
+                        <div className="mt-1 flex items-center gap-2">
+                          <div 
+                            className="w-8 h-8 rounded border"
+                            style={{ backgroundColor: column.color }}
+                          />
+                          <Badge variant="secondary" className="ml-auto">Système</Badge>
+                        </div>
                       </div>
                     </div>
                   </div>
-                )}
-                itemClassName="p-4 bg-surface-variant rounded-lg"
-              />
+                ))}
+              </div>
+
+              <Separator />
+
+              {/* User Columns */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Colonnes personnalisées</Label>
+                <DragDropList
+                  items={columns}
+                  onReorder={updateColumnOrder}
+                  renderItem={(column) => (
+                    <div className="flex-1 grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm">Nom de la colonne</Label>
+                        <Input 
+                          value={column.title} 
+                          className="mt-1"
+                          onChange={(e) => updateColumn(column.id, { title: e.target.value })}
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label className="text-sm">Couleur</Label>
+                        <div className="mt-1 flex items-center gap-2">
+                          <div 
+                            className="w-8 h-8 rounded border"
+                            style={{ backgroundColor: column.color }}
+                          />
+                          <Input 
+                            type="color" 
+                            value={column.color} 
+                            className="w-16 h-8 p-0 border-0"
+                            onChange={(e) => updateColumn(column.id, { color: e.target.value })}
+                          />
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-destructive ml-auto"
+                            onClick={() => deleteColumn(column.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  itemClassName="p-4 bg-surface-variant rounded-lg"
+                />
+              </div>
               
               <div className="flex gap-2">
                 <Input 

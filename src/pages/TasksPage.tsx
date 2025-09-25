@@ -147,10 +147,24 @@ const systemColumns = [
     { status: "todo", title: "À faire" },
     { status: "in-progress", title: "En cours" },
     { status: "review", title: "En révision" },
-    { status: "done", title: "Terminé" },
+    { status: "done", title: "Terminée" },
   ];
 
-  const availableColumns = columns.length > 0 ? columns : defaultColumns;
+  // System status columns that are always present
+  const systemStatusColumns = [
+    { status: "done", title: "Terminée" }
+  ];
+  
+  // Determine available columns: user columns + system columns, or defaults if no user columns
+  let availableColumns;
+  if (columns.length > 0) {
+    // User has custom columns, add system columns if not present
+    const hasTerminee = columns.some(col => col.status === "done");
+    availableColumns = hasTerminee ? columns : [...columns, ...systemStatusColumns];
+  } else {
+    // No custom columns, use defaults (which already include Terminée)
+    availableColumns = defaultColumns;
+  }
   
   // Create dynamic status labels from user columns
   const statusLabels = availableColumns.reduce((acc, col) => {

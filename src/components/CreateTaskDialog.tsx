@@ -59,9 +59,16 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
     { status: "done", title: "Terminée" }
   ];
   
-  // Combine user columns with system columns
-  const allColumns = [...columns, ...systemColumns];
-  const availableColumns = allColumns.length > 0 ? allColumns : defaultColumns;
+  // Determine available columns: user columns + system columns, or defaults if no user columns
+  let availableColumns;
+  if (columns.length > 0) {
+    // User has custom columns, add system columns
+    const hasTerminee = columns.some(col => col.status === "done");
+    availableColumns = hasTerminee ? columns : [...columns, ...systemColumns];
+  } else {
+    // No custom columns, use defaults (which already include Terminée)
+    availableColumns = defaultColumns;
+  }
 
   const handleSipiChange = async (value: string) => {
     setSipiNumber(value);

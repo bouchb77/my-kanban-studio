@@ -34,6 +34,7 @@ import { ViewTaskDialog } from "@/components/ViewTaskDialog";
 import { useUserViewPreferences } from "@/hooks/useUserViewPreferences";
 import { PriorityFlag } from "@/components/PriorityFlag";
 import { useUserCategories } from "@/hooks/useUserCategories";
+import CompanyDetailDialog from "@/components/CompanyDetailDialog";
 
 // Default columns as fallback
 const defaultColumns = [
@@ -51,7 +52,8 @@ function TaskCard({
   onDelete,
   userColumns,
   visibleFields,
-  customFields
+  customFields,
+  onCompanyClick
 }: {
   task: Task;
   onOpen: (task: Task) => void;
@@ -61,6 +63,7 @@ function TaskCard({
   userColumns: any[];
   visibleFields: string[];
   customFields: any[];
+  onCompanyClick: (companyName: string, sipiNumber?: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
 
@@ -188,7 +191,15 @@ function TaskCard({
           {visibleFields.includes('companyName') && task.companyName && (
             <div className="text-xs">
               <span className="text-muted-foreground">Société: </span>
-              <span className="text-foreground">{task.companyName}</span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCompanyClick(task.companyName!, task.sipiNumber);
+                }}
+                className="text-primary hover:underline cursor-pointer"
+              >
+                {task.companyName}
+              </button>
             </div>
           )}
 
@@ -233,7 +244,8 @@ function KanbanCell({
   onDelete,
   userColumns,
   visibleFields,
-  customFields
+  customFields,
+  onCompanyClick
 }: {
   column: any;
   category: any;
@@ -245,6 +257,7 @@ function KanbanCell({
   userColumns: any[];
   visibleFields: string[];
   customFields: any[];
+  onCompanyClick: (companyName: string, sipiNumber?: string) => void;
 }) {
   const cellTasks = tasks
     .filter((task) => task.status === column.status && task.category === category.name)
@@ -270,6 +283,7 @@ function KanbanCell({
               userColumns={userColumns}
               visibleFields={visibleFields}
               customFields={customFields}
+              onCompanyClick={onCompanyClick}
             />
           ))}
         </div>
@@ -285,6 +299,12 @@ const KanbanPage = () => {
   const [isViewTaskOpen, setIsViewTaskOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
+  
+  // Company detail dialog state
+  const [selectedCompany, setSelectedCompany] = useState<any>(null);
+  const [companyDetailOpen, setCompanyDetailOpen] = useState(false);
+  const [departmentManagement, setDepartmentManagement] = useState<Record<string, any>>({});
+  
   const { toast } = useToast();
   const { columns: userColumns, loading: columnsLoading } = useUserColumns();
   const { customFields } = useUserCustomFields();
@@ -346,7 +366,72 @@ const mapDbTask = (row: any): Task => ({
 
   useEffect(() => {
     loadTasks();
+    loadDepartmentManagement();
   }, []);
+
+  // Load department management data
+  const loadDepartmentManagement = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('department_management')
+        .select('*');
+      
+      if (error) {
+        console.error('Error loading department management:', error);
+        return;
+      }
+      
+      const departmentMap = data?.reduce((acc, dept) => {
+        acc[dept.department_name] = dept;
+        return acc;
+      }, {}) || {};
+      
+      setDepartmentManagement(departmentMap);
+    } catch (error) {
+      console.error('Error loading department management:', error);
+    }
+  };
+
+  // Handle company name click
+  const handleCompanyClick = async (companyName: string, sipiNumber?: string) => {
+    if (!companyName) return;
+    
+    try {
+      let query = supabase
+        .from('companies')
+        .select('*')
+        .eq('company_name', companyName);
+      
+      if (sipiNumber) {
+        query = query.eq('sipi_number', sipiNumber);
+      }
+      
+      const { data, error } = await query.limit(1).single();
+      
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading company:', error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les détails de l'entreprise",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      if (data) {
+        setSelectedCompany(data);
+        setCompanyDetailOpen(true);
+      } else {
+        toast({
+          title: "Information",
+          description: "Aucune information détaillée trouvée pour cette entreprise",
+          variant: "default"
+        });
+      }
+    } catch (error) {
+      console.error('Error loading company:', error);
+    }
+  };
 
   // Set up real-time updates
   useEffect(() => {
@@ -515,6 +600,7 @@ const mapDbTask = (row: any): Task => ({
                   userColumns={columns}
                   visibleFields={visibleFields}
                   customFields={customFields}
+                  onCompanyClick={handleCompanyClick}
                 />
               ))}
             </div>
@@ -531,6 +617,7 @@ const mapDbTask = (row: any): Task => ({
             userColumns={columns}
             visibleFields={visibleFields}
             customFields={customFields}
+            onCompanyClick={() => {}}
           />
         ) : null}</DragOverlay>
       </DndContext>
@@ -547,6 +634,13 @@ const mapDbTask = (row: any): Task => ({
         onOpenChange={setIsEditTaskOpen}
         task={editingTask}
         onTaskUpdated={loadTasks}
+      />
+
+      <CompanyDetailDialog
+        company={selectedCompany}
+        open={companyDetailOpen}
+        onOpenChange={setCompanyDetailOpen}
+        departmentManagement={departmentManagement}
       />
     </div>
   );

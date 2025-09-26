@@ -51,6 +51,7 @@ import { useUserColumns, useUserCustomFields } from "@/hooks/useUserSettings";
 import { useUserViewPreferences } from "@/hooks/useUserViewPreferences";
 import { PriorityFlag } from "@/components/PriorityFlag";
 import { useUserCategories } from "@/hooks/useUserCategories";
+import CompanyDetailDialog from "@/components/CompanyDetailDialog";
 
 const TasksPage = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -119,6 +120,11 @@ const systemColumns = [
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
   const [orderedVisibleColumns, setOrderedVisibleColumns] = useState<any[]>([]);
+  
+  // Company detail dialog state
+  const [selectedCompany, setSelectedCompany] = useState<any>(null);
+  const [companyDetailOpen, setCompanyDetailOpen] = useState(false);
+  const [departmentManagement, setDepartmentManagement] = useState<Record<string, any>>({});
 
   // Update visible columns when preferences change
   useEffect(() => {
@@ -274,7 +280,72 @@ const mapDbTask = (row: any): Task => ({
 
   useEffect(() => {
     loadTasks();
+    loadDepartmentManagement();
   }, [user]);
+
+  // Load department management data
+  const loadDepartmentManagement = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('department_management')
+        .select('*');
+      
+      if (error) {
+        console.error('Error loading department management:', error);
+        return;
+      }
+      
+      const departmentMap = data?.reduce((acc, dept) => {
+        acc[dept.department_name] = dept;
+        return acc;
+      }, {}) || {};
+      
+      setDepartmentManagement(departmentMap);
+    } catch (error) {
+      console.error('Error loading department management:', error);
+    }
+  };
+
+  // Handle company name click
+  const handleCompanyClick = async (companyName: string, sipiNumber?: string) => {
+    if (!companyName) return;
+    
+    try {
+      let query = supabase
+        .from('companies')
+        .select('*')
+        .eq('company_name', companyName);
+      
+      if (sipiNumber) {
+        query = query.eq('sipi_number', sipiNumber);
+      }
+      
+      const { data, error } = await query.limit(1).single();
+      
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading company:', error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les détails de l'entreprise",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      if (data) {
+        setSelectedCompany(data);
+        setCompanyDetailOpen(true);
+      } else {
+        toast({
+          title: "Information",
+          description: "Aucune information détaillée trouvée pour cette entreprise",
+          variant: "default"
+        });
+      }
+    } catch (error) {
+      console.error('Error loading company:', error);
+    }
+  };
 
   // Set up real-time updates
   useEffect(() => {
@@ -522,7 +593,16 @@ const mapDbTask = (row: any): Task => ({
       case 'company_name':
         return (
           <TableCell key="company_name">
-            {task.companyName || '-'}
+            {task.companyName ? (
+              <button
+                onClick={() => handleCompanyClick(task.companyName!, task.sipiNumber)}
+                className="text-primary hover:underline cursor-pointer"
+              >
+                {task.companyName}
+              </button>
+            ) : (
+              '-'
+            )}
           </TableCell>
         );
       
@@ -896,8 +976,15 @@ const mapDbTask = (row: any): Task => ({
       <EditTaskDialog 
         open={isEditTaskOpen} 
         onOpenChange={setIsEditTaskOpen} 
-        task={editingTask}
+        task={editingTask} 
         onTaskUpdated={loadTasks}
+      />
+
+      <CompanyDetailDialog
+        company={selectedCompany}
+        open={companyDetailOpen}
+        onOpenChange={setCompanyDetailOpen}
+        departmentManagement={departmentManagement}
       />
     </div>
   );

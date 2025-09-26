@@ -35,6 +35,7 @@ import { useUserViewPreferences } from "@/hooks/useUserViewPreferences";
 import { PriorityFlag } from "@/components/PriorityFlag";
 import { useUserCategories } from "@/hooks/useUserCategories";
 import CompanyDetailDialog from "@/components/CompanyDetailDialog";
+import { useEncryptedTasks } from "@/hooks/useEncryptedTasks";
 
 // Default columns as fallback
 const defaultColumns = [
@@ -293,7 +294,18 @@ function KanbanCell({
 }
 
 const KanbanPage = () => {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const { columns: userColumns, loading: columnsLoading } = useUserColumns();
+  const { customFields } = useUserCustomFields();
+  const { preferences: kanbanPreferences } = useUserViewPreferences('kanban');
+  const { categories: userCategories } = useUserCategories();
+  
+  const { 
+    tasks, 
+    loading,
+    updateTask,
+    deleteTask: deleteEncryptedTask 
+  } = useEncryptedTasks();
+  
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [isEditTaskOpen, setIsEditTaskOpen] = useState(false);
   const [isViewTaskOpen, setIsViewTaskOpen] = useState(false);
@@ -306,10 +318,6 @@ const KanbanPage = () => {
   const [departmentManagement, setDepartmentManagement] = useState<Record<string, any>>({});
   
   const { toast } = useToast();
-  const { columns: userColumns, loading: columnsLoading } = useUserColumns();
-  const { customFields } = useUserCustomFields();
-  const { preferences: kanbanPreferences } = useUserViewPreferences('kanban');
-  const { categories: userCategories } = useUserCategories();
 
   // System columns that are always present
   const systemColumns = [
@@ -325,49 +333,6 @@ const KanbanPage = () => {
 
   // Get visible fields for cards (default to showing all if not set)
   const visibleFields = kanbanPreferences?.visible_columns || ['title', 'description', 'tags', 'priority', 'dueDate', 'assignee'];
-
-// Map DB row to Task type
-const mapDbTask = (row: any): Task => ({
-  id: String(row.id),
-  title: row.title,
-  description: row.description || undefined,
-  status: (row.status as Task["status"]) ?? "todo",
-  priority: (["low", "medium", "high"].includes(row.priority)
-    ? row.priority
-    : "medium") as Task["priority"],
-  tags: row.tags ?? [],
-  assignee: row.assignee || undefined,
-  dueDate: row.due_date ? new Date(row.due_date) : undefined,
-  createdAt: row.created_at ? new Date(row.created_at) : new Date(),
-  updatedAt: row.updated_at ? new Date(row.updated_at) : new Date(),
-  customFields: row.custom_fields || {},
-  sipiNumber: row.sipi_number || undefined,
-  companyName: row.company_name || undefined,
-  category: row.category || 'general',
-});
-
-  // Load tasks from Supabase (only user's tasks)
-  const loadTasks = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) {
-        console.error(error);
-        toast({ title: "Erreur", description: "Chargement des tâches échoué", variant: "destructive" });
-        return;
-      }
-      if (data) setTasks(data.map(mapDbTask));
-    } catch (error) {
-      console.error('Error loading tasks:', error);
-    }
-  };
-
-  useEffect(() => {
-    loadTasks();
-    loadDepartmentManagement();
-  }, []);
 
   // Load department management data
   const loadDepartmentManagement = async () => {
@@ -433,26 +398,8 @@ const mapDbTask = (row: any): Task => ({
     }
   };
 
-  // Set up real-time updates
   useEffect(() => {
-    const channel = supabase
-      .channel('kanban-tasks')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'tasks'
-        },
-        () => {
-          loadTasks(); // Reload tasks on any change
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    loadDepartmentManagement();
   }, []);
 
   const handleOpenTask = (task: Task) => {
@@ -473,21 +420,15 @@ const mapDbTask = (row: any): Task => ({
   };
 
   const handleMoveTask = async (task: Task, status: Task["status"]) => {
-    const snapshot = tasks;
-    setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status, updatedAt: new Date() } : t)));
-    const { error } = await supabase.from("tasks").update({ status }).eq("id", task.id);
-    if (error) {
-      setTasks(snapshot);
+    const success = await updateTask(task.id, { status });
+    if (!success) {
       toast({ title: "Erreur", description: "Déplacement non sauvegardé", variant: "destructive" });
     }
   };
 
   const handleDeleteTask = async (task: Task) => {
-    const snapshot = tasks;
-    setTasks((prev) => prev.filter((t) => t.id !== task.id));
-    const { error } = await supabase.from("tasks").delete().eq("id", task.id);
-    if (error) {
-      setTasks(snapshot);
+    const success = await deleteEncryptedTask(task.id);
+    if (!success) {
       toast({ title: "Erreur", description: "Suppression non sauvegardée", variant: "destructive" });
     }
   };
@@ -528,17 +469,11 @@ const mapDbTask = (row: any): Task => ({
 
     if (!targetStatus) return;
 
-    const snapshot = tasks;
     const updates: any = { status: targetStatus };
     if (targetCategory) updates.category = targetCategory;
     
-    setTasks((prev) =>
-      prev.map((task) => (task.id === taskId ? { ...task, ...updates, updatedAt: new Date() } : task))
-    );
-
-    const { error } = await supabase.from("tasks").update(updates).eq("id", taskId);
-    if (error) {
-      setTasks(snapshot);
+    const success = await updateTask(taskId, updates);
+    if (!success) {
       toast({ title: "Erreur", description: "Déplacement non sauvegardé", variant: "destructive" });
     }
   };
@@ -633,7 +568,7 @@ const mapDbTask = (row: any): Task => ({
         open={isEditTaskOpen}
         onOpenChange={setIsEditTaskOpen}
         task={editingTask}
-        onTaskUpdated={loadTasks}
+        onTaskUpdated={() => {}} // No need to refresh, hook handles it
       />
 
       <CompanyDetailDialog

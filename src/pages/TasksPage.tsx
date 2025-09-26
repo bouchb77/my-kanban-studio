@@ -52,10 +52,20 @@ import { useUserViewPreferences } from "@/hooks/useUserViewPreferences";
 import { PriorityFlag } from "@/components/PriorityFlag";
 import { useUserCategories } from "@/hooks/useUserCategories";
 import CompanyDetailDialog from "@/components/CompanyDetailDialog";
+import { useEncryptedTasks } from "@/hooks/useEncryptedTasks";
 
 const TasksPage = () => {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { columns } = useUserColumns();
+  const { customFields } = useUserCustomFields();
+  const { preferences } = useUserViewPreferences('table');
+  const { categories } = useUserCategories();
+  const { 
+    tasks, 
+    loading, 
+    updateTaskField, 
+    deleteTask: deleteEncryptedTask 
+  } = useEncryptedTasks();
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("active");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
@@ -66,10 +76,6 @@ const TasksPage = () => {
   const [dueFilter, setDueFilter] = useState<'all' | 'overdue' | 'today' | 'this_week' | 'no_due'>('all');
   const { toast } = useToast();
   const { user } = useAuth();
-  const { columns } = useUserColumns();
-  const { customFields } = useUserCustomFields();
-  const { preferences } = useUserViewPreferences('table');
-  const { categories } = useUserCategories();
 
 
 // Available columns for dynamic table rendering  
@@ -212,77 +218,6 @@ const systemColumns = [
     return defaultColors[status as keyof typeof defaultColors] || defaultColors.todo;
   };
 
-// Map DB row to Task type (same as kanban)
-const mapDbTask = (row: any): Task => ({
-  id: String(row.id),
-  title: row.title,
-  description: row.description || undefined,
-  status: (row.status as Task["status"]) ?? "todo",
-  priority: (["low", "medium", "high"].includes(row.priority)
-    ? row.priority
-    : "medium") as Task["priority"],
-  tags: row.tags ?? [],
-  assignee: row.assignee || undefined,
-  dueDate: row.due_date ? new Date(row.due_date) : undefined,
-  createdAt: row.created_at ? new Date(row.created_at) : new Date(),
-  updatedAt: row.updated_at ? new Date(row.updated_at) : new Date(),
-  customFields: row.custom_fields || {},
-  sipiNumber: row.sipi_number || undefined,
-  companyName: row.company_name || undefined,
-  category: row.category || 'general',
-});
-
-  // Load tasks from Supabase
-  const loadTasks = async () => {
-    if (!user) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("*")
-        .order("created_at", { ascending: false });
-      
-      if (error) {
-        console.error(error);
-        toast({ 
-          title: "Erreur", 
-          description: "Impossible de charger les tâches", 
-          variant: "destructive" 
-        });
-        return;
-      }
-      
-      if (data) {
-        // Tri par échéance croissante (les tâches sans échéance à la fin)
-        const sortedTasks = data.map(mapDbTask).sort((a, b) => {
-          // Si une tâche n'a pas de due date, elle va à la fin
-          if (!a.dueDate && !b.dueDate) return 0;
-          if (!a.dueDate) return 1;
-          if (!b.dueDate) return -1;
-          
-          // Tri par due date croissant
-          return a.dueDate.getTime() - b.dueDate.getTime();
-        });
-        
-        setTasks(sortedTasks);
-      }
-    } catch (error) {
-      console.error('Error loading tasks:', error);
-      toast({ 
-        title: "Erreur", 
-        description: "Erreur lors du chargement", 
-        variant: "destructive" 
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadTasks();
-    loadDepartmentManagement();
-  }, [user]);
-
   // Load department management data
   const loadDepartmentManagement = async () => {
     try {
@@ -347,29 +282,12 @@ const mapDbTask = (row: any): Task => ({
     }
   };
 
-  // Set up real-time updates
   useEffect(() => {
-    if (!user) return;
-
-    const channel = supabase
-      .channel('tasks-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'tasks'
-        },
-        () => {
-          loadTasks(); // Reload tasks on any change
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    loadDepartmentManagement();
   }, [user]);
+
+  // Set up real-time updates - now we don't need this since we're using encrypted functions
+  // Real-time updates would need to be handled differently with encryption
 
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -743,9 +661,6 @@ const mapDbTask = (row: any): Task => ({
         title: "Tâche modifiée",
         description: "La modification a été sauvegardée",
       });
-
-      // Rafraîchir immédiatement les tâches
-      await loadTasks();
     } catch (error) {
       throw error;
     }
@@ -970,14 +885,14 @@ const mapDbTask = (row: any): Task => ({
       <CreateTaskDialog 
         open={isCreateTaskOpen} 
         onOpenChange={setIsCreateTaskOpen} 
-        onTaskCreated={loadTasks}
+        onTaskCreated={() => {}} // No need to refresh, hook handles it
       />
 
       <EditTaskDialog 
         open={isEditTaskOpen} 
         onOpenChange={setIsEditTaskOpen} 
         task={editingTask} 
-        onTaskUpdated={loadTasks}
+        onTaskUpdated={() => {}} // No need to refresh, hook handles it
       />
 
       <CompanyDetailDialog

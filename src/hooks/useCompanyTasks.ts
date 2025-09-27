@@ -3,13 +3,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Task } from './useTasks';
 
-export const useCompanyTasks = (companyName: string | null) => {
+export const useCompanyTasks = (sipiNumber: string | null) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
 
   const loadCompanyTasks = async () => {
-    if (!user || !companyName) {
+    if (!user || !sipiNumber) {
       setTasks([]);
       return;
     }
@@ -20,7 +20,7 @@ export const useCompanyTasks = (companyName: string | null) => {
         .from('tasks')
         .select('*')
         .eq('user_id', user.id)
-        .eq('company_name', companyName)
+        .eq('sipi_number', sipiNumber)
         .order('created_at', { ascending: false });
       
       if (error) {
@@ -38,7 +38,7 @@ export const useCompanyTasks = (companyName: string | null) => {
 
   useEffect(() => {
     loadCompanyTasks();
-  }, [user, companyName]);
+  }, [user, sipiNumber]);
 
   return { 
     tasks, 

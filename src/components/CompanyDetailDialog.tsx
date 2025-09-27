@@ -64,7 +64,7 @@ const CompanyDetailDialog: React.FC<CompanyDetailDialogProps> = ({
   });
 
   // Hook pour récupérer les tâches liées à l'entreprise
-  const { tasks: companyTasks, loading: tasksLoading } = useCompanyTasks(company?.company_name || null);
+  const { tasks: companyTasks, loading: tasksLoading } = useCompanyTasks(company?.sipi_number || null);
   const { columns } = useUserColumns();
 
   useEffect(() => {

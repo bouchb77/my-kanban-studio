@@ -49,7 +49,28 @@ class TaskEncryption {
     return btoa(String.fromCharCode(...combined));
   }
 
+  // Check if data is encrypted (base64 format with proper length)
+  isEncrypted(data: string): boolean {
+    if (!data || data.length < 16) return false;
+    
+    try {
+      // Try to decode base64 - encrypted data should be base64 encoded
+      const decoded = atob(data);
+      // Encrypted data should have at least 12 bytes for IV + some encrypted content
+      return decoded.length >= 16;
+    } catch {
+      return false;
+    }
+  }
+
   async decrypt(encryptedData: string): Promise<string> {
+    if (!encryptedData) return encryptedData;
+    
+    // Check if data is actually encrypted
+    if (!this.isEncrypted(encryptedData)) {
+      return encryptedData; // Return as-is if not encrypted
+    }
+
     if (!this.key) await this.init();
 
     try {

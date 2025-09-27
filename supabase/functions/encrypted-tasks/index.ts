@@ -29,6 +29,7 @@ class TaskEncryption {
   }
 
   async encrypt(text: string): Promise<string> {
+    if (!text) return text;
     if (!this.key) await this.init();
     
     const iv = crypto.getRandomValues(new Uint8Array(12)); // 96-bit IV for AES-GCM
@@ -49,26 +50,24 @@ class TaskEncryption {
     return btoa(String.fromCharCode(...combined));
   }
 
-  // Check if data is encrypted (base64 format with proper length)
+  // Simple but reliable check for encrypted data
   isEncrypted(data: string): boolean {
-    if (!data || data.length < 16) return false;
+    if (!data || data.length < 20) return false;
     
-    try {
-      // Try to decode base64 - encrypted data should be base64 encoded
-      const decoded = atob(data);
-      // Encrypted data should have at least 12 bytes for IV + some encrypted content
-      return decoded.length >= 16;
-    } catch {
-      return false;
-    }
+    // Encrypted data should be long base64 string (at least 32 chars for IV + minimal data)
+    const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+    if (!base64Regex.test(data)) return false;
+    
+    // Must be reasonably long (IV is 12 bytes = 16 chars in base64 + encrypted content)
+    return data.length >= 32;
   }
 
   async decrypt(encryptedData: string): Promise<string> {
     if (!encryptedData) return encryptedData;
     
-    // Check if data is actually encrypted
+    // If it doesn't look encrypted, return as-is
     if (!this.isEncrypted(encryptedData)) {
-      return encryptedData; // Return as-is if not encrypted
+      return encryptedData;
     }
 
     if (!this.key) await this.init();
@@ -89,8 +88,8 @@ class TaskEncryption {
 
       return new TextDecoder().decode(decrypted);
     } catch (error) {
-      console.error('Decryption error:', error);
-      // Return the original data if decryption fails (backward compatibility)
+      console.error('Decryption failed for data:', encryptedData.substring(0, 20) + '...');
+      // Return original data if decryption fails (backward compatibility)
       return encryptedData;
     }
   }
@@ -133,7 +132,7 @@ serve(async (req) => {
 
     switch (method) {
       case 'SELECT':
-        return await handleSelect(supabase, user.id, body);
+        return await handleSelect(supabase, user.id);
       case 'INSERT':
         return await handleInsert(supabase, user.id, body);
       case 'UPDATE':
@@ -148,14 +147,15 @@ serve(async (req) => {
     }
   } catch (error) {
     console.error('Error in encrypted-tasks function:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
 
-async function handleSelect(supabase: any, userId: string, body: any) {
+async function handleSelect(supabase: any, userId: string) {
   const { data, error } = await supabase
     .from('tasks')
     .select('*')

@@ -2,3 +2,16 @@ project_id = "grfnbxbxcbqiddbcrdru"
 
 [functions.ics-sync]
 verify_jwt = false
+
+[functions.encrypted-tasks]
+verify_jwt = true
+
+# Temporarily disable import map for problematic functions to bypass TypeScript errors
+[functions.geocode-address]
+import_map = false
+
+[functions.geocode-companies] 
+import_map = false
+
+[functions.geocode-single-address]
+import_map = false

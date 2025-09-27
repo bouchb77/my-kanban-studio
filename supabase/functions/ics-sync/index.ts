@@ -169,11 +169,12 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Erreur lors de la synchronisation ICS:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     
     return new Response(
       JSON.stringify({ 
         error: 'Erreur lors de la récupération du calendrier',
-        details: error.message 
+        details: errorMessage 
       }),
       { 
         status: 500, 

@@ -334,16 +334,8 @@ const systemColumns = [
   };
 
   const handleDeleteTask = async (taskId: string) => {
-    const { error } = await supabase.from("tasks").delete().eq("id", taskId);
-    
-    if (error) {
-      toast({ 
-        title: "Erreur", 
-        description: "Impossible de supprimer la tâche", 
-        variant: "destructive" 
-      });
-    } else {
-      toast({ title: "Tâche supprimée" });
+    const success = await deleteEncryptedTask(taskId);
+    if (success) {
       setSelectedTasks(prev => prev.filter(id => id !== taskId));
     }
   };
@@ -614,90 +606,70 @@ const systemColumns = [
 
   const handleInlineEdit = async (taskId: string, field: string, value: any) => {
     try {
-      const updateData: any = {};
+      let actualField = field;
+      let actualValue = value;
       
-      if (field === "title") {
-        updateData.title = value;
-      } else if (field === "status") {
-        updateData.status = value;
-      } else if (field === "priority") {
-        updateData.priority = value;
+      // Handle field name mapping and value transformation
+      if (field === "dueDate") {
+        actualValue = value ? new Date(value) : undefined;
       } else if (field === "assignee") {
-        updateData.assignee = value || null;
-      } else if (field === "dueDate") {
-        updateData.due_date = value ? value.toISOString() : null;
+        actualValue = value || undefined;
       } else if (field === "tags") {
-        updateData.tags = Array.isArray(value) ? value : [];
+        actualValue = Array.isArray(value) ? value : [];
       } else if (field === "category") {
-        updateData.category = value || "general";
+        actualValue = value || "general";
       } else if (field.startsWith("custom_")) {
-        // Handle custom fields
+        // Handle custom fields - we need to update the entire customFields object
         const fieldId = field.replace("custom_", "");
         const currentTask = tasks.find(t => t.id === taskId);
         const currentCustomFields = currentTask?.customFields || {};
         
-        updateData.custom_fields = {
+        actualField = "customFields";
+        actualValue = {
           ...currentCustomFields,
           [fieldId]: value instanceof Date ? value.toISOString() : value
         };
       }
 
-      const { error } = await supabase
-        .from("tasks")
-        .update(updateData)
-        .eq("id", taskId);
-
-      if (error) {
-        console.error("Error updating task:", error);
+      const success = await updateTaskField(taskId, actualField, actualValue);
+      
+      if (success) {
         toast({
-          title: "Erreur",
-          description: "Impossible de modifier la tâche",
-          variant: "destructive",
+          title: "Tâche modifiée",
+          description: "La modification a été sauvegardée",
         });
-        throw error;
       }
-
-      toast({
-        title: "Tâche modifiée",
-        description: "La modification a été sauvegardée",
-      });
     } catch (error) {
       throw error;
     }
   };
 
   const handleBulkComplete = async () => {
-    const { error } = await supabase
-      .from("tasks")
-      .update({ status: "done" })
-      .in("id", selectedTasks);
+    let successCount = 0;
+    for (const taskId of selectedTasks) {
+      const success = await updateTaskField(taskId, "status", "done");
+      if (success) {
+        successCount++;
+      }
+    }
     
-    if (error) {
-      toast({ 
-        title: "Erreur", 
-        description: "Impossible de marquer les tâches comme terminées", 
-        variant: "destructive" 
-      });
-    } else {
-      toast({ title: `${selectedTasks.length} tâche(s) marquée(s) comme terminée(s)` });
+    if (successCount > 0) {
+      toast({ title: `${successCount} tâche(s) marquée(s) comme terminée(s)` });
       setSelectedTasks([]);
     }
   };
 
   const handleBulkDelete = async () => {
-    const { error } = await supabase
-      .from("tasks")
-      .delete()
-      .in("id", selectedTasks);
+    let successCount = 0;
+    for (const taskId of selectedTasks) {
+      const success = await deleteEncryptedTask(taskId);
+      if (success) {
+        successCount++;
+      }
+    }
     
-    if (error) {
-      toast({ 
-        title: "Erreur", 
-        description: "Impossible de supprimer les tâches", 
-        variant: "destructive" 
-      });
-    } else {
-      toast({ title: `${selectedTasks.length} tâche(s) supprimée(s)` });
+    if (successCount > 0) {
+      toast({ title: `${successCount} tâche(s) supprimée(s)` });
       setSelectedTasks([]);
     }
   };

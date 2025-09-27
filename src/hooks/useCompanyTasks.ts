@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Task } from './useTasks';
+import { Task } from '@/types/task';
+import { encryptedTasksService } from '@/services/encryptedTasksService';
 
 export const useCompanyTasks = (sipiNumber: string | null) => {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -16,19 +16,10 @@ export const useCompanyTasks = (sipiNumber: string | null) => {
     
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('sipi_number', sipiNumber)
-        .order('created_at', { ascending: false });
-      
-      if (error) {
-        console.error('Error loading company tasks:', error);
-        return;
-      }
-      
-      setTasks(data as Task[] || []);
+      const allTasks = await encryptedTasksService.getAllTasks();
+      const mappedTasks = allTasks.map(task => encryptedTasksService.mapDbTask(task));
+      const filteredTasks = mappedTasks.filter(task => task.sipiNumber === sipiNumber);
+      setTasks(filteredTasks);
     } catch (error) {
       console.error('Error loading company tasks:', error);
     } finally {

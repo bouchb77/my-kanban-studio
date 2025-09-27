@@ -378,10 +378,10 @@ const CompanyDetailDialog: React.FC<CompanyDetailDialogProps> = ({
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            {task.due_date ? format(new Date(task.due_date), 'dd/MM/yyyy') : '-'}
+                            {task.dueDate ? format(new Date(task.dueDate), 'dd/MM/yyyy') : '-'}
                           </TableCell>
                           <TableCell>
-                            {format(new Date(task.created_at), 'dd/MM/yyyy')}
+                            {format(new Date(task.createdAt), 'dd/MM/yyyy')}
                           </TableCell>
                         </TableRow>
                       ))}

@@ -178,8 +178,9 @@ async function geocodeAddress(address: string): Promise<GeocodeResult> {
       console.log(`Geocoding successful with ${result.source}`);
       return result;
     } catch (error) {
-      console.warn(`Geocoding failed with ${service.name}:`, error.message);
-      lastError = error;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`Geocoding failed with ${service.name}:`, errorMessage);
+      lastError = error instanceof Error ? error : new Error(String(error));
       // Attendre un peu avant d'essayer le service suivant
       await new Promise(resolve => setTimeout(resolve, 500));
       continue;
@@ -241,9 +242,10 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in geocode-address function:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return new Response(
       JSON.stringify({ 
-        error: error.message,
+        error: errorMessage,
         details: 'Failed to geocode address with all available services'
       }), 
       {

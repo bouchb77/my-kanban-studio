@@ -144,8 +144,9 @@ async function geocodeAddress(address: string): Promise<GeocodeResult> {
       console.log(`Geocoding successful with ${result.source} for: ${address}`);
       return result;
     } catch (error) {
-      console.warn(`Geocoding failed with ${service.name} for "${address}":`, error.message);
-      lastError = error;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`Geocoding failed with ${service.name} for "${address}":`, errorMessage);
+      lastError = error instanceof Error ? error : new Error(String(error));
       
       // Attendre un peu avant d'essayer le service suivant
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -205,7 +206,8 @@ serve(async (req) => {
           availableServices.push('OpenRouteService');
         }
       } catch (e) {
-        console.warn('OpenRouteService not available:', e.message);
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        console.warn('OpenRouteService not available:', errorMessage);
       }
       
       // Test Google Maps
@@ -215,7 +217,8 @@ serve(async (req) => {
           availableServices.push('Google Maps');
         }
       } catch (e) {
-        console.warn('Google Maps not available:', e.message);
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        console.warn('Google Maps not available:', errorMessage);
       }
       
       // Test Nominatim (toujours disponible)
@@ -223,7 +226,8 @@ serve(async (req) => {
         await geocodeWithNominatim('Paris, France');
         availableServices.push('Nominatim OSM');
       } catch (e) {
-        console.warn('Nominatim not available:', e.message);
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        console.warn('Nominatim not available:', errorMessage);
       }
       
       if (availableServices.length === 0) {
@@ -321,7 +325,8 @@ serve(async (req) => {
                   usedStrategy = address;
                   break;
                 } catch (error) {
-                  console.warn(`Failed strategy "${address}" for ${company.company_name}:`, error.message);
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  console.warn(`Failed strategy "${address}" for ${company.company_name}:`, errorMessage);
                   continue;
                 }
               }
@@ -444,10 +449,9 @@ serve(async (req) => {
     // Start the background process
     const backgroundTask = processCompaniesInBackground()
 
-    // Use EdgeRuntime.waitUntil to prevent timeout
-    if (typeof EdgeRuntime !== 'undefined') {
-      EdgeRuntime.waitUntil(backgroundTask)
-    }
+    // Use background task without EdgeRuntime for compatibility
+    // The background task will still run but may be terminated when the function completes
+    processCompaniesInBackground();
 
     // Return immediate response while background task continues
     return new Response(
@@ -465,10 +469,11 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
+        error: errorMessage,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

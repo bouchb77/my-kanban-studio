@@ -12,12 +12,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserColumns, useUserCustomFields } from "@/hooks/useUserSettings";
 import { getCompanyBySipi, validateSipiFormat } from "@/services/sipiService";
 import { useUserCategories } from "@/hooks/useUserCategories";
+import { useEncryptedTasks } from "@/hooks/useEncryptedTasks";
 
 interface CreateTaskDialogProps {
   open: boolean;
@@ -31,6 +31,7 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
   const { columns } = useUserColumns();
   const { customFields } = useUserCustomFields();
   const { categories } = useUserCategories();
+  const { createTask } = useEncryptedTasks();
   const isMobile = useIsMobile();
   
   const [title, setTitle] = useState("");
@@ -105,26 +106,23 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
         return;
       }
 
-      const { error } = await supabase
-        .from('tasks')
-        .insert([
-          {
-            title,
-            description: description || null,
-            priority: priority || 'medium',
-            status,
-            category: category || 'general',
-            due_date: dueDate?.toISOString() || null,
-            tags: [],
-            user_id: user.id,
-            sipi_number: sipiNumber || null,
-            company_name: companyName || null,
-            custom_fields: customFieldValues
-          }
-        ]);
+      const taskData = {
+        title,
+        description: description || undefined,
+        status: (status || "todo") as "todo" | "in-progress" | "review" | "done",
+        priority: (priority || "medium") as "low" | "medium" | "high",
+        tags: [],
+        assignee: undefined,
+        dueDate: dueDate || undefined,
+        customFields: customFieldValues,
+        sipiNumber: sipiNumber || undefined,
+        companyName: companyName || undefined,
+        category: category || 'general',
+      };
 
-      if (error) {
-        console.error('Error creating task:', error);
+      const newTask = await createTask(taskData);
+
+      if (!newTask) {
         toast({
           title: "Erreur",
           description: "Impossible de créer la tâche",

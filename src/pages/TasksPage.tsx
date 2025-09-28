@@ -857,7 +857,7 @@ const systemColumns = [
       <CreateTaskDialog 
         open={isCreateTaskOpen} 
         onOpenChange={setIsCreateTaskOpen} 
-        onTaskCreated={() => {}} // No need to refresh, hook handles it
+        onTaskCreated={() => {}} // Auto-refresh with encrypted tasks hook
       />
 
       <EditTaskDialog 

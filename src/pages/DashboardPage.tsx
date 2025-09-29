@@ -26,6 +26,19 @@ const DashboardPage = () => {
   const [viewingTask, setViewingTask] = useState<any>(null);
   const { tasks, loading } = useEncryptedTasks();
   
+  // Identifier les statuts de colonnes terminées (même logique que dans useTasks)
+  const getCompletedStatuses = () => {
+    const completedStatuses = ['done'];
+    const completedKeywords = ['terminé', 'terminée', 'fini', 'fait', 'complete', 'achevé', 'réalisé'];
+    columns.forEach(column => {
+      const columnTitle = column.title.toLowerCase();
+      if (completedKeywords.some(keyword => columnTitle.includes(keyword))) {
+        completedStatuses.push(column.status);
+      }
+    });
+    return completedStatuses;
+  };
+  
   // Implement the stats functions locally since useEncryptedTasks doesn't have them
   const getTaskStats = () => {
     if (!tasks || tasks.length === 0) {
@@ -82,19 +95,6 @@ const DashboardPage = () => {
   const stats = getTaskStats();
   const recentTasks = getRecentTasks();
   const overdueTasks = getOverdueTasks();
-
-  // Identifier les statuts de colonnes terminées (même logique que dans useTasks)
-  const getCompletedStatuses = () => {
-    const completedStatuses = ['done'];
-    const completedKeywords = ['terminé', 'terminée', 'fini', 'fait', 'complete', 'achevé', 'réalisé'];
-    columns.forEach(column => {
-      const columnTitle = column.title.toLowerCase();
-      if (completedKeywords.some(keyword => columnTitle.includes(keyword))) {
-        completedStatuses.push(column.status);
-      }
-    });
-    return completedStatuses;
-  };
 
   const mapToViewTask = (t: any) => {
     const parseDate = (d: any) => {

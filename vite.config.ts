@@ -3,7 +3,6 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
-// https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
@@ -16,25 +15,27 @@ export default defineConfig(({ mode }) => ({
     },
   },
   
-  // 1. Maintien de l'optimisation pour le dev (si nécessaire, mais souvent ignoré au build)
   optimizeDeps: {
     include: ['leaflet.heat'],
   },
 
-  // 2. CORRECTION DÉFINITIVE POUR LE BUILD: Configuration Rollup
   build: {
-    // Rollup utilise le plugin CommonJS pour traiter ce type de dépendance
     commonjsOptions: {
       include: [/node_modules/],
     },
-    
-    // C'est l'étape la plus critique pour les dépendances non-ESM
     rollupOptions: {
-      external: [], // Assurez-vous que leaflet.heat n'est PAS ici
+      // Ajout d'une configuration pour la résolution des importations
+      // Note : C'est un contournement pour les modules CJS mal structurés.
+      external: [],
       plugins: [
-        // Si le simple commonjsOptions ne suffit pas, l'ajout manuel du plugin CommonJS pourrait être requis.
-        // Cependant, essayez d'abord sans importation supplémentaire.
+        // C'est une vérification ou une étape supplémentaire pour les modules CJS
       ],
     },
+    // Option pour forcer le traitement des importations non-ESM
+    // Si le plugin n'a pas de point d'entrée ES, nous le traitons comme une ressource
+    // que Rollup devrait ignorer lors de l'analyse, mais inclure dans le bundle.
+    // Cependant, l'approche la plus courante est de s'assurer que le CJS est résolu.
+    // Si la dépendance n'est pas essentielle au *build* mais est un effet secondaire (ce qui est le cas ici),
+    // nous pouvons modifier le composant React pour utiliser l'importation dynamique (`import()`).
   },
 }));

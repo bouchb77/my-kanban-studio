@@ -1,9 +1,3 @@
-Parfait, voici le code complet et corrigé pour votre composant HeatmapMap.tsx utilisant React-Leaflet et leaflet.heat, en incluant les ajustements TypeScript nécessaires.
-
-Ce code ne nécessite plus de token Mapbox et utilise les tuiles OpenStreetMap par défaut.
-
-TypeScript
-
 import React, { useEffect, useState, useRef } from 'react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css'; // Nécessaire pour le style de la carte Leaflet

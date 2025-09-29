@@ -33,22 +33,12 @@ const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ points, options }) => {
   const [isPluginLoaded, setIsPluginLoaded] = useState(false); 
 
   // 1. Importation dynamique du plugin pour éviter l'erreur Rollup/Vite
-  useEffect(() => {
-    // Utilisation d'import() au lieu de l'importation statique
-    import('leaflet.heat')
-      .then(() => {
-        setIsPluginLoaded(true);
-      })
-      .catch(error => {
-        console.error("Erreur de chargement de leaflet.heat. Assurez-vous qu'il est installé.", error);
-      });
-  }, []);
+  
 
 
   // 2. Logique d'ajout de la couche de chaleur (dépend du chargement du plugin)
   useEffect(() => {
-    if (map && isPluginLoaded) { 
-      // Retirer la couche précédente si elle existe
+    import('leaflet.heat')      // Retirer la couche précédente si elle existe
       if (heatLayerRef.current) {
         map.removeLayer(heatLayerRef.current);
       }

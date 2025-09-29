@@ -1,8 +1,14 @@
-import React, { useEffect, useState } from 'react';
-import { MapContainer, TileLayer } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css'; // Importez le CSS de Leaflet
+Parfait, voici le code complet et corrigé pour votre composant HeatmapMap.tsx utilisant React-Leaflet et leaflet.heat, en incluant les ajustements TypeScript nécessaires.
+
+Ce code ne nécessite plus de token Mapbox et utilise les tuiles OpenStreetMap par défaut.
+
+TypeScript
+
+import React, { useEffect, useState, useRef } from 'react';
+import { MapContainer, TileLayer, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css'; // Nécessaire pour le style de la carte Leaflet
 import L from 'leaflet';
-import 'leaflet.heat'; // Importez le plugin leaflet.heat
+import 'leaflet.heat'; // Nécessaire pour l'extension heatmap
 
 // Importations des composants UI et Supabase
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +16,7 @@ import { MapPin, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-// --- Types ---
+// --- Définition des types ---
 interface Company {
   id: string;
   company_name: string;
@@ -20,29 +26,34 @@ interface Company {
   postal_code: string;
 }
 
-// --- Composant pour la couche de chaleur Leaflet ---
+// Interface pour les propriétés de la couche de chaleur
 interface HeatmapLayerProps {
-  points: [number, number, number][]; // [latitude, longitude, intensité (poids)]
-  options?: L.HeatIconOptions;
+  // Format attendu: [latitude, longitude, intensité (poids)]
+  points: [number, number, number][]; 
+  // Utilisation de 'any' car les types du plugin leaflet.heat ne sont pas exportés dans @types/leaflet
+  options?: any; 
 }
 
+// --- Composant pour la couche de chaleur Leaflet ---
+// Ce composant doit être un enfant de MapContainer pour utiliser useMap
 const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ points, options }) => {
-  // Utilisez le hook useMap pour accéder à l'instance de la carte Leaflet
-  // Note: Ce composant doit être un enfant de MapContainer.
-  const map = (L as any).useMap();
-  const heatLayerRef = React.useRef<L.HeatLayer | null>(null);
+  const map = useMap(); 
+  // Utilisation de 'any' pour stocker l'objet HeatLayer non typé
+  const heatLayerRef = useRef<L.Layer | any>(null); 
 
   useEffect(() => {
     if (map) {
+      // 1. Retirer la couche précédente si elle existe
       if (heatLayerRef.current) {
-        map.removeLayer(heatLayerRef.current); // Supprime l'ancienne couche si elle existe
+        map.removeLayer(heatLayerRef.current);
       }
 
       if (points.length > 0) {
-        // Crée la nouvelle couche de chaleur
-        const newHeatLayer = (L.heatLayer as any)(points, {
-          radius: 25, // Taille des points de chaleur
-          blur: 15,  // Flou
+        // 2. Créer et ajouter la nouvelle couche de chaleur
+        // Utilisation de 'as any' pour bypasser l'erreur TS2339 (L.heatLayer n'est pas typé)
+        const newHeatLayer = (L.heatLayer as any)(points, { 
+          radius: 25, 
+          blur: 15,  
           maxZoom: 14,
           ...options,
         }).addTo(map);
@@ -50,13 +61,15 @@ const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ points, options }) => {
       }
     }
 
-    // Fonction de nettoyage
+    // 3. Fonction de nettoyage : retire la couche quand le composant est démonté
     return () => {
       if (map && heatLayerRef.current) {
         map.removeLayer(heatLayerRef.current);
+        heatLayerRef.current = null;
       }
     };
-  }, [map, points, options]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, points]); // map est stable, mais les points changent au chargement
 
   return null; // Ce composant ne rend rien dans le DOM
 };
@@ -72,7 +85,7 @@ const HeatmapMap = () => {
   const center: L.LatLngExpression = [46.2276, 2.3522];
   const initialZoom = 5.5;
 
-  // La récupération des entreprises reste la même
+  // Chargement des entreprises (identique à votre code original)
   const loadCompanies = async () => {
     setLoading(true);
     try {
@@ -108,7 +121,7 @@ const HeatmapMap = () => {
       setCompanies(allCompanies);
       setLoading(false);
       if (allCompanies.length > 0) {
-        setMapInitialized(true); // Considérer la carte initialisée si les données sont chargées
+        setMapInitialized(true); 
         toast({
           title: "Données chargées",
           description: `Les données de ${allCompanies.length} clients sont prêtes pour la carte.`
@@ -131,15 +144,16 @@ const HeatmapMap = () => {
 
 
   // Préparation des données pour la couche de chaleur Leaflet
-  // Leaflet Heat s'attend à un tableau de [latitude, longitude, intensité(facultatif)]
-  const heatmapData: [number, number, number][] = companies.map(c => [
-    c.latitude,
-    c.longitude,
-    1 // Poids par défaut de 1. Vous pouvez ajuster cela si vous avez une métrique d'intensité.
-  ]);
-
-  // Leaflet n'a pas besoin de token d'accès pour les tuiles OpenStreetMap par défaut
-  // L'appel à loadMapboxToken n'est plus nécessaire.
+  // Format: [latitude, longitude, poids]
+  const heatmapData: [number, number, number][] = companies
+    .filter(c => c.latitude && c.longitude) // Filtrer pour s'assurer qu'ils existent
+    .map(c => [
+      c.latitude,
+      c.longitude,
+      1 // Poids par défaut de 1 (fréquence)
+    ]);
+    
+  // La logique Mapbox (initializeMap, createHeatmap) est remplacée par la déclaration du MapContainer.
 
   return (
     <Card>
@@ -176,13 +190,13 @@ const HeatmapMap = () => {
             style={{ height: '400px', width: '100%' }}
             className="rounded-lg border"
           >
-            {/* Couche de tuiles OpenStreetMap par défaut */}
+            {/* Couche de tuiles OpenStreetMap par défaut (gratuite et sans token) */}
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
-            {/* Couche de chaleur personnalisée */}
+            {/* Ajout de la couche de chaleur */}
             <HeatmapLayer points={heatmapData} />
           </MapContainer>
         )}
@@ -191,5 +205,4 @@ const HeatmapMap = () => {
   );
 };
 
-// Exportez la version non-HOC pour les tests si nécessaire
 export default HeatmapMap;

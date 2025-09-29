@@ -3,7 +3,6 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
-// https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
@@ -19,7 +18,7 @@ export default defineConfig(({ mode }) => ({
   optimizeDeps: {
     // Maintenu pour le plugin Leaflet
     include: ['leaflet.heat'],
-    // Maintenu pour le dédoublonnage des hooks (bonne pratique)
+    // Maintenu pour le dédoublonnage (si utile)
     dedupe: ['react', 'react-dom', 'react-leaflet', 'leaflet'],
   },
 
@@ -27,9 +26,7 @@ export default defineConfig(({ mode }) => ({
     commonjsOptions: {
       include: [/node_modules/],
     },
-    // **CORRECTION FINALE:** Externaliser explicitement React et ReactDOM
-    rollupOptions: {
-      external: ['react', 'react-dom'],
-    },
+    
+    // !!! BLOC ROLLUPOPTIONS RETIRÉ !!!
   },
 }));

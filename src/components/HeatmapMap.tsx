@@ -45,7 +45,7 @@ const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ points, options }) => {
       if (points.length > 0) {
         // 2. Créer et ajouter la nouvelle couche de chaleur
         // Utilisation de 'as any' pour bypasser l'erreur TS2339 (L.heatLayer n'est pas typé)
-        const newHeatLayer = (L.heatLayer as any)(points, { 
+        const newHeatLayer = (L as any).heatLayer(points, {
           radius: 25, 
           blur: 15,  
           maxZoom: 14,

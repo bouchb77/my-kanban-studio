@@ -134,26 +134,7 @@ const ReportingPage = () => {
             </div>
 
             {/* Colonne 2: Carte interactive avec points */}
-            <div>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Carte Interactive</CardTitle>
-                  <CardDescription>Localisation précise des entreprises avec filtres</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[400px]">
-                    <CompaniesMap 
-                      startDate={startDate}
-                      endDate={endDate}
-                      onDateChange={{
-                        setStartDate,
-                        setEndDate
-                      }}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            
           </div>
         </CardContent>
       </Card>

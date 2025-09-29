@@ -20,6 +20,7 @@ interface Company {
   postal_code: string;
 }
 
+
 // Interface pour les propriétés de la couche de chaleur
 interface HeatmapLayerProps {
   // Format attendu: [latitude, longitude, intensité (poids)]

@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css'; // Nécessaire pour le style de la carte Leaflet
+import 'leaflet/dist/leaflet.css'; // Nécessaire pour le style de base de Leaflet
 import L from 'leaflet';
-import 'leaflet.heat'; // Nécessaire pour l'extension heatmap
 
 // Importations des composants UI et Supabase
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,33 +19,44 @@ interface Company {
   postal_code: string;
 }
 
-
 // Interface pour les propriétés de la couche de chaleur
 interface HeatmapLayerProps {
   // Format attendu: [latitude, longitude, intensité (poids)]
   points: [number, number, number][]; 
-  // Utilisation de 'any' car les types du plugin leaflet.heat ne sont pas exportés dans @types/leaflet
   options?: any; 
 }
 
 // --- Composant pour la couche de chaleur Leaflet ---
-// Ce composant doit être un enfant de MapContainer pour utiliser useMap
 const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ points, options }) => {
   const map = useMap(); 
-  // Utilisation de 'any' pour stocker l'objet HeatLayer non typé
   const heatLayerRef = useRef<L.Layer | any>(null); 
+  const [isPluginLoaded, setIsPluginLoaded] = useState(false); 
 
+  // 1. Importation dynamique du plugin pour éviter l'erreur Rollup/Vite
   useEffect(() => {
-    if (map) {
-      // 1. Retirer la couche précédente si elle existe
+    // Utilisation d'import() au lieu de l'importation statique
+    import('leaflet.heat')
+      .then(() => {
+        setIsPluginLoaded(true);
+      })
+      .catch(error => {
+        console.error("Erreur de chargement de leaflet.heat. Assurez-vous qu'il est installé.", error);
+      });
+  }, []);
+
+
+  // 2. Logique d'ajout de la couche de chaleur (dépend du chargement du plugin)
+  useEffect(() => {
+    if (map && isPluginLoaded) { 
+      // Retirer la couche précédente si elle existe
       if (heatLayerRef.current) {
         map.removeLayer(heatLayerRef.current);
       }
 
       if (points.length > 0) {
-        // 2. Créer et ajouter la nouvelle couche de chaleur
-        // Utilisation de 'as any' pour bypasser l'erreur TS2339 (L.heatLayer n'est pas typé)
-        const newHeatLayer = (L as any).heatLayer(points, {
+        // Créer et ajouter la nouvelle couche de chaleur
+        // Utilisation de (L as any) pour résoudre les erreurs de typage
+        const newHeatLayer = (L as any).heatLayer(points, { 
           radius: 25, 
           blur: 15,  
           maxZoom: 14,
@@ -56,7 +66,7 @@ const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ points, options }) => {
       }
     }
 
-    // 3. Fonction de nettoyage : retire la couche quand le composant est démonté
+    // Fonction de nettoyage
     return () => {
       if (map && heatLayerRef.current) {
         map.removeLayer(heatLayerRef.current);
@@ -64,9 +74,9 @@ const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ points, options }) => {
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, points]); // map est stable, mais les points changent au chargement
+  }, [map, points, isPluginLoaded]);
 
-  return null; // Ce composant ne rend rien dans le DOM
+  return null; 
 };
 
 // --- Composant principal de la carte ---
@@ -80,7 +90,7 @@ const HeatmapMap = () => {
   const center: L.LatLngExpression = [46.2276, 2.3522];
   const initialZoom = 5.5;
 
-  // Chargement des entreprises (identique à votre code original)
+  // Chargement des entreprises (Logique de pagination Supabase conservée)
   const loadCompanies = async () => {
     setLoading(true);
     try {
@@ -141,15 +151,13 @@ const HeatmapMap = () => {
   // Préparation des données pour la couche de chaleur Leaflet
   // Format: [latitude, longitude, poids]
   const heatmapData: [number, number, number][] = companies
-    .filter(c => c.latitude && c.longitude) // Filtrer pour s'assurer qu'ils existent
+    .filter(c => c.latitude && c.longitude)
     .map(c => [
       c.latitude,
       c.longitude,
       1 // Poids par défaut de 1 (fréquence)
     ]);
     
-  // La logique Mapbox (initializeMap, createHeatmap) est remplacée par la déclaration du MapContainer.
-
   return (
     <Card>
       <CardHeader>
@@ -191,7 +199,7 @@ const HeatmapMap = () => {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
-            {/* Ajout de la couche de chaleur */}
+            {/* Ajout de la couche de chaleur. Elle s'affiche une fois le plugin chargé. */}
             <HeatmapLayer points={heatmapData} />
           </MapContainer>
         )}

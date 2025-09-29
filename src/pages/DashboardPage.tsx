@@ -15,7 +15,7 @@ import { CreateTaskDialog } from "@/components/CreateTaskDialog";
 import { ViewTaskDialog } from "@/components/ViewTaskDialog";
 import { ProjectsOverview } from "@/components/ProjectsOverview";
 import { useState } from "react";
-import { useTasks } from "@/hooks/useTasks";
+import { useEncryptedTasks } from "@/hooks/useEncryptedTasks";
 import { useUserColumns } from "@/hooks/useUserSettings";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -24,7 +24,59 @@ const DashboardPage = () => {
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [isViewTaskOpen, setIsViewTaskOpen] = useState(false);
   const [viewingTask, setViewingTask] = useState<any>(null);
-  const { getTaskStats, getRecentTasks, getOverdueTasks, tasks, loading } = useTasks();
+  const { tasks, loading } = useEncryptedTasks();
+  
+  // Implement the stats functions locally since useEncryptedTasks doesn't have them
+  const getTaskStats = () => {
+    if (!tasks || tasks.length === 0) {
+      return { total: 0, completed: 0, inProgress: 0, inReview: 0, overdue: 0, completionRate: 0 };
+    }
+
+    const completedStatuses = getCompletedStatuses();
+    const now = new Date();
+    
+    const completed = tasks.filter(task => completedStatuses.includes(task.status)).length;
+    const inProgress = tasks.filter(task => task.status === 'in-progress').length;
+    const inReview = tasks.filter(task => task.status === 'review').length;
+    const overdue = tasks.filter(task => {
+      if (!task.dueDate) return false;
+      const dueDate = new Date(task.dueDate);
+      return dueDate < now && !completedStatuses.includes(task.status);
+    }).length;
+    
+    const completionRate = Math.round((completed / tasks.length) * 100);
+    
+    return {
+      total: tasks.length,
+      completed,
+      inProgress,
+      inReview,
+      overdue,
+      completionRate
+    };
+  };
+
+  const getRecentTasks = (limit = 5) => {
+    if (!tasks) return [];
+    return [...tasks]
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .slice(0, limit);
+  };
+
+  const getOverdueTasks = (limit = 10) => {
+    if (!tasks) return [];
+    const now = new Date();
+    const completedStatuses = getCompletedStatuses();
+    
+    return tasks
+      .filter(task => {
+        if (!task.dueDate) return false;
+        const dueDate = new Date(task.dueDate);
+        return dueDate < now && !completedStatuses.includes(task.status);
+      })
+      .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime())
+      .slice(0, limit);
+  };
   const { columns } = useUserColumns();
   
   const stats = getTaskStats();
@@ -173,7 +225,7 @@ const DashboardPage = () => {
               ) : (
                 overdueTasks.map((task) => {
                   // Sécuriser la date avant de l'utiliser
-                  const dueDate = task.due_date ? new Date(task.due_date) : null;
+                  const dueDate = task.dueDate ? new Date(task.dueDate) : null;
                   const isValidDate = dueDate && !isNaN(dueDate.getTime());
                   
                   return (
@@ -225,8 +277,8 @@ const DashboardPage = () => {
                   
                   // Trouver les tâches pour ce jour
                   const dayTasks = tasks.filter(task => {
-                    if (!task.due_date) return false;
-                    const taskDate = new Date(task.due_date);
+                    if (!task.dueDate) return false;
+                    const taskDate = new Date(task.dueDate);
                     if (isNaN(taskDate.getTime())) return false;
                     
                     // Exclure les tâches terminées si elles sont en retard
@@ -345,8 +397,8 @@ const DashboardPage = () => {
                                       
                                       {tasks.length > 0 && (
                                         <div className="absolute bottom-0 left-0 right-0 space-y-0.5">
-                                          {tasks.slice(0, 2).map((task) => {
-                                             const taskDate = new Date(task.due_date);
+                                           {tasks.slice(0, 2).map((task) => {
+                                             const taskDate = new Date(task.dueDate!);
                                              const isOverdue = taskDate < today;
                                              const completedStatuses = getCompletedStatuses();
                                              const isCompleted = completedStatuses.includes(task.status);
@@ -427,7 +479,7 @@ const DashboardPage = () => {
                 <div className="text-center text-muted-foreground">Aucune tâche récente</div>
               ) : (
                 recentTasks.map((task, index) => {
-                  const updatedDate = task.updated_at ? new Date(task.updated_at) : null;
+                  const updatedDate = task.updatedAt ? new Date(task.updatedAt) : null;
                   const isValidUpdatedDate = updatedDate && !isNaN(updatedDate.getTime());
                   
                   return (

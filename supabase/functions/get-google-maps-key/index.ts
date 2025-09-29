@@ -12,19 +12,13 @@ serve(async (req) => {
 
   try {
     const googleMapsApiKey = Deno.env.get('GOOGLE_MAPS_API_KEY')
+    const mapboxToken = Deno.env.get('MAPBOX_ACCESS_TOKEN')
     
-    if (!googleMapsApiKey) {
-      return new Response(
-        JSON.stringify({ error: 'Google Maps API key not configured' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
-    }
-
     return new Response(
-      JSON.stringify({ apiKey: googleMapsApiKey }),
+      JSON.stringify({ 
+        apiKey: googleMapsApiKey || '',
+        mapboxToken: mapboxToken || ''
+      }),
       { 
         status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

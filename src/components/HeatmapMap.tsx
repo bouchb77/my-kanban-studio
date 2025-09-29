@@ -2,9 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { MapPin, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -27,10 +24,30 @@ const HeatmapMap = () => {
   const [mapInitialized, setMapInitialized] = useState(false);
   const { toast } = useToast();
 
-  // Load companies data
+  // Load companies data and Mapbox token
   useEffect(() => {
     loadCompanies();
+    loadMapboxToken();
   }, []);
+
+  const loadMapboxToken = async () => {
+    try {
+      // Try to use Mapbox token from Supabase secrets
+      const { data, error } = await supabase.functions.invoke('get-google-maps-key');
+      
+      if (error) {
+        console.error('Error loading Mapbox token:', error);
+        return;
+      }
+      
+      // Assume the token is in the MAPBOX_ACCESS_TOKEN secret
+      if (data?.mapboxToken) {
+        setMapboxToken(data.mapboxToken);
+      }
+    } catch (error) {
+      console.error('Error loading Mapbox token:', error);
+    }
+  };
 
   const loadCompanies = async () => {
     try {
@@ -252,63 +269,15 @@ const HeatmapMap = () => {
     });
   };
 
-  const handleTokenSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (mapboxToken.trim()) {
+  // Auto-initialize map when token is available
+  useEffect(() => {
+    if (mapboxToken && !mapInitialized) {
       initializeMap();
-    } else {
-      toast({
-        title: "Token requis",
-        description: "Veuillez entrer votre token Mapbox",
-        variant: "destructive"
-      });
     }
-  };
+  }, [mapboxToken, mapInitialized]);
 
   return (
     <div className="space-y-4">
-      {!mapInitialized && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5" />
-              Configuration Mapbox
-            </CardTitle>
-            <CardDescription>
-              Pour afficher la carte de chaleur, vous devez fournir votre token public Mapbox.
-              <br />
-              Obtenez votre token sur{" "}
-              <a 
-                href="https://mapbox.com/" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
-                mapbox.com
-              </a>
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleTokenSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="mapbox-token">Token Public Mapbox</Label>
-                <Input
-                  id="mapbox-token"
-                  type="text"
-                  placeholder="pk.eyJ1Ijoi..."
-                  value={mapboxToken}
-                  onChange={(e) => setMapboxToken(e.target.value)}
-                  className="font-mono text-sm"
-                />
-              </div>
-              <Button type="submit" disabled={loading || !mapboxToken.trim()}>
-                {loading ? "Chargement..." : "Charger la carte"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      )}
-
       <Card>
         <CardHeader>
           <CardTitle>Carte de Chaleur - Concentration des Clients</CardTitle>
@@ -339,7 +308,7 @@ const HeatmapMap = () => {
               <div className="text-center space-y-2">
                 <MapPin className="h-12 w-12 text-muted-foreground mx-auto" />
                 <p className="text-muted-foreground">
-                  Configurez votre token Mapbox pour afficher la carte
+                  {loading ? "Chargement de la carte..." : "Token Mapbox requis pour afficher la carte"}
                 </p>
               </div>
             </div>

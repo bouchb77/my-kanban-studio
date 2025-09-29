@@ -11,6 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useOrders } from "@/hooks/useOrders";
 import HeatmapMap from "@/components/HeatmapMap";
+import CompaniesMap from "@/components/CompaniesMap";
 
 const ReportingPage = () => {
   const { orderStats, loading: ordersLoading } = useOrders();
@@ -119,8 +120,25 @@ const ReportingPage = () => {
         </CardContent>
       </Card>
 
-      {/* Carte de chaleur des clients */}
-      <HeatmapMap />
+      {/* Layout en 2 colonnes */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Colonne 1: Carte des entreprises avec filtres et tableau */}
+        <div>
+          <CompaniesMap 
+            startDate={startDate}
+            endDate={endDate}
+            onDateChange={{
+              setStartDate,
+              setEndDate
+            }}
+          />
+        </div>
+
+        {/* Colonne 2: Carte de chaleur des clients */}
+        <div>
+          <HeatmapMap />
+        </div>
+      </div>
     </div>
   );
 };

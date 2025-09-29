@@ -120,24 +120,54 @@ const ReportingPage = () => {
         </CardContent>
       </Card>
 
-      {/* Layout en 2 colonnes */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Colonne 1: Carte des entreprises avec filtres et tableau */}
-        <div>
-          <CompaniesMap 
-            startDate={startDate}
-            endDate={endDate}
-            onDateChange={{
-              setStartDate,
-              setEndDate
-            }}
-          />
-        </div>
+      {/* Carte interactive et carte de chaleur dans le même encart */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Analyse Géographique des Clients</CardTitle>
+          <CardDescription>Visualisation interactive et carte de chaleur des entreprises</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Colonne 1: Carte de chaleur */}
+            <div>
+              <HeatmapMap />
+            </div>
 
-        {/* Colonne 2: Carte de chaleur des clients */}
-        <div>
-          <HeatmapMap />
-        </div>
+            {/* Colonne 2: Carte interactive avec points */}
+            <div>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Carte Interactive</CardTitle>
+                  <CardDescription>Localisation précise des entreprises avec filtres</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[400px]">
+                    <CompaniesMap 
+                      startDate={startDate}
+                      endDate={endDate}
+                      onDateChange={{
+                        setStartDate,
+                        setEndDate
+                      }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tableau et filtres sur toute la largeur */}
+      <div className="w-full">
+        <CompaniesMap 
+          startDate={startDate}
+          endDate={endDate}
+          onDateChange={{
+            setStartDate,
+            setEndDate
+          }}
+        />
       </div>
     </div>
   );

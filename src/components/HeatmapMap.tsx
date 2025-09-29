@@ -51,18 +51,36 @@ const HeatmapMap = () => {
 
   const loadCompanies = async () => {
     try {
-      const { data, error } = await supabase
-        .from('companies')
-        .select('id, company_name, latitude, longitude, city, postal_code')
-        .not('latitude', 'is', null)
-        .not('longitude', 'is', null);
+      // Charger toutes les entreprises avec une approche de pagination
+      let allCompanies: any[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      let hasMore = true;
 
-      if (error) {
-        console.error('Error loading companies:', error);
-        return;
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('companies')
+          .select('id, company_name, latitude, longitude, city, postal_code')
+          .not('latitude', 'is', null)
+          .not('longitude', 'is', null)
+          .range(from, from + batchSize - 1);
+
+        if (error) {
+          console.error('Error loading companies:', error);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          allCompanies = [...allCompanies, ...data];
+          from += batchSize;
+          hasMore = data.length === batchSize;
+        } else {
+          hasMore = false;
+        }
       }
 
-      setCompanies(data || []);
+      console.log(`Total entreprises chargées pour heatmap: ${allCompanies.length}`);
+      setCompanies(allCompanies);
     } catch (error) {
       console.error('Error loading companies:', error);
     }
@@ -277,72 +295,43 @@ const HeatmapMap = () => {
   }, [mapboxToken, mapInitialized]);
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Carte de Chaleur - Concentration des Clients</CardTitle>
-          <CardDescription>
-            Visualisation de la densité géographique des entreprises clientes ({companies.length} entreprises géolocalisées)
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {companies.length === 0 && (
-            <div className="flex items-center gap-2 p-4 border rounded-lg bg-muted/20">
-              <AlertCircle className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">
-                Aucune entreprise géolocalisée trouvée
-              </span>
+    <Card>
+      <CardHeader>
+        <CardTitle>Carte de Chaleur - Concentration des Clients</CardTitle>
+        <CardDescription>
+          Visualisation de la densité géographique des entreprises clientes ({companies.length} entreprises géolocalisées)
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {companies.length === 0 && (
+          <div className="flex items-center gap-2 p-4 border rounded-lg bg-muted/20">
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">
+              Aucune entreprise géolocalisée trouvée
+            </span>
+          </div>
+        )}
+        
+        <div 
+          ref={mapContainer} 
+          className="w-full h-[400px] rounded-lg border bg-muted/10"
+          style={{ 
+            display: mapInitialized ? 'block' : 'none'
+          }}
+        />
+        
+        {!mapInitialized && companies.length > 0 && (
+          <div className="w-full h-[400px] rounded-lg border bg-muted/10 flex items-center justify-center">
+            <div className="text-center space-y-2">
+              <MapPin className="h-12 w-12 text-muted-foreground mx-auto" />
+              <p className="text-muted-foreground">
+                {loading ? "Chargement de la carte..." : "Token Mapbox requis pour afficher la carte"}
+              </p>
             </div>
-          )}
-          
-          <div 
-            ref={mapContainer} 
-            className="w-full h-[600px] rounded-lg border bg-muted/10"
-            style={{ 
-              display: mapInitialized ? 'block' : 'none'
-            }}
-          />
-          
-          {!mapInitialized && companies.length > 0 && (
-            <div className="w-full h-[600px] rounded-lg border bg-muted/10 flex items-center justify-center">
-              <div className="text-center space-y-2">
-                <MapPin className="h-12 w-12 text-muted-foreground mx-auto" />
-                <p className="text-muted-foreground">
-                  {loading ? "Chargement de la carte..." : "Token Mapbox requis pour afficher la carte"}
-                </p>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {mapInitialized && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Légende</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full bg-blue-500"></div>
-                <span className="text-sm">Faible concentration</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full bg-yellow-500"></div>
-                <span className="text-sm">Concentration moyenne</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full bg-red-500"></div>
-                <span className="text-sm">Forte concentration</span>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Zoomez pour voir les points individuels des entreprises
-            </p>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

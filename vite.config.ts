@@ -16,13 +16,10 @@ export default defineConfig(({ mode }) => ({
     },
   },
   
-  // CORRECTION FINALE : Gestion des dépendances pour résoudre le TypeError d'exécution
   optimizeDeps: {
-    // Maintien de l'inclusion pour garantir le chargement du plugin
+    // Maintenu pour le plugin Leaflet
     include: ['leaflet.heat'],
-    
-    // DÉDUPLICATION CRITIQUE pour les hooks React de react-leaflet
-    // Force l'utilisation d'une seule version de ces modules si plusieurs copies existent.
+    // Maintenu pour le dédoublonnage des hooks (bonne pratique)
     dedupe: ['react', 'react-dom', 'react-leaflet', 'leaflet'],
   },
 
@@ -30,6 +27,9 @@ export default defineConfig(({ mode }) => ({
     commonjsOptions: {
       include: [/node_modules/],
     },
-    // Suppression du bloc rollupOptions vide ou redondant
+    // **CORRECTION FINALE:** Externaliser explicitement React et ReactDOM
+    rollupOptions: {
+      external: ['react', 'react-dom'],
+    },
   },
 }));

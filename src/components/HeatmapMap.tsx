@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -20,40 +19,21 @@ interface Company {
   postal_code: string;
 }
 
-// Interface pour les propriétés de la couche de chaleur
 interface HeatmapLayerProps {
-  // Format attendu: [latitude, longitude, intensité (poids)]
   points: [number, number, number][]; 
   options?: any; 
 }
 
-// --- Composant pour la couche de chaleur Leaflet ---
-// Nous utilisons maintenant une approche qui garantit que le plugin est chargé.
-const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ points, options }) => {
+// --- Composant 1: Le composant de rendu PUR de la couche de chaleur ---
+// Ce composant assume que L.heatLayer existe (chargé par le wrapper parent)
+const HeatmapLayerPure: React.FC<HeatmapLayerProps> = ({ points, options }) => {
   const map = useMap(); 
   const heatLayerRef = useRef<L.Layer | null>(null); 
-  const [isPluginLoaded, setIsPluginLoaded] = useState(false); 
 
-  // 1. Importation dynamique du plugin (pour la résolution Rollup)
   useEffect(() => {
-    // Utilisation d'import() au lieu de l'importation statique
-    // Le plugin modifie L globalement
-    import('leaflet.heat')
-      .then(() => {
-        setIsPluginLoaded(true);
-      })
-      .catch(error => {
-        console.error("Erreur de chargement de leaflet.heat.", error);
-      });
-  }, []);
-
-
-  // 2. Logique d'ajout de la couche de chaleur (dépend du chargement du plugin)
-  useEffect(() => {
-    // S'assure que le plugin est chargé ET que Leaflet est prêt
-    if (map && isPluginLoaded && (L as any).heatLayer) { 
+    // Vérifiez explicitement si la fonction est présente sur l'objet global L
+    if (map && (L as any).heatLayer) { 
       
-      // Retirer la couche précédente si elle existe
       if (heatLayerRef.current) {
         map.removeLayer(heatLayerRef.current);
       }
@@ -65,6 +45,7 @@ const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ points, options }) => {
             radius: 25, 
             blur: 15,  
             maxZoom: 14,
+            // ... autres options
             ...options,
           }).addTo(map);
           heatLayerRef.current = newHeatLayer;
@@ -78,14 +59,37 @@ const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ points, options }) => {
     return () => {
       if (map && heatLayerRef.current) {
         map.removeLayer(heatLayerRef.current);
-        heatLayerRef.current = null;
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, points, isPluginLoaded]);
+  }, [map, points]);
 
   return null; 
 };
+
+// --- Composant 2: Le wrapper qui gère le chargement dynamique du plugin ---
+const HeatmapLayerWrapper: React.FC<HeatmapLayerProps> = (props) => {
+  const [isPluginLoaded, setIsPluginLoaded] = useState(false); 
+
+  useEffect(() => {
+    // C'est ici que l'importation dynamique est gérée pour contourner Rollup.
+    import('leaflet.heat')
+      .then(() => {
+        setIsPluginLoaded(true);
+      })
+      .catch(error => {
+        console.error("Erreur de chargement de leaflet.heat. La carte de chaleur ne sera pas affichée.", error);
+      });
+  }, []);
+
+  // Le composant de rendu pur n'est rendu que lorsque le plugin est chargé
+  if (!isPluginLoaded) {
+    return null; 
+  }
+  
+  return <HeatmapLayerPure {...props} />;
+}
+
 
 // --- Composant principal de la carte ---
 const HeatmapMap = () => {
@@ -94,11 +98,10 @@ const HeatmapMap = () => {
   const [mapInitialized, setMapInitialized] = useState(false);
   const { toast } = useToast();
 
-  // Position centrale pour la France (Latitude, Longitude)
   const center: L.LatLngExpression = [46.2276, 2.3522];
   const initialZoom = 5.5;
 
-  // Chargement des entreprises (Logique de pagination Supabase conservée)
+  // Logique de chargement des entreprises (inchangée)
   const loadCompanies = async () => {
     setLoading(true);
     try {
@@ -157,7 +160,6 @@ const HeatmapMap = () => {
 
 
   // Préparation des données pour la couche de chaleur Leaflet
-  // Format: [latitude, longitude, poids]
   const heatmapData: [number, number, number][] = companies
     .filter(c => c.latitude && c.longitude)
     .map(c => [
@@ -207,8 +209,8 @@ const HeatmapMap = () => {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
-            {/* Ajout de la couche de chaleur. */}
-            <HeatmapLayer points={heatmapData} />
+            {/* Utilisation du Wrapper qui gère l'état de chargement du plugin */}
+            <HeatmapLayerWrapper points={heatmapData} />
           </MapContainer>
         )}
       </CardContent>

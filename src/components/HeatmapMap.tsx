@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react';
+
+  import React, { useEffect, useState, useRef } from 'react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css'; // Nécessaire pour le style de base de Leaflet
+import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
 // Importations des composants UI et Supabase
@@ -21,7 +22,7 @@ interface Company {
 
 // Interface pour les propriétés de la couche de chaleur
 interface HeatmapLayerProps {
-  // Format attendu: [latitude, longitude, intensité (poids)]
+  // Utilisez le type HeatLatLngTuple déclaré dans src/types/leaflet-heat.d.ts (ou any)
   points: [number, number, number][]; 
   options?: any; 
 }
@@ -32,20 +33,30 @@ const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ points, options }) => {
   const heatLayerRef = useRef<L.Layer | any>(null); 
   const [isPluginLoaded, setIsPluginLoaded] = useState(false); 
 
-  // 1. Importation dynamique du plugin pour éviter l'erreur Rollup/Vite
-  
-
-
-  // 2. Logique d'ajout de la couche de chaleur (dépend du chargement du plugin)
+  // 1. Importation dynamique du plugin (contournement Rollup/Vite)
   useEffect(() => {
-    import('leaflet.heat')      // Retirer la couche précédente si elle existe
+    import('leaflet.heat')
+      .then(() => {
+        setIsPluginLoaded(true);
+      })
+      .catch(error => {
+        console.error("Erreur de chargement de leaflet.heat.", error);
+      });
+  }, []);
+
+
+  // 2. Logique d'ajout de la couche de chaleur
+  useEffect(() => {
+    // Utilise les types déclarés dans leaflet-heat.d.ts.
+    if (map && isPluginLoaded) { 
+      // Retirer la couche précédente si elle existe
       if (heatLayerRef.current) {
         map.removeLayer(heatLayerRef.current);
       }
 
       if (points.length > 0) {
-        // Créer et ajouter la nouvelle couche de chaleur
-        // Utilisation de (L as any) pour résoudre les erreurs de typage
+        // L'assertion 'as any' peut être moins nécessaire si les types sont corrects, 
+        // mais elle est conservée ici pour la robustesse des environnements CJS/TS hybrides.
         const newHeatLayer = (L as any).heatLayer(points, { 
           radius: 25, 
           blur: 15,  
@@ -80,7 +91,7 @@ const HeatmapMap = () => {
   const center: L.LatLngExpression = [46.2276, 2.3522];
   const initialZoom = 5.5;
 
-  // Chargement des entreprises (Logique de pagination Supabase conservée)
+  // Chargement des entreprises
   const loadCompanies = async () => {
     setLoading(true);
     try {
@@ -183,19 +194,23 @@ const HeatmapMap = () => {
             style={{ height: '400px', width: '100%' }}
             className="rounded-lg border"
           >
-            {/* Couche de tuiles OpenStreetMap par défaut (gratuite et sans token) */}
+            {/* Couche de tuiles OpenStreetMap par défaut */}
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
-            {/* Ajout de la couche de chaleur. Elle s'affiche une fois le plugin chargé. */}
+            {/* Ajout de la couche de chaleur */}
             <HeatmapLayer points={heatmapData} />
           </MapContainer>
         )}
       </CardContent>
     </Card>
   );
+};
+
+export default HeatmapMap;
+
 };
 
 export default HeatmapMap;

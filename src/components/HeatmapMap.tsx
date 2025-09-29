@@ -210,7 +210,3 @@ const HeatmapMap = () => {
 };
 
 export default HeatmapMap;
-
-};
-
-export default HeatmapMap;

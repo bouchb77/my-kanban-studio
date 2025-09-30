@@ -109,71 +109,70 @@ const HeatmapLayerWrapper: React.FC<HeatmapLayerProps> = (props) => {
 
 // --- Composant principal de la carte ---
 const HeatmapMap = () => {
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [mapInitialized, setMapInitialized] = useState(false);
-  const { toast } = useToast();
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [mapInitialized, setMapInitialized] = useState(false);
+  const { toast } = useToast();
 
-  const center: L.LatLngExpression = [46.2276, 2.3522];
-  const initialZoom = 5.5;
+  const center: L.LatLngExpression = [46.2276, 2.3522];
+  const initialZoom = 5.5;
 
-  // Logique de chargement des entreprises (inchangée)
-  const loadCompanies = async () => {
-    setLoading(true);
-    try {
-      let allCompanies: any[] = [];
-      let from = 0;
-      const batchSize = 1000;
-      let hasMore = true;
+  // Logique de chargement des entreprises (inchangée)
+  const loadCompanies = async () => {
+    setLoading(true);
+    try {
+      let allCompanies: any[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      let hasMore = true;
 
-      while (hasMore) {
-        const { data, error } = await supabase
-          .from('companies')
-          .select('id, company_name, latitude, longitude, city, postal_code')
-          .not('latitude', 'is', null)
-          .not('longitude', 'is', null)
-          .range(from, from + batchSize - 1);
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('companies')
+          .select('id, company_name, latitude, longitude, city, postal_code')
+          .not('latitude', 'is', null)
+          .not('longitude', 'is', null)
+          .range(from, from + batchSize - 1);
 
-        if (error) {
-          console.error('Error loading companies:', error);
-          setLoading(false);
-          return;
-        }
+        if (error) {
+          console.error('Error loading companies:', error);
+          setLoading(false);
+          return;
+        }
 
-        if (data && data.length > 0) {
-          allCompanies = [...allCompanies, ...data];
-          from += batchSize;
-          hasMore = data.length === batchSize;
-        } else {
-          hasMore = false;
-        }
-      }
+        if (data && data.length > 0) {
+          allCompanies = [...allCompanies, ...data];
+          from += batchSize;
+          hasMore = data.length === batchSize;
+        } else {
+          hasMore = false;
+        }
+      }
 
-      console.log(`Total entreprises chargées pour heatmap: ${allCompanies.length}`);
-      setCompanies(allCompanies);
-      setLoading(false);
-      if (allCompanies.length > 0) {
-        setMapInitialized(true); 
-        toast({
-          title: "Données chargées",
-          description: `Les données de ${allCompanies.length} clients sont prêtes pour la carte.`
-        });
-      }
-    } catch (error) {
-      console.error('Error loading companies:', error);
-      setLoading(false);
-      toast({
-        title: "Erreur de chargement",
-        description: "Impossible de charger les données des entreprises.",
-        variant: "destructive"
-      });
-    }
-  };
+      console.log(`Total entreprises chargées pour heatmap: ${allCompanies.length}`);
+      setCompanies(allCompanies);
+      setLoading(false);
+      if (allCompanies.length > 0) {
+        setMapInitialized(true); 
+        toast({
+          title: "Données chargées",
+          description: `Les données de ${allCompanies.length} clients sont prêtes pour la carte.`
+        });
+      }
+    } catch (error) {
+      console.error('Error loading companies:', error);
+      setLoading(false);
+      toast({
+        title: "Erreur de chargement",
+        description: "Impossible de charger les données des entreprises.",
+        variant: "destructive"
+      });
+    }
+  };
 
-  useEffect(() => {
-    loadCompanies();
-  }, []);
-
+  useEffect(() => {
+    loadCompanies();
+  }, []);
 
   // Préparation des données pour la couche de chaleur Leaflet
   const heatmapData: [number, number, number][] = companies
@@ -187,55 +186,57 @@ const HeatmapMap = () => {
       Number(c.longitude),
       1 // Poids par défaut de 1 (fréquence)
     ]);
-    
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Carte de Chaleur - Concentration des Clients (Leaflet)</CardTitle>
-        <CardDescription>
-          Visualisation de la densité géographique des entreprises clientes ({companies.length} entreprises géolocalisées)
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {loading && companies.length === 0 && (
-          <div className="w-full h-[400px] rounded-lg border bg-muted/10 flex items-center justify-center">
-            <div className="text-center space-y-2">
-              <MapPin className="h-12 w-12 text-muted-foreground mx-auto animate-pulse" />
-              <p className="text-muted-foreground">Chargement des données...</p>
-            </div>
-          </div>
-        )}
-        
-        {companies.length === 0 && !loading && (
-          <div className="flex items-center gap-2 p-4 border rounded-lg bg-muted/20">
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">
-              Aucune entreprise géolocalisée trouvée
-            </span>
-          </div>
-        )}
+    
+  if (loading && companies.length === 0) {
+    return (
+      <div className="w-full h-[400px] rounded-lg border bg-muted/10 flex items-center justify-center">
+        <div className="text-center space-y-2">
+          <MapPin className="h-12 w-12 text-muted-foreground mx-auto animate-pulse" />
+          <p className="text-muted-foreground">Chargement des données...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  if (companies.length === 0 && !loading) {
+    return (
+      <div className="flex items-center gap-2 p-4 border rounded-lg bg-muted/20">
+        <AlertCircle className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm text-muted-foreground">
+          Aucune entreprise géolocalisée trouvée
+        </span>
+      </div>
+    );
+  }
 
-        {mapInitialized && (
-          <MapContainer
-            center={center}
-            zoom={initialZoom}
-            scrollWheelZoom={true}
-            style={{ height: '400px', width: '100%' }}
-            className="rounded-lg border"
-          >
-            {/* Couche de tuiles OpenStreetMap par défaut */}
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
+  if (!mapInitialized) {
+    return (
+      <div className="w-full h-[400px] rounded-lg border bg-muted/10 flex items-center justify-center">
+        <div className="text-center space-y-2">
+          <MapPin className="h-12 w-12 text-muted-foreground mx-auto animate-pulse" />
+          <p className="text-muted-foreground">Initialisation de la carte...</p>
+        </div>
+      </div>
+    );
+  }
 
-            {/* Utilisation du Wrapper qui gère l'état de chargement du plugin */}
-            <HeatmapLayerWrapper points={heatmapData} />
-          </MapContainer>
-        )}
-      </CardContent>
-    </Card>
-  );
+  return (
+    <div className="w-full h-[400px] rounded-lg border">
+      <MapContainer
+        center={center}
+        zoom={initialZoom}
+        scrollWheelZoom={true}
+        style={{ height: '100%', width: '100%' }}
+        className="rounded-lg"
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <HeatmapLayerWrapper points={heatmapData} />
+      </MapContainer>
+    </div>
+  );
 };
 
 export default HeatmapMap;

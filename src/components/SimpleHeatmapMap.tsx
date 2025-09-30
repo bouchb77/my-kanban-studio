@@ -94,7 +94,26 @@ const SimpleHeatmapMap = () => {
 
   // Add heatmap layer
   useEffect(() => {
-    if (!map.current || !companies.length || loading) return;
+    console.log('useEffect heatmap déclenché:', { 
+      hasMap: !!map.current, 
+      companiesLength: companies.length, 
+      loading 
+    });
+
+    if (!map.current) {
+      console.warn('map.current est null');
+      return;
+    }
+    
+    if (!companies.length) {
+      console.warn('Aucune entreprise disponible');
+      return;
+    }
+    
+    if (loading) {
+      console.warn('Chargement en cours...');
+      return;
+    }
 
     console.log('Tentative de chargement de la heatmap avec', companies.length, 'entreprises');
 
@@ -142,7 +161,7 @@ const SimpleHeatmapMap = () => {
     }).catch(error => {
       console.error("Erreur de chargement de leaflet.heat:", error);
     });
-  }, [companies, loading]);
+  }, [companies, loading, map]);
 
   if (loading) {
     return (

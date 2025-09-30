@@ -134,22 +134,20 @@ const ReportingPage = () => {
             </div>
 
             {/* Colonne 2: Carte interactive avec points */}
-            
+            <div>
+              <CompaniesMap 
+                startDate={startDate}
+                endDate={endDate}
+                onDateChange={{
+                  setStartDate,
+                  setEndDate
+                }}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Tableau et filtres sur toute la largeur */}
-      <div className="w-full">
-        <CompaniesMap 
-          startDate={startDate}
-          endDate={endDate}
-          onDateChange={{
-            setStartDate,
-            setEndDate
-          }}
-        />
-      </div>
     </div>
   );
 };

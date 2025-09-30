@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useOrders } from "@/hooks/useOrders";
-import HeatmapMap from "@/components/HeatmapMap";
+import SimpleHeatmapMap from "@/components/SimpleHeatmapMap";
 import InteractiveMap from "@/components/InteractiveMap";
 import CompaniesTable from "@/components/CompaniesTable";
 
@@ -131,7 +131,7 @@ const ReportingPage = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Colonne 1: Carte de chaleur */}
             <div>
-              <HeatmapMap />
+              <SimpleHeatmapMap />
             </div>
 
             {/* Colonne 2: Carte interactive avec points */}

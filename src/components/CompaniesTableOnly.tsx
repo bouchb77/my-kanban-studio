@@ -135,7 +135,7 @@ const CompaniesTableOnly = ({
         while (hasMore) {
           const { data: ordersData, error: ordersError } = await supabase
             .from('orders')
-            .select('sipi_number, total_amount, delivery_date')
+            .select('sipi_number, amount, order_date')
             .range(from, from + batchSize - 1);
 
           if (ordersError) {
@@ -157,9 +157,9 @@ const CompaniesTableOnly = ({
         const ordersByCompany = new Map<string, Map<number, { totalOrders: number; totalAmount: number }>>();
         
         allOrders.forEach(order => {
-          if (!order.sipi_number || !order.delivery_date) return;
+          if (!order.sipi_number || !order.order_date) return;
           
-          const year = new Date(order.delivery_date).getFullYear();
+          const year = new Date(order.order_date).getFullYear();
           if (isNaN(year)) return;
           
           if (!ordersByCompany.has(order.sipi_number)) {
@@ -173,7 +173,7 @@ const CompaniesTableOnly = ({
           
           const yearData = yearMap.get(year)!;
           yearData.totalOrders += 1;
-          yearData.totalAmount += parseFloat(order.total_amount) || 0;
+          yearData.totalAmount += parseFloat(order.amount) || 0;
         });
 
         // Add order stats to companies

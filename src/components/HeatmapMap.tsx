@@ -38,21 +38,37 @@ const HeatmapLayerPure: React.FC<HeatmapLayerProps> = ({ points, options }) => {
         map.removeLayer(heatLayerRef.current);
       }
 
-      if (points.length > 0) {
-        try {
-          // Créer et ajouter la nouvelle couche de chaleur
-          const newHeatLayer = (L as any).heatLayer(points, { 
-            radius: 25, 
-            blur: 15,  
-            maxZoom: 14,
-            // ... autres options
-            ...options,
-          }).addTo(map);
-          heatLayerRef.current = newHeatLayer;
-        } catch (e) {
-          console.error("Erreur lors de la création de heatLayer:", e);
-        }
-      }
+      if (points.length > 0) {
+        try {
+          // Validation des données avant création
+          const validPoints = points.filter(point => 
+            Array.isArray(point) && 
+            point.length === 3 && 
+            typeof point[0] === 'number' && 
+            typeof point[1] === 'number' && 
+            typeof point[2] === 'number' &&
+            !isNaN(point[0]) && 
+            !isNaN(point[1]) && 
+            !isNaN(point[2])
+          );
+          
+          if (validPoints.length > 0) {
+            // Créer et ajouter la nouvelle couche de chaleur
+            const newHeatLayer = (L as any).heatLayer(validPoints, { 
+              radius: 25, 
+              blur: 15,  
+              maxZoom: 14,
+              // ... autres options
+              ...options,
+            }).addTo(map);
+            heatLayerRef.current = newHeatLayer;
+          } else {
+            console.warn("Aucun point valide pour la heatmap");
+          }
+        } catch (e) {
+          console.error("Erreur lors de la création de heatLayer:", e);
+        }
+      }
     }
 
     // Fonction de nettoyage
@@ -159,14 +175,18 @@ const HeatmapMap = () => {
   }, []);
 
 
-  // Préparation des données pour la couche de chaleur Leaflet
-  const heatmapData: [number, number, number][] = companies
-    .filter(c => c.latitude && c.longitude)
-    .map(c => [
-      c.latitude,
-      c.longitude,
-      1 // Poids par défaut de 1 (fréquence)
-    ]);
+  // Préparation des données pour la couche de chaleur Leaflet
+  const heatmapData: [number, number, number][] = companies
+    .filter(c => c.latitude && c.longitude && 
+                 typeof c.latitude === 'number' && 
+                 typeof c.longitude === 'number' &&
+                 !isNaN(c.latitude) && 
+                 !isNaN(c.longitude))
+    .map(c => [
+      Number(c.latitude),
+      Number(c.longitude),
+      1 // Poids par défaut de 1 (fréquence)
+    ]);
     
   return (
     <Card>

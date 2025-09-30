@@ -96,9 +96,13 @@ const SimpleHeatmapMap = () => {
   useEffect(() => {
     if (!map.current || !companies.length || loading) return;
 
+    console.log('Tentative de chargement de la heatmap avec', companies.length, 'entreprises');
+
     // Dynamically import leaflet.heat
     import('leaflet.heat').then(() => {
       if (!map.current) return;
+
+      console.log('leaflet.heat chargé avec succès');
 
       // Remove existing heat layer
       if (heatLayer.current) {
@@ -120,6 +124,9 @@ const SimpleHeatmapMap = () => {
           1 // Weight
         ]);
 
+      console.log('Données heatmap préparées:', heatmapData.length, 'points valides');
+      console.log('Exemple de points:', heatmapData.slice(0, 3));
+
       if (heatmapData.length > 0 && (L as any).heatLayer) {
         // Create heat layer
         heatLayer.current = (L as any).heatLayer(heatmapData, {
@@ -127,6 +134,10 @@ const SimpleHeatmapMap = () => {
           blur: 15,
           maxZoom: 14
         }).addTo(map.current);
+        
+        console.log('Couche heatmap ajoutée à la carte');
+      } else {
+        console.warn('Aucune donnée de heatmap ou L.heatLayer non disponible');
       }
     }).catch(error => {
       console.error("Erreur de chargement de leaflet.heat:", error);

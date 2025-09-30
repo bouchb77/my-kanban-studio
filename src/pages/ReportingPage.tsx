@@ -11,7 +11,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useOrders } from "@/hooks/useOrders";
 import HeatmapMap from "@/components/HeatmapMap";
-import CompaniesMap from "@/components/CompaniesMap";
+import InteractiveMap from "@/components/InteractiveMap";
+import CompaniesTable from "@/components/CompaniesTable";
 
 const ReportingPage = () => {
   const { orderStats, loading: ordersLoading } = useOrders();
@@ -135,18 +136,24 @@ const ReportingPage = () => {
 
             {/* Colonne 2: Carte interactive avec points */}
             <div>
-              <CompaniesMap 
+              <InteractiveMap 
                 startDate={startDate}
                 endDate={endDate}
-                onDateChange={{
-                  setStartDate,
-                  setEndDate
-                }}
               />
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Tableau et filtres sur toute la largeur */}
+      <CompaniesTable 
+        startDate={startDate}
+        endDate={endDate}
+        onDateChange={{
+          setStartDate,
+          setEndDate
+        }}
+      />
 
     </div>
   );

@@ -1,6 +1,5 @@
 import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import CompaniesMap from './CompaniesMap';
+import CompaniesTableOnly from './CompaniesTableOnly';
 
 interface CompaniesTableProps {
   startDate?: Date;
@@ -13,21 +12,11 @@ interface CompaniesTableProps {
 
 const CompaniesTable = ({ startDate, endDate, onDateChange }: CompaniesTableProps) => {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Tableau des Entreprises et Filtres</CardTitle>
-        <CardDescription>
-          Analyse détaillée des données clients avec filtres avancés
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <CompaniesMap 
-          startDate={startDate}
-          endDate={endDate}
-          onDateChange={onDateChange}
-        />
-      </CardContent>
-    </Card>
+    <CompaniesTableOnly 
+      startDate={startDate}
+      endDate={endDate}
+      onDateChange={onDateChange}
+    />
   );
 };
 

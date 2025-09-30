@@ -128,32 +128,37 @@ const ReportingPage = () => {
           <CardDescription>Visualisation interactive et carte de chaleur des entreprises</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             {/* Colonne 1: Carte de chaleur */}
             <div>
+              <h3 className="text-lg font-semibold mb-3">Carte de Chaleur</h3>
               <SimpleHeatmapMap />
             </div>
 
             {/* Colonne 2: Carte interactive avec points */}
             <div>
+              <h3 className="text-lg font-semibold mb-3">Carte Interactive</h3>
               <InteractiveMap 
                 startDate={startDate}
                 endDate={endDate}
               />
             </div>
           </div>
+          
+          {/* Tableau des entreprises avec filtres */}
+          <div className="mt-6">
+            <h3 className="text-lg font-semibold mb-3">Tableau des Entreprises et Filtres</h3>
+            <CompaniesTable 
+              startDate={startDate}
+              endDate={endDate}
+              onDateChange={{
+                setStartDate,
+                setEndDate
+              }}
+            />
+          </div>
         </CardContent>
       </Card>
-
-      {/* Tableau et filtres sur toute la largeur */}
-      <CompaniesTable 
-        startDate={startDate}
-        endDate={endDate}
-        onDateChange={{
-          setStartDate,
-          setEndDate
-        }}
-      />
 
     </div>
   );

@@ -28,6 +28,7 @@ interface Company {
   quality?: string;
   orderStats?: CompanyOrderStats[];
   averageOrderPerYear?: number;
+  averageAmountPerYear?: number;
   periodOrders?: number;
   periodAmount?: number;
 }
@@ -219,7 +220,7 @@ const CompaniesTableOnly = ({
     loadData();
   }, []);
 
-  // Filter companies based on all criteria
+  // Filter companies based on all criteria INCLUDING date range
   const filteredCompanies = useMemo(() => {
     return companies.filter(company => {
       // SIPI filter
@@ -237,21 +238,66 @@ const CompaniesTableOnly = ({
         return false;
       }
       
-      // Average order filter
-      if (minAverageFilter || maxAverageFilter) {
-        const avg = company.averageOrderPerYear || 0;
-        if (minAverageFilter && avg < parseFloat(minAverageFilter)) return false;
-        if (maxAverageFilter && avg > parseFloat(maxAverageFilter)) return false;
-      }
-      
       // Department filter
       if (selectedDepartments.length > 0 && !selectedDepartments.includes(company.general_department || '')) {
         return false;
       }
       
+      // Date range filter - filter companies that have orders in the date range
+      if (startDate || endDate) {
+        const hasOrdersInRange = company.orderStats?.some(stat => {
+          const year = stat.year;
+          const yearStart = new Date(year, 0, 1);
+          const yearEnd = new Date(year, 11, 31);
+          
+          if (startDate && yearEnd < startDate) return false;
+          if (endDate && yearStart > endDate) return false;
+          
+          return true;
+        });
+        
+        if (!hasOrdersInRange) return false;
+      }
+      
+      // Calculate average for the filtered period
+      let periodStats = company.orderStats || [];
+      
+      if (startDate || endDate) {
+        periodStats = periodStats.filter(stat => {
+          const year = stat.year;
+          const yearStart = new Date(year, 0, 1);
+          const yearEnd = new Date(year, 11, 31);
+          
+          if (startDate && yearEnd < startDate) return false;
+          if (endDate && yearStart > endDate) return false;
+          
+          return true;
+        });
+      }
+      
+      // Calculate period totals and average
+      const periodOrders = periodStats.reduce((sum, stat) => sum + stat.totalOrders, 0);
+      const periodAmount = periodStats.reduce((sum, stat) => sum + stat.totalAmount, 0);
+      const periodYears = periodStats.length;
+      const averageOrderPerYear = periodYears > 0 ? periodOrders / periodYears : 0;
+      const averageAmountPerYear = periodYears > 0 ? periodAmount / periodYears : 0;
+      
+      // Store these for display
+      company.periodOrders = periodOrders;
+      company.periodAmount = periodAmount;
+      company.averageOrderPerYear = averageOrderPerYear;
+      company.averageAmountPerYear = averageAmountPerYear;
+      
+      // Average order filter (based on number of orders)
+      if (minAverageFilter || maxAverageFilter) {
+        const avg = averageOrderPerYear;
+        if (minAverageFilter && avg < parseFloat(minAverageFilter)) return false;
+        if (maxAverageFilter && avg > parseFloat(maxAverageFilter)) return false;
+      }
+      
       return true;
     });
-  }, [companies, sipiFilter, cityFilter, companyNameFilter, minAverageFilter, maxAverageFilter, selectedDepartments]);
+  }, [companies, sipiFilter, cityFilter, companyNameFilter, minAverageFilter, maxAverageFilter, selectedDepartments, startDate, endDate]);
 
   // Get unique departments for filter
   const uniqueDepartments = useMemo(() => {
@@ -607,10 +653,15 @@ const CompaniesTableOnly = ({
                     <TableCell>{company.city || '-'}</TableCell>
                     <TableCell>{company.general_department || '-'}</TableCell>
                     <TableCell className="text-center">
-                      {company.averageOrderPerYear ? (
-                        <span className="font-medium text-primary">
-                          {Math.round(company.averageOrderPerYear)}
-                        </span>
+                      {company.averageAmountPerYear ? (
+                        <div className="space-y-1">
+                          <div className="font-medium text-primary">
+                            {Math.round(company.averageOrderPerYear || 0)} cmd
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {Math.round(company.averageAmountPerYear).toLocaleString()} €
+                          </div>
+                        </div>
                       ) : (
                         <span className="text-muted-foreground">-</span>
                       )}

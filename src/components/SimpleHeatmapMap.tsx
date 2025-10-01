@@ -192,7 +192,7 @@ const SimpleHeatmapMap = ({ companies: externalCompanies }: SimpleHeatmapMapProp
   }, [companies, loading, mapReady]);
 
   return (
-    <div className="w-full h-[400px] rounded-lg border relative">
+    <div className="w-full h-[500px] rounded-lg border relative">
       <div ref={mapRef} className="w-full h-full rounded-lg" />
       
       {loading && (

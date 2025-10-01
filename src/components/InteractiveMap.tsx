@@ -83,7 +83,7 @@ const InteractiveMap = ({ startDate, endDate, companies: externalCompanies }: In
 
   if (loading) {
     return (
-      <div className="w-full h-[400px] rounded-lg border bg-muted/10 flex items-center justify-center">
+      <div className="w-full h-[500px] rounded-lg border bg-muted/10 flex items-center justify-center">
         <div className="text-center space-y-2">
           <MapPin className="h-12 w-12 text-muted-foreground mx-auto animate-pulse" />
           <p className="text-muted-foreground">Chargement de la carte...</p>
@@ -94,17 +94,19 @@ const InteractiveMap = ({ startDate, endDate, companies: externalCompanies }: In
 
   if (companies.length === 0) {
     return (
-      <div className="flex items-center gap-2 p-4 border rounded-lg bg-muted/20">
-        <AlertCircle className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">
-          Aucune entreprise géolocalisée trouvée
-        </span>
+      <div className="w-full h-[500px] rounded-lg border bg-muted/10 flex items-center justify-center">
+        <div className="flex items-center gap-2 p-4 border rounded-lg bg-background">
+          <AlertCircle className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">
+            Aucune entreprise géolocalisée trouvée
+          </span>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full h-[400px] rounded-lg border">
+    <div className="w-full h-[500px] rounded-lg border">
       <MapComponent companies={companies} />
     </div>
   );

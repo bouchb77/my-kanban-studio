@@ -17,6 +17,7 @@ interface Company {
 const SimpleHeatmapMap = () => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mapReady, setMapReady] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const heatLayer = useRef<any>(null);
@@ -84,11 +85,15 @@ const SimpleHeatmapMap = () => {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map.current);
 
+    console.log('Carte initialisée');
+    setMapReady(true);
+
     return () => {
       if (map.current) {
         map.current.remove();
         map.current = null;
       }
+      setMapReady(false);
     };
   }, []);
 
@@ -161,7 +166,7 @@ const SimpleHeatmapMap = () => {
     }).catch(error => {
       console.error("Erreur de chargement de leaflet.heat:", error);
     });
-  }, [companies, loading, map]);
+  }, [companies, loading, mapReady]);
 
   if (loading) {
     return (

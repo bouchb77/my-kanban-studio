@@ -180,31 +180,29 @@ const SimpleHeatmapMap = () => {
     });
   }, [companies, loading, mapReady]);
 
-  if (loading) {
-    return (
-      <div className="w-full h-[400px] rounded-lg border bg-muted/10 flex items-center justify-center">
-        <div className="text-center space-y-2">
-          <MapPin className="h-12 w-12 text-muted-foreground mx-auto animate-pulse" />
-          <p className="text-muted-foreground">Chargement des données...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (companies.length === 0) {
-    return (
-      <div className="flex items-center gap-2 p-4 border rounded-lg bg-muted/20">
-        <AlertCircle className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">
-          Aucune entreprise géolocalisée trouvée
-        </span>
-      </div>
-    );
-  }
-
   return (
-    <div className="w-full h-[400px] rounded-lg border">
+    <div className="w-full h-[400px] rounded-lg border relative">
       <div ref={mapRef} className="w-full h-full rounded-lg" />
+      
+      {loading && (
+        <div className="absolute inset-0 bg-muted/10 flex items-center justify-center rounded-lg z-[1000]">
+          <div className="text-center space-y-2">
+            <MapPin className="h-12 w-12 text-muted-foreground mx-auto animate-pulse" />
+            <p className="text-muted-foreground">Chargement des données...</p>
+          </div>
+        </div>
+      )}
+      
+      {!loading && companies.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center p-4 rounded-lg z-[1000]">
+          <div className="flex items-center gap-2 p-4 border rounded-lg bg-background">
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">
+              Aucune entreprise géolocalisée trouvée
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

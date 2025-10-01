@@ -20,6 +20,9 @@ const ReportingPage = () => {
   // State for date filters
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
+  
+  // State for filtered companies from table
+  const [filteredCompanies, setFilteredCompanies] = useState<any[]>([]);
 
   // Calculs des totaux
   const totalOrders = orderStats.reduce((sum, stat) => sum + stat.totalOrders, 0);
@@ -132,7 +135,7 @@ const ReportingPage = () => {
             {/* Colonne 1: Carte de chaleur */}
             <div>
               <h3 className="text-lg font-semibold mb-3">Carte de Chaleur</h3>
-              <SimpleHeatmapMap />
+              <SimpleHeatmapMap companies={filteredCompanies} />
             </div>
 
             {/* Colonne 2: Carte interactive avec points */}
@@ -141,6 +144,7 @@ const ReportingPage = () => {
               <InteractiveMap 
                 startDate={startDate}
                 endDate={endDate}
+                companies={filteredCompanies}
               />
             </div>
           </div>
@@ -155,6 +159,7 @@ const ReportingPage = () => {
                 setStartDate,
                 setEndDate
               }}
+              onFilteredDataChange={setFilteredCompanies}
             />
           </div>
         </CardContent>

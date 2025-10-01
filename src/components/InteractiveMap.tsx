@@ -17,9 +17,10 @@ interface Company {
 interface InteractiveMapProps {
   startDate?: Date;
   endDate?: Date;
+  companies?: Company[];
 }
 
-const InteractiveMap = ({ startDate, endDate }: InteractiveMapProps) => {
+const InteractiveMap = ({ startDate, endDate, companies: externalCompanies }: InteractiveMapProps) => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -70,8 +71,15 @@ const InteractiveMap = ({ startDate, endDate }: InteractiveMapProps) => {
   };
 
   useEffect(() => {
+    // If external companies are provided, use them
+    if (externalCompanies) {
+      setCompanies(externalCompanies);
+      setLoading(false);
+      return;
+    }
+
     fetchCompaniesForMap();
-  }, []);
+  }, [externalCompanies]);
 
   if (loading) {
     return (

@@ -14,7 +14,11 @@ interface Company {
   postal_code: string;
 }
 
-const SimpleHeatmapMap = () => {
+interface SimpleHeatmapMapProps {
+  companies?: Company[];
+}
+
+const SimpleHeatmapMap = ({ companies: externalCompanies }: SimpleHeatmapMapProps = {}) => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [mapReady, setMapReady] = useState(false);
@@ -25,6 +29,13 @@ const SimpleHeatmapMap = () => {
 
   // Load companies data
   useEffect(() => {
+    // If external companies are provided, use them
+    if (externalCompanies) {
+      setCompanies(externalCompanies);
+      setLoading(false);
+      return;
+    }
+
     const loadCompanies = async () => {
       setLoading(true);
       try {
@@ -71,7 +82,7 @@ const SimpleHeatmapMap = () => {
     };
 
     loadCompanies();
-  }, [toast]);
+  }, [toast, externalCompanies]);
 
   // Initialize map
   useEffect(() => {

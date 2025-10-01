@@ -45,12 +45,14 @@ interface CompaniesTableOnlyProps {
     setStartDate: (date: Date | undefined) => void;
     setEndDate: (date: Date | undefined) => void;
   };
+  onFilteredDataChange?: (companies: Company[]) => void;
 }
 
 const CompaniesTableOnly = ({ 
   startDate: externalStartDate,
   endDate: externalEndDate,
-  onDateChange
+  onDateChange,
+  onFilteredDataChange
 }: CompaniesTableOnlyProps) => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
@@ -267,6 +269,13 @@ const CompaniesTableOnly = ({
     });
     return Array.from(years).sort();
   }, [companies]);
+
+  // Notify parent of filtered data changes
+  useEffect(() => {
+    if (onFilteredDataChange) {
+      onFilteredDataChange(filteredCompanies);
+    }
+  }, [filteredCompanies, onFilteredDataChange]);
 
   // Sort companies
   const sortedCompanies = useMemo(() => {

@@ -75,7 +75,12 @@ const SimpleHeatmapMap = () => {
 
   // Initialize map
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!mapRef.current) {
+      console.warn('mapRef.current est null lors de l\'initialisation');
+      return;
+    }
+
+    console.log('Début initialisation de la carte');
 
     // Create map
     map.current = L.map(mapRef.current).setView([46.2276, 2.3522], 5.5);
@@ -85,10 +90,11 @@ const SimpleHeatmapMap = () => {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map.current);
 
-    console.log('Carte initialisée');
+    console.log('Carte initialisée avec succès');
     setMapReady(true);
 
     return () => {
+      console.log('Nettoyage de la carte');
       if (map.current) {
         map.current.remove();
         map.current = null;
@@ -100,10 +106,16 @@ const SimpleHeatmapMap = () => {
   // Add heatmap layer
   useEffect(() => {
     console.log('useEffect heatmap déclenché:', { 
-      hasMap: !!map.current, 
+      hasMap: !!map.current,
+      mapReady,
       companiesLength: companies.length, 
       loading 
     });
+
+    if (!mapReady) {
+      console.warn('Carte pas encore prête');
+      return;
+    }
 
     if (!map.current) {
       console.warn('map.current est null');

@@ -56,6 +56,7 @@ const CompaniesTableOnly = ({
   onFilteredDataChange
 }: CompaniesTableOnlyProps) => {
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [allOrders, setAllOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -131,7 +132,7 @@ const CompaniesTableOnly = ({
         }
 
         // Load orders with pagination
-        let allOrders: any[] = [];
+        let loadedOrders: any[] = [];
         from = 0;
         hasMore = true;
 
@@ -148,7 +149,7 @@ const CompaniesTableOnly = ({
           }
 
           if (ordersData && ordersData.length > 0) {
-            allOrders = [...allOrders, ...ordersData];
+            loadedOrders = [...loadedOrders, ...ordersData];
             from += batchSize;
             hasMore = ordersData.length === batchSize;
           } else {
@@ -156,10 +157,12 @@ const CompaniesTableOnly = ({
           }
         }
 
-        // Group orders by SIPI number and year
+        setAllOrders(loadedOrders);
+
+        // Group orders by SIPI number and year (for display)
         const ordersByCompany = new Map<string, Map<number, { totalOrders: number; totalAmount: number }>>();
         
-        allOrders.forEach(order => {
+        loadedOrders.forEach(order => {
           if (!order.sipi_number || !order.order_date) return;
           
           const year = new Date(order.order_date).getFullYear();
@@ -243,44 +246,52 @@ const CompaniesTableOnly = ({
         return false;
       }
       
-      // Date range filter - filter companies that have orders in the date range
+      // Date range filter - filter based on actual order dates
+      let filteredOrders = allOrders.filter(order => order.sipi_number === company.sipi_number);
+      
       if (startDate || endDate) {
-        const hasOrdersInRange = company.orderStats?.some(stat => {
-          const year = stat.year;
-          const yearStart = new Date(year, 0, 1);
-          const yearEnd = new Date(year, 11, 31);
+        filteredOrders = filteredOrders.filter(order => {
+          if (!order.order_date) return false;
+          const orderDate = new Date(order.order_date);
           
-          if (startDate && yearEnd < startDate) return false;
-          if (endDate && yearStart > endDate) return false;
+          if (startDate && orderDate < startDate) return false;
+          if (endDate && orderDate > endDate) return false;
           
           return true;
         });
         
-        if (!hasOrdersInRange) return false;
+        // If no orders in range, filter out this company
+        if (filteredOrders.length === 0) return false;
       }
       
-      // Calculate average for the filtered period
-      let periodStats = company.orderStats || [];
+      // Calculate period totals and average based on filtered orders
+      const periodOrders = filteredOrders.length;
+      const periodAmount = filteredOrders.reduce((sum, order) => sum + (parseFloat(order.amount) || 0), 0);
       
-      if (startDate || endDate) {
-        periodStats = periodStats.filter(stat => {
-          const year = stat.year;
-          const yearStart = new Date(year, 0, 1);
-          const yearEnd = new Date(year, 11, 31);
-          
-          if (startDate && yearEnd < startDate) return false;
-          if (endDate && yearStart > endDate) return false;
-          
-          return true;
-        });
+      // Calculate date range in years for averaging
+      let periodYears = 1;
+      if (startDate && endDate) {
+        const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        periodYears = Math.max(diffDays / 365.25, 0.1); // Minimum 0.1 year to avoid division issues
+      } else if (startDate || endDate) {
+        // If only one date is set, calculate from/to first/last order
+        const orderDates = filteredOrders.map(o => new Date(o.order_date)).sort((a, b) => a.getTime() - b.getTime());
+        if (orderDates.length > 0) {
+          const firstDate = startDate || orderDates[0];
+          const lastDate = endDate || orderDates[orderDates.length - 1];
+          const diffTime = Math.abs(lastDate.getTime() - firstDate.getTime());
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          periodYears = Math.max(diffDays / 365.25, 0.1);
+        }
+      } else {
+        // No date filter - use all years span
+        const years = company.orderStats?.map(s => s.year) || [];
+        periodYears = years.length > 0 ? Math.max(...years) - Math.min(...years) + 1 : 1;
       }
       
-      // Calculate period totals and average
-      const periodOrders = periodStats.reduce((sum, stat) => sum + stat.totalOrders, 0);
-      const periodAmount = periodStats.reduce((sum, stat) => sum + stat.totalAmount, 0);
-      const periodYears = periodStats.length;
-      const averageOrderPerYear = periodYears > 0 ? periodOrders / periodYears : 0;
-      const averageAmountPerYear = periodYears > 0 ? periodAmount / periodYears : 0;
+      const averageOrderPerYear = periodOrders / periodYears;
+      const averageAmountPerYear = periodAmount / periodYears;
       
       // Store these for display
       company.periodOrders = periodOrders;
@@ -297,7 +308,7 @@ const CompaniesTableOnly = ({
       
       return true;
     });
-  }, [companies, sipiFilter, cityFilter, companyNameFilter, minAverageFilter, maxAverageFilter, selectedDepartments, startDate, endDate]);
+  }, [companies, allOrders, sipiFilter, cityFilter, companyNameFilter, minAverageFilter, maxAverageFilter, selectedDepartments, startDate, endDate]);
 
   // Get unique departments for filter
   const uniqueDepartments = useMemo(() => {

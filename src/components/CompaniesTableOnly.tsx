@@ -211,6 +211,21 @@ const CompaniesTableOnly = ({
 
         setCompanies(companiesWithStats);
         setTotalCompanies(companiesWithStats.length);
+
+        // Load department management data
+        const { data: deptData, error: deptError } = await supabase
+          .from('department_management')
+          .select('*');
+
+        if (deptError) {
+          console.error('Error loading department management:', deptError);
+        } else if (deptData) {
+          const deptMap: Record<string, any> = {};
+          deptData.forEach(dept => {
+            deptMap[dept.department_name] = dept;
+          });
+          setDepartmentManagement(deptMap);
+        }
         
       } catch (error) {
         console.error('Error loading data:', error);
@@ -244,6 +259,22 @@ const CompaniesTableOnly = ({
       // Department filter
       if (selectedDepartments.length > 0 && !selectedDepartments.includes(company.general_department || '')) {
         return false;
+      }
+
+      // Formateur filter
+      if (formateurFilter && company.general_department) {
+        const deptData = departmentManagement[company.general_department];
+        if (!deptData || deptData.formateur !== formateurFilter) {
+          return false;
+        }
+      }
+
+      // Responsable BO filter
+      if (responsableBOFilter && company.general_department) {
+        const deptData = departmentManagement[company.general_department];
+        if (!deptData || deptData.responsable_bo !== responsableBOFilter) {
+          return false;
+        }
       }
       
       // Date range filter - filter based on actual order dates
@@ -308,13 +339,31 @@ const CompaniesTableOnly = ({
       
       return true;
     });
-  }, [companies, allOrders, sipiFilter, cityFilter, companyNameFilter, minAverageFilter, maxAverageFilter, selectedDepartments, startDate, endDate]);
+  }, [companies, allOrders, sipiFilter, cityFilter, companyNameFilter, minAverageFilter, maxAverageFilter, selectedDepartments, formateurFilter, responsableBOFilter, departmentManagement, startDate, endDate]);
 
   // Get unique departments for filter
   const uniqueDepartments = useMemo(() => {
     const depts = new Set(companies.map(c => c.general_department).filter(Boolean));
     return Array.from(depts).sort();
   }, [companies]);
+
+  // Get unique formateurs from department management
+  const uniqueFormateurs = useMemo(() => {
+    const formateurs = new Set<string>();
+    Object.values(departmentManagement).forEach((dept: any) => {
+      if (dept.formateur) formateurs.add(dept.formateur);
+    });
+    return Array.from(formateurs).sort();
+  }, [departmentManagement]);
+
+  // Get unique responsables BO from department management
+  const uniqueResponsablesBO = useMemo(() => {
+    const responsables = new Set<string>();
+    Object.values(departmentManagement).forEach((dept: any) => {
+      if (dept.responsable_bo) responsables.add(dept.responsable_bo);
+    });
+    return Array.from(responsables).sort();
+  }, [departmentManagement]);
 
   // Get available years from order data
   const availableYears = useMemo(() => {
@@ -524,6 +573,79 @@ const CompaniesTableOnly = ({
           </div>
         </div>
 
+        {/* Formateur and Responsable BO filters */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Formateur</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-between">
+                  <span className="truncate">
+                    {formateurFilter || "Sélectionner un formateur"}
+                  </span>
+                  <ChevronDown className="w-4 h-4 ml-2 flex-shrink-0" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 bg-background z-50">
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start text-sm"
+                    onClick={() => setFormateurFilter('')}
+                  >
+                    Tous les formateurs
+                  </Button>
+                  {uniqueFormateurs.map((formateur) => (
+                    <Button
+                      key={formateur}
+                      variant={formateurFilter === formateur ? "secondary" : "ghost"}
+                      className="w-full justify-start text-sm"
+                      onClick={() => setFormateurFilter(formateur)}
+                    >
+                      {formateur}
+                    </Button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Responsable BO</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-between">
+                  <span className="truncate">
+                    {responsableBOFilter || "Sélectionner un responsable BO"}
+                  </span>
+                  <ChevronDown className="w-4 h-4 ml-2 flex-shrink-0" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 bg-background z-50">
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start text-sm"
+                    onClick={() => setResponsableBOFilter('')}
+                  >
+                    Tous les responsables BO
+                  </Button>
+                  {uniqueResponsablesBO.map((responsable) => (
+                    <Button
+                      key={responsable}
+                      variant={responsableBOFilter === responsable ? "secondary" : "ghost"}
+                      className="w-full justify-start text-sm"
+                      onClick={() => setResponsableBOFilter(responsable)}
+                    >
+                      {responsable}
+                    </Button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+
         {/* Department filter */}
         <div className="flex items-center space-x-4">
           <Popover>
@@ -567,6 +689,8 @@ const CompaniesTableOnly = ({
               setMinAverageFilter('');
               setMaxAverageFilter('');
               setSelectedDepartments([]);
+              setFormateurFilter('');
+              setResponsableBOFilter('');
               setStartDate(undefined);
               setEndDate(undefined);
             }}

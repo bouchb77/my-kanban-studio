@@ -288,9 +288,9 @@ const CompaniesTableOnly = ({
       company.averageOrderPerYear = averageOrderPerYear;
       company.averageAmountPerYear = averageAmountPerYear;
       
-      // Average order filter (based on number of orders)
+      // Average order filter (based on amount)
       if (minAverageFilter || maxAverageFilter) {
-        const avg = averageOrderPerYear;
+        const avg = averageAmountPerYear;
         if (minAverageFilter && avg < parseFloat(minAverageFilter)) return false;
         if (maxAverageFilter && avg > parseFloat(maxAverageFilter)) return false;
       }
@@ -483,10 +483,10 @@ const CompaniesTableOnly = ({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Moyenne Min</label>
+            <label className="text-sm font-medium">Montant Min (€)</label>
             <Input
               type="number"
-              placeholder="Commandes/an min"
+              placeholder="Montant/an min"
               value={minAverageFilter}
               onChange={(e) => setMinAverageFilter(e.target.value)}
               className="w-full"
@@ -494,10 +494,10 @@ const CompaniesTableOnly = ({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Moyenne Max</label>
+            <label className="text-sm font-medium">Montant Max (€)</label>
             <Input
               type="number"
-              placeholder="Commandes/an max"
+              placeholder="Montant/an max"
               value={maxAverageFilter}
               onChange={(e) => setMaxAverageFilter(e.target.value)}
               className="w-full"
@@ -623,6 +623,11 @@ const CompaniesTableOnly = ({
                     <ArrowUpDown className="ml-2 h-4 w-4" />
                   </Button>
                 </TableHead>
+                {(startDate || endDate) && (
+                  <TableHead className="text-center min-w-[120px] bg-primary/5">
+                    Période filtrée
+                  </TableHead>
+                )}
                 {availableYears.map(year => (
                   <TableHead key={year} className="text-center min-w-[100px]">
                     {year}
@@ -666,6 +671,22 @@ const CompaniesTableOnly = ({
                         <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
+                    {(startDate || endDate) && (
+                      <TableCell className="text-center bg-primary/5">
+                        {company.periodOrders ? (
+                          <div className="space-y-1">
+                            <div className="font-bold text-primary">
+                              {company.periodOrders} cmd
+                            </div>
+                            <div className="text-sm font-semibold">
+                              {Math.round(company.periodAmount || 0).toLocaleString()} €
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                    )}
                     {availableYears.map(year => {
                      const yearData = yearDataMap.get(year);
                      return (

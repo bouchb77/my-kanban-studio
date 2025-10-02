@@ -92,8 +92,8 @@ const CompaniesTableOnly = ({
   const setEndDate = onDateChange?.setEndDate ?? setLocalEndDate;
   
   // Sort state
-  const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [sortColumn, setSortColumn] = useState<string | null>('averageAmountPerYear');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   
   const { toast } = useToast();
 
@@ -363,6 +363,14 @@ const CompaniesTableOnly = ({
           aValue = a.averageOrderPerYear || 0;
           bValue = b.averageOrderPerYear || 0;
           break;
+        case 'averageAmountPerYear':
+          aValue = a.averageAmountPerYear || 0;
+          bValue = b.averageAmountPerYear || 0;
+          break;
+        case 'periodAmount':
+          aValue = a.periodAmount || 0;
+          bValue = b.periodAmount || 0;
+          break;
         default:
           return 0;
       }
@@ -628,15 +636,29 @@ const CompaniesTableOnly = ({
                     variant="ghost"
                     size="sm"
                     className="h-8 p-0 font-semibold"
-                    onClick={() => handleSort('averageOrderPerYear')}
+                    onClick={() => handleSort('averageAmountPerYear')}
                   >
                     Moyenne/An
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                    {sortColumn === 'averageAmountPerYear' && (
+                      sortDirection === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />
+                    )}
+                    {sortColumn !== 'averageAmountPerYear' && <ArrowUpDown className="ml-2 h-4 w-4" />}
                   </Button>
                 </TableHead>
                 {(startDate || endDate) && (
                   <TableHead className="text-center min-w-[120px] bg-primary/5">
-                    Période filtrée
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 p-0 font-semibold"
+                      onClick={() => handleSort('periodAmount')}
+                    >
+                      Période filtrée
+                      {sortColumn === 'periodAmount' && (
+                        sortDirection === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />
+                      )}
+                      {sortColumn !== 'periodAmount' && <ArrowUpDown className="ml-2 h-4 w-4" />}
+                    </Button>
                   </TableHead>
                 )}
                 {availableYears.map(year => (

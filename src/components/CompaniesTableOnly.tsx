@@ -460,6 +460,22 @@ const CompaniesTableOnly = ({
           aValue = a.periodAmount || 0;
           bValue = b.periodAmount || 0;
           break;
+        case 'quality':
+          aValue = a.quality === 'Industrie' ? 'Client' : a.quality === 'Distributeur' ? 'Revendeur' : a.quality || '';
+          bValue = b.quality === 'Industrie' ? 'Client' : b.quality === 'Distributeur' ? 'Revendeur' : b.quality || '';
+          break;
+        case 'formation':
+          aValue = a.training_date ? 2 : a.report_creation_date ? 1 : 0;
+          bValue = b.training_date ? 2 : b.report_creation_date ? 1 : 0;
+          break;
+        case 'training_date':
+          aValue = a.training_date ? new Date(a.training_date).getTime() : 0;
+          bValue = b.training_date ? new Date(b.training_date).getTime() : 0;
+          break;
+        case 'report_creation_date':
+          aValue = a.report_creation_date ? new Date(a.report_creation_date).getTime() : 0;
+          bValue = b.report_creation_date ? new Date(b.report_creation_date).getTime() : 0;
+          break;
         default:
           return 0;
       }
@@ -506,7 +522,7 @@ const CompaniesTableOnly = ({
         {/* Date filters */}
         <div className="flex flex-wrap gap-4 items-center">
           <div className="flex items-center space-x-2">
-            <span className="text-sm font-medium">Date de début:</span>
+            <span className="text-sm font-medium">Date de début des commandes:</span>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -532,7 +548,7 @@ const CompaniesTableOnly = ({
           </div>
           
           <div className="flex items-center space-x-2">
-            <span className="text-sm font-medium">Date de fin:</span>
+            <span className="text-sm font-medium">Date de fin des commandes:</span>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -613,8 +629,8 @@ const CompaniesTableOnly = ({
           </div>
         </div>
 
-        {/* Formateur, Responsable BO, Quality, and Formation filters */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Formateur and Formation filters */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">Formateur</label>
             <Popover>
@@ -650,6 +666,44 @@ const CompaniesTableOnly = ({
             </Popover>
           </div>
 
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Formation</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-between">
+                  <span className="truncate">
+                    {formationFilter || "Tous les statuts"}
+                  </span>
+                  <ChevronDown className="w-4 h-4 ml-2 flex-shrink-0" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 bg-background z-50">
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start text-sm"
+                    onClick={() => setFormationFilter('')}
+                  >
+                    Tous les statuts
+                  </Button>
+                  {formationOptions.map((option) => (
+                    <Button
+                      key={option}
+                      variant={formationFilter === option ? "secondary" : "ghost"}
+                      className="w-full justify-start text-sm"
+                      onClick={() => setFormationFilter(option)}
+                    >
+                      {option}
+                    </Button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+
+        {/* Responsable BO and Quality filters */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">Responsable BO</label>
             <Popover>
@@ -713,41 +767,6 @@ const CompaniesTableOnly = ({
                       onClick={() => setQualityFilter(quality)}
                     >
                       {quality}
-                    </Button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Formation</label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-between">
-                  <span className="truncate">
-                    {formationFilter || "Tous les statuts"}
-                  </span>
-                  <ChevronDown className="w-4 h-4 ml-2 flex-shrink-0" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80 bg-background z-50">
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start text-sm"
-                    onClick={() => setFormationFilter('')}
-                  >
-                    Tous les statuts
-                  </Button>
-                  {formationOptions.map((option) => (
-                    <Button
-                      key={option}
-                      variant={formationFilter === option ? "secondary" : "ghost"}
-                      className="w-full justify-start text-sm"
-                      onClick={() => setFormationFilter(option)}
-                    >
-                      {option}
                     </Button>
                   ))}
                 </div>
@@ -867,10 +886,62 @@ const CompaniesTableOnly = ({
                     <ArrowUpDown className="ml-2 h-4 w-4" />
                   </Button>
                 </TableHead>
-                <TableHead className="text-center">Type</TableHead>
-                <TableHead className="text-center">Formation</TableHead>
-                <TableHead className="text-center">Formation (Date de cmd SIPI)</TableHead>
-                <TableHead className="text-center">Date approx Formation (Rapport SIPI)</TableHead>
+                <TableHead className="text-center">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 p-0 font-semibold"
+                    onClick={() => handleSort('quality')}
+                  >
+                    Type
+                    {sortColumn === 'quality' && (
+                      sortDirection === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />
+                    )}
+                    {sortColumn !== 'quality' && <ArrowUpDown className="ml-2 h-4 w-4" />}
+                  </Button>
+                </TableHead>
+                <TableHead className="text-center">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 p-0 font-semibold"
+                    onClick={() => handleSort('formation')}
+                  >
+                    Formation
+                    {sortColumn === 'formation' && (
+                      sortDirection === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />
+                    )}
+                    {sortColumn !== 'formation' && <ArrowUpDown className="ml-2 h-4 w-4" />}
+                  </Button>
+                </TableHead>
+                <TableHead className="text-center">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 p-0 font-semibold"
+                    onClick={() => handleSort('training_date')}
+                  >
+                    Formation (Date de cmd SIPI)
+                    {sortColumn === 'training_date' && (
+                      sortDirection === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />
+                    )}
+                    {sortColumn !== 'training_date' && <ArrowUpDown className="ml-2 h-4 w-4" />}
+                  </Button>
+                </TableHead>
+                <TableHead className="text-center">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 p-0 font-semibold"
+                    onClick={() => handleSort('report_creation_date')}
+                  >
+                    Date approx Formation (Rapport SIPI)
+                    {sortColumn === 'report_creation_date' && (
+                      sortDirection === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />
+                    )}
+                    {sortColumn !== 'report_creation_date' && <ArrowUpDown className="ml-2 h-4 w-4" />}
+                  </Button>
+                </TableHead>
                 <TableHead className="text-center">
                   <Button
                     variant="ghost"

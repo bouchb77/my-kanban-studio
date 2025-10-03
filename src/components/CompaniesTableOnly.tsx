@@ -76,7 +76,7 @@ const CompaniesTableOnly = ({
   const [formationFilter, setFormationFilter] = useState('');
   const [responsableBOFilter, setResponsableBOFilter] = useState('');
   const [formateurFilter, setFormateurFilter] = useState('');
-  const [localClientTypeFilter, setLocalClientTypeFilter] = useState('all');
+  const [qualityFilter, setQualityFilter] = useState('');
 
   // Department management data
   const [departmentManagement, setDepartmentManagement] = useState<Record<string, any>>({});
@@ -276,6 +276,27 @@ const CompaniesTableOnly = ({
           return false;
         }
       }
+
+      // Quality filter
+      if (qualityFilter) {
+        const displayQuality = company.quality === 'Industrie' ? 'Client' : company.quality === 'Distributeur' ? 'Revendeur' : company.quality;
+        if (displayQuality !== qualityFilter) {
+          return false;
+        }
+      }
+
+      // Formation filter
+      if (formationFilter) {
+        const formationStatus = company.training_date 
+          ? 'Structure Formée (Uniquement payant)' 
+          : company.report_creation_date 
+          ? 'Structure Formée* (Payant comme gratuit)' 
+          : 'Structure non formée';
+        
+        if (formationStatus !== formationFilter) {
+          return false;
+        }
+      }
       
       // Date range filter - filter based on actual order dates
       let filteredOrders = allOrders.filter(order => order.sipi_number === company.sipi_number);
@@ -339,7 +360,7 @@ const CompaniesTableOnly = ({
       
       return true;
     });
-  }, [companies, allOrders, sipiFilter, cityFilter, companyNameFilter, minAverageFilter, maxAverageFilter, selectedDepartments, formateurFilter, responsableBOFilter, departmentManagement, startDate, endDate]);
+  }, [companies, allOrders, sipiFilter, cityFilter, companyNameFilter, minAverageFilter, maxAverageFilter, selectedDepartments, formateurFilter, responsableBOFilter, qualityFilter, formationFilter, departmentManagement, startDate, endDate]);
 
   // Get unique departments for filter
   const uniqueDepartments = useMemo(() => {
@@ -364,6 +385,25 @@ const CompaniesTableOnly = ({
     });
     return Array.from(responsables).sort();
   }, [departmentManagement]);
+
+  // Get unique quality values (mapped to display names)
+  const uniqueQualityValues = useMemo(() => {
+    const qualities = new Set<string>();
+    companies.forEach(company => {
+      if (company.quality) {
+        const displayQuality = company.quality === 'Industrie' ? 'Client' : company.quality === 'Distributeur' ? 'Revendeur' : company.quality;
+        qualities.add(displayQuality);
+      }
+    });
+    return Array.from(qualities).sort();
+  }, [companies]);
+
+  // Formation options
+  const formationOptions = [
+    'Structure non formée',
+    'Structure Formée* (Payant comme gratuit)',
+    'Structure Formée (Uniquement payant)'
+  ];
 
   // Get available years from order data
   const availableYears = useMemo(() => {
@@ -573,8 +613,8 @@ const CompaniesTableOnly = ({
           </div>
         </div>
 
-        {/* Formateur and Responsable BO filters */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Formateur, Responsable BO, Quality, and Formation filters */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">Formateur</label>
             <Popover>
@@ -644,6 +684,76 @@ const CompaniesTableOnly = ({
               </PopoverContent>
             </Popover>
           </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Type de client</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-between">
+                  <span className="truncate">
+                    {qualityFilter || "Tous les types"}
+                  </span>
+                  <ChevronDown className="w-4 h-4 ml-2 flex-shrink-0" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 bg-background z-50">
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start text-sm"
+                    onClick={() => setQualityFilter('')}
+                  >
+                    Tous les types
+                  </Button>
+                  {uniqueQualityValues.map((quality) => (
+                    <Button
+                      key={quality}
+                      variant={qualityFilter === quality ? "secondary" : "ghost"}
+                      className="w-full justify-start text-sm"
+                      onClick={() => setQualityFilter(quality)}
+                    >
+                      {quality}
+                    </Button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Formation</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-between">
+                  <span className="truncate">
+                    {formationFilter || "Tous les statuts"}
+                  </span>
+                  <ChevronDown className="w-4 h-4 ml-2 flex-shrink-0" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 bg-background z-50">
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start text-sm"
+                    onClick={() => setFormationFilter('')}
+                  >
+                    Tous les statuts
+                  </Button>
+                  {formationOptions.map((option) => (
+                    <Button
+                      key={option}
+                      variant={formationFilter === option ? "secondary" : "ghost"}
+                      className="w-full justify-start text-sm"
+                      onClick={() => setFormationFilter(option)}
+                    >
+                      {option}
+                    </Button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
 
         {/* Department filter */}
@@ -691,6 +801,8 @@ const CompaniesTableOnly = ({
               setSelectedDepartments([]);
               setFormateurFilter('');
               setResponsableBOFilter('');
+              setQualityFilter('');
+              setFormationFilter('');
               setStartDate(undefined);
               setEndDate(undefined);
             }}
@@ -755,6 +867,8 @@ const CompaniesTableOnly = ({
                     <ArrowUpDown className="ml-2 h-4 w-4" />
                   </Button>
                 </TableHead>
+                <TableHead className="text-center">Type</TableHead>
+                <TableHead className="text-center">Formation</TableHead>
                 <TableHead className="text-center">
                   <Button
                     variant="ghost"
@@ -814,6 +928,16 @@ const CompaniesTableOnly = ({
                     </TableCell>
                     <TableCell>{company.city || '-'}</TableCell>
                     <TableCell>{company.general_department || '-'}</TableCell>
+                    <TableCell className="text-center text-sm">
+                      {company.quality === 'Industrie' ? 'Client' : company.quality === 'Distributeur' ? 'Revendeur' : company.quality || '-'}
+                    </TableCell>
+                    <TableCell className="text-center text-sm">
+                      {company.training_date 
+                        ? 'Formée (payant)' 
+                        : company.report_creation_date 
+                        ? 'Formée* (P+G)' 
+                        : 'Non formée'}
+                    </TableCell>
                     <TableCell className="text-center">
                       {company.averageAmountPerYear ? (
                         <div className="space-y-1">

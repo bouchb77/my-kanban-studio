@@ -869,6 +869,8 @@ const CompaniesTableOnly = ({
                 </TableHead>
                 <TableHead className="text-center">Type</TableHead>
                 <TableHead className="text-center">Formation</TableHead>
+                <TableHead className="text-center">Formation (Date de cmd SIPI)</TableHead>
+                <TableHead className="text-center">Date approx Formation (Rapport SIPI)</TableHead>
                 <TableHead className="text-center">
                   <Button
                     variant="ghost"
@@ -937,6 +939,12 @@ const CompaniesTableOnly = ({
                         : company.report_creation_date 
                         ? 'Formée* (P+G)' 
                         : 'Non formée'}
+                    </TableCell>
+                    <TableCell className="text-center text-sm">
+                      {company.training_date ? format(new Date(company.training_date), 'dd/MM/yyyy') : '-'}
+                    </TableCell>
+                    <TableCell className="text-center text-sm">
+                      {company.report_creation_date ? format(new Date(company.report_creation_date), 'dd/MM/yyyy') : '-'}
                     </TableCell>
                     <TableCell className="text-center">
                       {company.averageAmountPerYear ? (

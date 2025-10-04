@@ -509,23 +509,7 @@ const CompaniesTableOnly = ({
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-muted-foreground">Chargement des données...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-destructive">{error}</div>
-      </div>
-    );
-  }
-
-  // Define all available columns
+  // Define all available columns - MUST BE BEFORE EARLY RETURNS
   const allColumns = useMemo(() => {
     const columns = [
       { id: 'sipi_number', label: 'SIPI', type: 'system' as const, order: 0 },
@@ -593,6 +577,23 @@ const CompaniesTableOnly = ({
     const newOrder = reorderedItems.map(item => item.id);
     await reorderColumns(newOrder);
   };
+
+  // Early returns after all hooks are called
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-muted-foreground">Chargement des données...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-destructive">{error}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -554,20 +554,42 @@ const CompaniesTableOnly = ({
       return allColumns.filter(col => visibleColumns.includes(col.id));
     }
     
-    const ordered = preferences.column_order
-      .filter(id => visibleColumns.includes(id) && !id.startsWith('year_'))
-      .map(id => allColumns.find(col => col.id === id))
-      .filter(Boolean);
+    const ordered: typeof allColumns = [];
+    preferences.column_order.forEach(id => {
+      if (visibleColumns.includes(id) && !id.startsWith('year_')) {
+        const col = allColumns.find(col => col.id === id);
+        if (col) ordered.push(col);
+      }
+    });
     
     // Add year columns at the end
     const yearCols = allColumns.filter(col => col.id.startsWith('year_') && visibleColumns.includes(col.id));
     return [...ordered, ...yearCols];
   }, [preferences, allColumns, visibleColumns]);
 
-  // Get visible column objects for DragDropList
+  // Get visible column objects for DragDropList - include ALL visible non-year columns
   const visibleColumnObjects = useMemo(() => {
-    return orderedColumns.filter(col => col && !col.id.startsWith('year_'));
-  }, [orderedColumns]);
+    const nonYearColumns = allColumns.filter(col => !col.id.startsWith('year_'));
+    const visibleNonYear = nonYearColumns.filter(col => visibleColumns.includes(col.id));
+    
+    // Order them according to orderedColumns if available
+    if (preferences?.column_order && preferences.column_order.length > 0) {
+      const ordered: typeof allColumns = [];
+      preferences.column_order.forEach(id => {
+        const col = visibleNonYear.find(c => c.id === id);
+        if (col) ordered.push(col);
+      });
+      // Add any visible columns not in the order list
+      visibleNonYear.forEach(col => {
+        if (!ordered.find(c => c.id === col.id)) {
+          ordered.push(col);
+        }
+      });
+      return ordered;
+    }
+    
+    return visibleNonYear;
+  }, [allColumns, visibleColumns, preferences]);
 
   const handleToggleColumn = async (columnId: string) => {
     await toggleColumnVisibility(columnId);

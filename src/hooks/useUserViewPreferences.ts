@@ -95,18 +95,7 @@ export const useUserViewPreferences = (viewType: 'table' | 'kanban' = 'table') =
   };
 
   const toggleColumnVisibility = async (columnId: string) => {
-    if (!preferences) {
-      // If no preferences exist, create initial ones
-      const initialVisible = ['select', 'title', 'status', 'priority', 'actions'];
-      const newVisible = initialVisible.includes(columnId)
-        ? initialVisible.filter(id => id !== columnId)
-        : [...initialVisible, columnId];
-      
-      await savePreferences({ visible_columns: newVisible });
-      return;
-    }
-    
-    const currentVisible = preferences.visible_columns || [];
+    const currentVisible = preferences?.visible_columns || [];
     const newVisible = currentVisible.includes(columnId)
       ? currentVisible.filter(id => id !== columnId)
       : [...currentVisible, columnId];

@@ -6,11 +6,15 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
-import { Filter, ChevronDown, Search, CalendarIcon, ChevronUp, ArrowUpDown } from "lucide-react";
+import { Filter, ChevronDown, Search, CalendarIcon, ChevronUp, ArrowUpDown, Settings2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import CompanyDetailDialog from './CompanyDetailDialog';
+import { useUserViewPreferences } from '@/hooks/useUserViewPreferences';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { DragDropList } from './DragDropList';
+import { Separator } from './ui/separator';
 
 interface Company {
   id: string;
@@ -96,6 +100,12 @@ const CompaniesTableOnly = ({
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   
   const { toast } = useToast();
+
+  // Column preferences - using 'table' for now, will create a reporting-specific view type later
+  const { preferences, loading: preferencesLoading, toggleColumnVisibility, reorderColumns } = useUserViewPreferences('table');
+  
+  // Column manager state
+  const [columnManagerOpen, setColumnManagerOpen] = useState(false);
 
   // Load companies and order data
   useEffect(() => {
@@ -515,6 +525,75 @@ const CompaniesTableOnly = ({
     );
   }
 
+  // Define all available columns
+  const allColumns = useMemo(() => {
+    const columns = [
+      { id: 'sipi_number', label: 'SIPI', type: 'system' as const, order: 0 },
+      { id: 'company_name', label: 'Entreprise', type: 'system' as const, order: 1 },
+      { id: 'city', label: 'Ville', type: 'system' as const, order: 2 },
+      { id: 'general_department', label: 'Département', type: 'system' as const, order: 3 },
+      { id: 'quality', label: 'Type', type: 'system' as const, order: 4 },
+      { id: 'formation', label: 'Formation', type: 'system' as const, order: 5 },
+      { id: 'training_date', label: 'Formation (Date de cmd SIPI)', type: 'system' as const, order: 6 },
+      { id: 'report_creation_date', label: 'Date approx Formation (Rapport SIPI)', type: 'system' as const, order: 7 },
+      { id: 'averageAmountPerYear', label: 'Moyenne/An', type: 'system' as const, order: 8 },
+    ];
+    
+    let nextOrder = 9;
+    if (startDate || endDate) {
+      columns.push({ id: 'periodAmount', label: 'Période filtrée', type: 'system' as const, order: nextOrder++ });
+    }
+    
+    availableYears.forEach(year => {
+      columns.push({ id: `year_${year}`, label: String(year), type: 'system' as const, order: nextOrder++ });
+    });
+    
+    return columns;
+  }, [startDate, endDate, availableYears]);
+
+  // Get visible columns based on preferences
+  const visibleColumns = useMemo(() => {
+    if (!preferences?.visible_columns || preferences.visible_columns.length === 0) {
+      return allColumns.map(col => col.id);
+    }
+    // Filter out columns that no longer exist and ensure all year columns are included
+    const yearColumns = allColumns.filter(col => col.id.startsWith('year_')).map(col => col.id);
+    const visibleWithYears = [...preferences.visible_columns.filter(id => 
+      !id.startsWith('year_') && allColumns.some(col => col.id === id)
+    ), ...yearColumns];
+    return visibleWithYears;
+  }, [preferences, allColumns]);
+
+  // Get column order based on preferences
+  const orderedColumns = useMemo(() => {
+    if (!preferences?.column_order || preferences.column_order.length === 0) {
+      return allColumns.filter(col => visibleColumns.includes(col.id));
+    }
+    
+    const ordered = preferences.column_order
+      .filter(id => visibleColumns.includes(id) && !id.startsWith('year_'))
+      .map(id => allColumns.find(col => col.id === id))
+      .filter(Boolean);
+    
+    // Add year columns at the end
+    const yearCols = allColumns.filter(col => col.id.startsWith('year_') && visibleColumns.includes(col.id));
+    return [...ordered, ...yearCols];
+  }, [preferences, allColumns, visibleColumns]);
+
+  // Get visible column objects for DragDropList
+  const visibleColumnObjects = useMemo(() => {
+    return orderedColumns.filter(col => col && !col.id.startsWith('year_'));
+  }, [orderedColumns]);
+
+  const handleToggleColumn = async (columnId: string) => {
+    await toggleColumnVisibility(columnId);
+  };
+
+  const handleReorderColumns = async (reorderedItems: typeof allColumns) => {
+    const newOrder = reorderedItems.map(item => item.id);
+    await reorderColumns(newOrder);
+  };
+
   return (
     <div className="space-y-6">
       {/* Filters */}
@@ -828,6 +907,66 @@ const CompaniesTableOnly = ({
           >
             Effacer les filtres
           </Button>
+
+          <Sheet open={columnManagerOpen} onOpenChange={setColumnManagerOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline">
+                <Settings2 className="mr-2 h-4 w-4" />
+                Colonnes
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[400px] sm:w-[540px]">
+              <SheetHeader>
+                <SheetTitle>Personnaliser les colonnes</SheetTitle>
+                <SheetDescription>
+                  Choisissez les colonnes à afficher et réorganisez-les par glisser-déposer.
+                </SheetDescription>
+              </SheetHeader>
+              
+              <div className="space-y-6 mt-6">
+                {/* Toggle columns */}
+                <div>
+                  <h3 className="text-sm font-medium mb-3">Colonnes disponibles</h3>
+                  <div className="space-y-2">
+                    {allColumns.filter(col => !col.id.startsWith('year_')).map((column) => (
+                      <div key={column.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={column.id}
+                          checked={visibleColumns.includes(column.id)}
+                          onCheckedChange={() => handleToggleColumn(column.id)}
+                        />
+                        <label
+                          htmlFor={column.id}
+                          className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        >
+                          {column.label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Reorder columns */}
+                <div>
+                  <h3 className="text-sm font-medium mb-3">Ordre des colonnes</h3>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Faites glisser les colonnes pour les réorganiser
+                  </p>
+                  <DragDropList
+                    items={visibleColumnObjects}
+                    onReorder={handleReorderColumns}
+                    renderItem={(column) => (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">{column.label}</span>
+                      </div>
+                    )}
+                  />
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
 
@@ -842,141 +981,63 @@ const CompaniesTableOnly = ({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[120px]">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 p-0 font-semibold"
-                    onClick={() => handleSort('sipi_number')}
-                  >
-                    SIPI
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                  </Button>
-                </TableHead>
-                <TableHead>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 p-0 font-semibold"
-                    onClick={() => handleSort('company_name')}
-                  >
-                    Entreprise
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                  </Button>
-                </TableHead>
-                <TableHead>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 p-0 font-semibold"
-                    onClick={() => handleSort('city')}
-                  >
-                    Ville
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                  </Button>
-                </TableHead>
-                <TableHead>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 p-0 font-semibold"
-                    onClick={() => handleSort('general_department')}
-                  >
-                    Département
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                  </Button>
-                </TableHead>
-                <TableHead className="text-center">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 p-0 font-semibold"
-                    onClick={() => handleSort('quality')}
-                  >
-                    Type
-                    {sortColumn === 'quality' && (
-                      sortDirection === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />
-                    )}
-                    {sortColumn !== 'quality' && <ArrowUpDown className="ml-2 h-4 w-4" />}
-                  </Button>
-                </TableHead>
-                <TableHead className="text-center">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 p-0 font-semibold"
-                    onClick={() => handleSort('formation')}
-                  >
-                    Formation
-                    {sortColumn === 'formation' && (
-                      sortDirection === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />
-                    )}
-                    {sortColumn !== 'formation' && <ArrowUpDown className="ml-2 h-4 w-4" />}
-                  </Button>
-                </TableHead>
-                <TableHead className="text-center">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 p-0 font-semibold"
-                    onClick={() => handleSort('training_date')}
-                  >
-                    Formation (Date de cmd SIPI)
-                    {sortColumn === 'training_date' && (
-                      sortDirection === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />
-                    )}
-                    {sortColumn !== 'training_date' && <ArrowUpDown className="ml-2 h-4 w-4" />}
-                  </Button>
-                </TableHead>
-                <TableHead className="text-center">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 p-0 font-semibold"
-                    onClick={() => handleSort('report_creation_date')}
-                  >
-                    Date approx Formation (Rapport SIPI)
-                    {sortColumn === 'report_creation_date' && (
-                      sortDirection === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />
-                    )}
-                    {sortColumn !== 'report_creation_date' && <ArrowUpDown className="ml-2 h-4 w-4" />}
-                  </Button>
-                </TableHead>
-                <TableHead className="text-center">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 p-0 font-semibold"
-                    onClick={() => handleSort('averageAmountPerYear')}
-                  >
-                    Moyenne/An
-                    {sortColumn === 'averageAmountPerYear' && (
-                      sortDirection === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />
-                    )}
-                    {sortColumn !== 'averageAmountPerYear' && <ArrowUpDown className="ml-2 h-4 w-4" />}
-                  </Button>
-                </TableHead>
-                {(startDate || endDate) && (
-                  <TableHead className="text-center min-w-[120px] bg-primary/5">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 p-0 font-semibold"
-                      onClick={() => handleSort('periodAmount')}
-                    >
-                      Période filtrée
-                      {sortColumn === 'periodAmount' && (
-                        sortDirection === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />
+                {orderedColumns.map((column) => {
+                  if (!column) return null;
+                  
+                  const getSortIcon = (colId: string) => {
+                    if (sortColumn === colId) {
+                      return sortDirection === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />;
+                    }
+                    return <ArrowUpDown className="ml-2 h-4 w-4" />;
+                  };
+
+                  // Year columns - not sortable
+                  if (column.id.startsWith('year_')) {
+                    return (
+                      <TableHead key={column.id} className="text-center min-w-[100px]">
+                        {column.label}
+                      </TableHead>
+                    );
+                  }
+
+                  // Period column - special styling
+                  if (column.id === 'periodAmount') {
+                    return (
+                      <TableHead key={column.id} className="text-center min-w-[120px] bg-primary/5">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 p-0 font-semibold"
+                          onClick={() => handleSort(column.id)}
+                        >
+                          {column.label}
+                          {getSortIcon(column.id)}
+                        </Button>
+                      </TableHead>
+                    );
+                  }
+
+                  // Regular columns
+                  return (
+                    <TableHead 
+                      key={column.id} 
+                      className={cn(
+                        column.id === 'sipi_number' && 'w-[120px]',
+                        ['quality', 'formation', 'training_date', 'report_creation_date', 'averageAmountPerYear'].includes(column.id) && 'text-center'
                       )}
-                      {sortColumn !== 'periodAmount' && <ArrowUpDown className="ml-2 h-4 w-4" />}
-                    </Button>
-                  </TableHead>
-                )}
-                {availableYears.map(year => (
-                  <TableHead key={year} className="text-center min-w-[100px]">
-                    {year}
-                  </TableHead>
-                ))}
+                    >
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 p-0 font-semibold"
+                        onClick={() => handleSort(column.id)}
+                      >
+                        {column.label}
+                        {getSortIcon(column.id)}
+                      </Button>
+                    </TableHead>
+                  );
+                })}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -985,6 +1046,106 @@ const CompaniesTableOnly = ({
                 company.orderStats?.forEach(stat => {
                   yearDataMap.set(stat.year, stat);
                 });
+
+                const renderCell = (columnId: string) => {
+                  // Year columns
+                  if (columnId.startsWith('year_')) {
+                    const year = parseInt(columnId.replace('year_', ''));
+                    const yearData = yearDataMap.get(year);
+                    return (
+                      <TableCell key={columnId} className="text-center">
+                        {yearData ? (
+                          <div className="space-y-1">
+                            <div className="font-medium text-primary">
+                              {yearData.totalOrders}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {yearData.totalAmount.toLocaleString()} €
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                    );
+                  }
+
+                  // Regular columns
+                  switch (columnId) {
+                    case 'sipi_number':
+                      return <TableCell key={columnId} className="font-medium">{company.sipi_number}</TableCell>;
+                    case 'company_name':
+                      return <TableCell key={columnId} className="max-w-[200px] truncate">{company.company_name}</TableCell>;
+                    case 'city':
+                      return <TableCell key={columnId}>{company.city || '-'}</TableCell>;
+                    case 'general_department':
+                      return <TableCell key={columnId}>{company.general_department || '-'}</TableCell>;
+                    case 'quality':
+                      return (
+                        <TableCell key={columnId} className="text-center text-sm">
+                          {company.quality === 'Industrie' ? 'Client' : company.quality === 'Distributeur' ? 'Revendeur' : company.quality || '-'}
+                        </TableCell>
+                      );
+                    case 'formation':
+                      return (
+                        <TableCell key={columnId} className="text-center text-sm">
+                          {company.training_date 
+                            ? 'Formée (payant)' 
+                            : company.report_creation_date 
+                            ? 'Formée* (P+G)' 
+                            : 'Non formée'}
+                        </TableCell>
+                      );
+                    case 'training_date':
+                      return (
+                        <TableCell key={columnId} className="text-center text-sm">
+                          {company.training_date ? format(new Date(company.training_date), 'dd/MM/yyyy') : '-'}
+                        </TableCell>
+                      );
+                    case 'report_creation_date':
+                      return (
+                        <TableCell key={columnId} className="text-center text-sm">
+                          {company.report_creation_date ? format(new Date(company.report_creation_date), 'dd/MM/yyyy') : '-'}
+                        </TableCell>
+                      );
+                    case 'averageAmountPerYear':
+                      return (
+                        <TableCell key={columnId} className="text-center">
+                          {company.averageAmountPerYear ? (
+                            <div className="space-y-1">
+                              <div className="font-medium text-primary">
+                                {Math.round(company.averageOrderPerYear || 0)} cmd
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                {Math.round(company.averageAmountPerYear).toLocaleString()} €
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                      );
+                    case 'periodAmount':
+                      return (
+                        <TableCell key={columnId} className="text-center bg-primary/5">
+                          {company.periodOrders ? (
+                            <div className="space-y-1">
+                              <div className="font-bold text-primary">
+                                {company.periodOrders} cmd
+                              </div>
+                              <div className="text-sm font-semibold">
+                                {Math.round(company.periodAmount || 0).toLocaleString()} €
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                      );
+                    default:
+                      return null;
+                  }
+                };
 
                 return (
                   <TableRow 
@@ -995,77 +1156,7 @@ const CompaniesTableOnly = ({
                       setCompanyDetailOpen(true);
                     }}
                   >
-                    <TableCell className="font-medium">{company.sipi_number}</TableCell>
-                    <TableCell className="max-w-[200px] truncate">
-                      {company.company_name}
-                    </TableCell>
-                    <TableCell>{company.city || '-'}</TableCell>
-                    <TableCell>{company.general_department || '-'}</TableCell>
-                    <TableCell className="text-center text-sm">
-                      {company.quality === 'Industrie' ? 'Client' : company.quality === 'Distributeur' ? 'Revendeur' : company.quality || '-'}
-                    </TableCell>
-                    <TableCell className="text-center text-sm">
-                      {company.training_date 
-                        ? 'Formée (payant)' 
-                        : company.report_creation_date 
-                        ? 'Formée* (P+G)' 
-                        : 'Non formée'}
-                    </TableCell>
-                    <TableCell className="text-center text-sm">
-                      {company.training_date ? format(new Date(company.training_date), 'dd/MM/yyyy') : '-'}
-                    </TableCell>
-                    <TableCell className="text-center text-sm">
-                      {company.report_creation_date ? format(new Date(company.report_creation_date), 'dd/MM/yyyy') : '-'}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {company.averageAmountPerYear ? (
-                        <div className="space-y-1">
-                          <div className="font-medium text-primary">
-                            {Math.round(company.averageOrderPerYear || 0)} cmd
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {Math.round(company.averageAmountPerYear).toLocaleString()} €
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    {(startDate || endDate) && (
-                      <TableCell className="text-center bg-primary/5">
-                        {company.periodOrders ? (
-                          <div className="space-y-1">
-                            <div className="font-bold text-primary">
-                              {company.periodOrders} cmd
-                            </div>
-                            <div className="text-sm font-semibold">
-                              {Math.round(company.periodAmount || 0).toLocaleString()} €
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                    )}
-                    {availableYears.map(year => {
-                     const yearData = yearDataMap.get(year);
-                     return (
-                       <TableCell key={year} className="text-center">
-                         {yearData ? (
-                           <div className="space-y-1">
-                             <div className="font-medium text-primary">
-                               {yearData.totalOrders}
-                             </div>
-                             <div className="text-sm text-muted-foreground">
-                               {yearData.totalAmount.toLocaleString()} €
-                             </div>
-                           </div>
-                         ) : (
-                           <span className="text-muted-foreground">-</span>
-                         )}
-                       </TableCell>
-                     );
-                   })}
+                    {orderedColumns.map((column) => column && renderCell(column.id))}
                   </TableRow>
                 );
               })}

@@ -197,12 +197,12 @@ const SimpleHeatmapMap = ({ companies: externalCompanies }: SimpleHeatmapMapProp
           maxZoom: 14,
           max: maxIntensity,
           gradient: {
-            0.0: '#blue',
-            0.2: '#cyan',
-            0.4: '#lime',
-            0.6: '#yellow',
-            0.8: '#orange',
-            1.0: '#red'
+            0.0: 'blue',
+            0.2: 'cyan',
+            0.4: 'lime',
+            0.6: 'yellow',
+            0.8: 'orange',
+            1.0: 'red'
           }
         }).addTo(map.current);
         

@@ -186,9 +186,9 @@ const SimpleHeatmapMap = ({ companies: externalCompanies }: SimpleHeatmapMapProp
         // Adjust heatmap parameters dynamically based on data size
         const dataCount = heatmapData.length;
         
-        // Dynamic max intensity - scales with data volume
-        // More data = higher max to show relative concentrations better
-        const maxIntensity = Math.max(0.3, Math.min(1, dataCount / 1000));
+        // Lower max value to make concentrated areas more visible in red/yellow
+        // This ensures the gradient reaches its peak colors in high-density areas
+        const maxIntensity = dataCount > 2000 ? 0.5 : dataCount > 1000 ? 0.4 : 0.3;
         
         // Dynamic radius - smaller for more data points to show detail
         const radius = dataCount > 500 ? 20 : dataCount > 200 ? 25 : 30;

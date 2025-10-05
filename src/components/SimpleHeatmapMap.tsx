@@ -194,7 +194,8 @@ const SimpleHeatmapMap = ({ companies: externalCompanies }: SimpleHeatmapMapProp
         heatLayer.current = (L as any).heatLayer(heatmapData, {
           radius: radius,
           blur: blur,
-          maxZoom: 14,
+          maxZoom: 18,
+          minOpacity: 0.05,
           max: maxIntensity,
           gradient: {
             0.0: 'blue',

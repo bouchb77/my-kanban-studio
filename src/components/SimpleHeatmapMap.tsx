@@ -195,15 +195,16 @@ const SimpleHeatmapMap = ({ companies: externalCompanies }: SimpleHeatmapMapProp
           radius: radius,
           blur: blur,
           maxZoom: 18,
-          minOpacity: 0.05,
+          minOpacity: 0.1,
           max: maxIntensity,
           gradient: {
-            0.0: 'blue',
-            0.2: 'cyan',
-            0.4: 'lime',
-            0.6: 'yellow',
-            0.8: 'orange',
-            1.0: 'red'
+            0.0: 'rgba(0, 0, 255, 0)',
+            0.2: 'rgb(0, 0, 255)',
+            0.4: 'rgb(0, 255, 255)',
+            0.6: 'rgb(0, 255, 0)',
+            0.7: 'rgb(255, 255, 0)',
+            0.8: 'rgb(255, 165, 0)',
+            1.0: 'rgb(255, 0, 0)'
           }
         }).addTo(map.current);
         

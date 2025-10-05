@@ -186,15 +186,15 @@ const SimpleHeatmapMap = ({ companies: externalCompanies }: SimpleHeatmapMapProp
         // Adjust heatmap parameters dynamically based on data size
         const dataCount = heatmapData.length;
         
-        // Lower max value to make concentrated areas more visible in red/yellow
-        // This ensures the gradient reaches its peak colors in high-density areas
-        const maxIntensity = dataCount > 2000 ? 0.5 : dataCount > 1000 ? 0.4 : 0.3;
+        // Très faible max pour rendre les zones concentrées bien visibles en rouge/jaune
+        // Plus la valeur est basse, plus facilement on atteint les couleurs chaudes
+        const maxIntensity = dataCount > 3000 ? 0.25 : dataCount > 1000 ? 0.3 : 0.35;
         
-        // Dynamic radius - smaller for more data points to show detail
-        const radius = dataCount > 500 ? 20 : dataCount > 200 ? 25 : 30;
+        // Radius plus grand pour mieux voir les concentrations
+        const radius = dataCount > 3000 ? 25 : dataCount > 500 ? 28 : 30;
         
-        // Dynamic blur for smoother gradients
-        const blur = dataCount > 500 ? 12 : 15;
+        // Blur plus élevé pour des gradients plus lisses
+        const blur = dataCount > 3000 ? 15 : dataCount > 500 ? 18 : 20;
         
         console.log('Paramètres heatmap:', { dataCount, maxIntensity, radius, blur });
         

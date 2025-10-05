@@ -175,11 +175,35 @@ const SimpleHeatmapMap = ({ companies: externalCompanies }: SimpleHeatmapMapProp
       console.log('Exemple de points:', heatmapData.slice(0, 3));
 
       if (heatmapData.length > 0 && (L as any).heatLayer) {
-        // Create heat layer
+        // Adjust heatmap parameters dynamically based on data size
+        const dataCount = heatmapData.length;
+        
+        // Dynamic max intensity - scales with data volume
+        // More data = higher max to show relative concentrations better
+        const maxIntensity = Math.max(0.3, Math.min(1, dataCount / 1000));
+        
+        // Dynamic radius - smaller for more data points to show detail
+        const radius = dataCount > 500 ? 20 : dataCount > 200 ? 25 : 30;
+        
+        // Dynamic blur for smoother gradients
+        const blur = dataCount > 500 ? 12 : 15;
+        
+        console.log('Paramètres heatmap:', { dataCount, maxIntensity, radius, blur });
+        
+        // Create heat layer with dynamic parameters
         heatLayer.current = (L as any).heatLayer(heatmapData, {
-          radius: 25,
-          blur: 15,
-          maxZoom: 14
+          radius: radius,
+          blur: blur,
+          maxZoom: 14,
+          max: maxIntensity,
+          gradient: {
+            0.0: '#blue',
+            0.2: '#cyan',
+            0.4: '#lime',
+            0.6: '#yellow',
+            0.8: '#orange',
+            1.0: '#red'
+          }
         }).addTo(map.current);
         
         console.log('Couche heatmap ajoutée à la carte');

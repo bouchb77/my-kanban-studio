@@ -102,6 +102,14 @@ const SimpleHeatmapMap = ({ companies: externalCompanies }: SimpleHeatmapMapProp
     }).addTo(map.current);
 
     console.log('Carte initialisée avec succès');
+    
+    // Force map to recalculate size after a short delay
+    setTimeout(() => {
+      if (map.current) {
+        map.current.invalidateSize();
+      }
+    }, 100);
+    
     setMapReady(true);
 
     return () => {
@@ -207,6 +215,13 @@ const SimpleHeatmapMap = ({ companies: externalCompanies }: SimpleHeatmapMapProp
             1.0: 'rgb(255, 0, 0)'
           }
         }).addTo(map.current);
+        
+        // Force map resize after heatmap is added
+        setTimeout(() => {
+          if (map.current) {
+            map.current.invalidateSize();
+          }
+        }, 50);
         
         console.log('Couche heatmap ajoutée à la carte');
       } else {

@@ -140,6 +140,33 @@ export type Database = {
         }
         Relationships: []
       }
+      order_details: {
+        Row: {
+          article_code: string
+          created_at: string
+          id: string
+          order_number: string
+          quantity: number
+          updated_at: string
+        }
+        Insert: {
+          article_code: string
+          created_at?: string
+          id?: string
+          order_number: string
+          quantity?: number
+          updated_at?: string
+        }
+        Update: {
+          article_code?: string
+          created_at?: string
+          id?: string
+          order_number?: string
+          quantity?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           amount: number
@@ -795,6 +822,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      import_order_details: {
+        Args: { details_data: Json }
+        Returns: Json
       }
       import_orders: {
         Args: { orders_data: Json }

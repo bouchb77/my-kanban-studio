@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ShieldAlert } from 'lucide-react';
 import { CompanyImportSection } from '@/components/CompanyImportSection';
 import { OrderImportSection } from '@/components/OrderImportSection';
+import { OrderDetailImportSection } from '@/components/OrderDetailImportSection';
 import DepartmentImportSection from '@/components/DepartmentImportSection';
 import ContactImportSection from '@/components/ContactImportSection';
 import IncompleteGeocodingTable from '@/components/IncompleteGeocodingTable';
@@ -65,6 +66,12 @@ const ImportReportingPage: React.FC = () => {
         <div>
           <h2 className="text-2xl font-semibold mb-4">Import des Commandes</h2>
           <OrderImportSection />
+        </div>
+
+        {/* Import des détails de commandes */}
+        <div>
+          <h2 className="text-2xl font-semibold mb-4">Import des Détails de Commandes</h2>
+          <OrderDetailImportSection />
         </div>
 
         {/* Import des contacts */}

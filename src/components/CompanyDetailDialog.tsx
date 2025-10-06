@@ -14,6 +14,8 @@ import { Building2, MapPin, Calendar, Euro, Package, TrendingUp, Loader2, CheckS
 import { format } from "date-fns";
 import { useCompanyTasks } from '@/hooks/useCompanyTasks';
 import { useUserColumns } from '@/hooks/useUserSettings';
+import { OrderDetailDialog } from './OrderDetailDialog';
+import { Button } from './ui/button';
 
 interface Company {
   id: string;
@@ -62,10 +64,17 @@ const CompanyDetailDialog: React.FC<CompanyDetailDialogProps> = ({
     averageAmount: 0,
     lastOrderDate: null as string | null,
   });
+  const [selectedOrderNumber, setSelectedOrderNumber] = useState<string | null>(null);
+  const [orderDetailDialogOpen, setOrderDetailDialogOpen] = useState(false);
 
   // Hook pour récupérer les tâches liées à l'entreprise
   const { tasks: companyTasks, loading: tasksLoading } = useCompanyTasks(company?.sipi_number || null);
   const { columns } = useUserColumns();
+
+  const handleOrderClick = (orderNumber: string) => {
+    setSelectedOrderNumber(orderNumber);
+    setOrderDetailDialogOpen(true);
+  };
 
   useEffect(() => {
     if (company && open) {
@@ -421,7 +430,15 @@ const CompanyDetailDialog: React.FC<CompanyDetailDialogProps> = ({
                     <TableBody>
                       {orders.map((order) => (
                         <TableRow key={order.id}>
-                          <TableCell className="font-medium">{order.order_number}</TableCell>
+                          <TableCell>
+                            <Button
+                              variant="link"
+                              className="p-0 h-auto font-medium text-primary hover:underline"
+                              onClick={() => handleOrderClick(order.order_number)}
+                            >
+                              {order.order_number}
+                            </Button>
+                          </TableCell>
                           <TableCell>{format(new Date(order.order_date), 'dd/MM/yyyy')}</TableCell>
                           <TableCell className="font-medium">{order.amount.toLocaleString()} €</TableCell>
                           <TableCell>
@@ -438,6 +455,13 @@ const CompanyDetailDialog: React.FC<CompanyDetailDialogProps> = ({
             </CardContent>
           </Card>
         </div>
+
+        {/* Dialog pour les détails de commande */}
+        <OrderDetailDialog
+          orderNumber={selectedOrderNumber}
+          open={orderDetailDialogOpen}
+          onOpenChange={setOrderDetailDialogOpen}
+        />
       </DialogContent>
     </Dialog>
   );

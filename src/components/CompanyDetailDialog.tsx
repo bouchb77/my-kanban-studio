@@ -14,8 +14,8 @@ import { Building2, MapPin, Calendar, Euro, Package, TrendingUp, Loader2, CheckS
 import { format } from "date-fns";
 import { useCompanyTasks } from '@/hooks/useCompanyTasks';
 import { useUserColumns } from '@/hooks/useUserSettings';
-import { OrderDetailDialog } from './OrderDetailDialog';
-import { Button } from './ui/button';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+import { useOrderDetails } from '@/hooks/useOrderDetails';
 
 interface Company {
   id: string;
@@ -64,16 +64,15 @@ const CompanyDetailDialog: React.FC<CompanyDetailDialogProps> = ({
     averageAmount: 0,
     lastOrderDate: null as string | null,
   });
-  const [selectedOrderNumber, setSelectedOrderNumber] = useState<string | null>(null);
-  const [orderDetailDialogOpen, setOrderDetailDialogOpen] = useState(false);
+  const [expandedOrderNumber, setExpandedOrderNumber] = useState<string | null>(null);
 
   // Hook pour récupérer les tâches liées à l'entreprise
   const { tasks: companyTasks, loading: tasksLoading } = useCompanyTasks(company?.sipi_number || null);
   const { columns } = useUserColumns();
+  const { orderDetails, loading: detailsLoading } = useOrderDetails(expandedOrderNumber || undefined);
 
-  const handleOrderClick = (orderNumber: string) => {
-    setSelectedOrderNumber(orderNumber);
-    setOrderDetailDialogOpen(true);
+  const toggleOrderExpansion = (orderNumber: string) => {
+    setExpandedOrderNumber(expandedOrderNumber === orderNumber ? null : orderNumber);
   };
 
   useEffect(() => {
@@ -429,24 +428,74 @@ const CompanyDetailDialog: React.FC<CompanyDetailDialogProps> = ({
                     </TableHeader>
                     <TableBody>
                       {orders.map((order) => (
-                        <TableRow key={order.id}>
-                          <TableCell>
-                            <Button
-                              variant="link"
-                              className="p-0 h-auto font-medium text-primary hover:underline"
-                              onClick={() => handleOrderClick(order.order_number)}
-                            >
-                              {order.order_number}
-                            </Button>
-                          </TableCell>
-                          <TableCell>{format(new Date(order.order_date), 'dd/MM/yyyy')}</TableCell>
-                          <TableCell className="font-medium">{order.amount.toLocaleString()} €</TableCell>
-                          <TableCell>
-                            <Badge variant={order.status === 'completed' ? 'default' : 'secondary'}>
-                              {order.status}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
+                        <React.Fragment key={order.id}>
+                          <TableRow 
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => toggleOrderExpansion(order.order_number)}
+                          >
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                {expandedOrderNumber === order.order_number ? (
+                                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                )}
+                                <span className="font-medium text-primary">{order.order_number}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>{format(new Date(order.order_date), 'dd/MM/yyyy')}</TableCell>
+                            <TableCell className="font-medium">{order.amount.toLocaleString()} €</TableCell>
+                            <TableCell>
+                              <Badge variant={order.status === 'completed' ? 'default' : 'secondary'}>
+                                {order.status}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                          {expandedOrderNumber === order.order_number && (
+                            <TableRow>
+                              <TableCell colSpan={4} className="bg-muted/30 p-4">
+                                {detailsLoading ? (
+                                  <div className="flex items-center justify-center py-4">
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                    <span className="text-sm">Chargement des détails...</span>
+                                  </div>
+                                ) : orderDetails.length === 0 ? (
+                                  <p className="text-sm text-muted-foreground text-center py-2">
+                                    Aucun détail disponible pour cette commande
+                                  </p>
+                                ) : (
+                                  <div className="space-y-3">
+                                    <div className="flex gap-6 mb-3 text-sm">
+                                      <div>
+                                        <span className="text-muted-foreground">Articles différents: </span>
+                                        <span className="font-semibold">{orderDetails.length}</span>
+                                      </div>
+                                      <div>
+                                        <span className="text-muted-foreground">Total articles: </span>
+                                        <span className="font-semibold">
+                                          {orderDetails.reduce((sum, d) => sum + d.quantity, 0)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto">
+                                      {orderDetails.map((detail) => (
+                                        <div 
+                                          key={detail.id}
+                                          className="flex justify-between items-center bg-background p-2 rounded border text-sm"
+                                        >
+                                          <span className="font-medium">{detail.article_code}</span>
+                                          <Badge variant="outline" className="ml-2">
+                                            {detail.quantity}
+                                          </Badge>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </React.Fragment>
                       ))}
                     </TableBody>
                   </Table>
@@ -455,13 +504,6 @@ const CompanyDetailDialog: React.FC<CompanyDetailDialogProps> = ({
             </CardContent>
           </Card>
         </div>
-
-        {/* Dialog pour les détails de commande */}
-        <OrderDetailDialog
-          orderNumber={selectedOrderNumber}
-          open={orderDetailDialogOpen}
-          onOpenChange={setOrderDetailDialogOpen}
-        />
       </DialogContent>
     </Dialog>
   );

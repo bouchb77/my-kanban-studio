@@ -81,9 +81,13 @@ const CompaniesTableOnly = ({
   const [responsableBOFilter, setResponsableBOFilter] = useState('');
   const [formateurFilter, setFormateurFilter] = useState('');
   const [qualityFilter, setQualityFilter] = useState('');
+  const [lisOnlyFilter, setLisOnlyFilter] = useState<'oui' | 'non' | ''>('');
 
   // Department management data
   const [departmentManagement, setDepartmentManagement] = useState<Record<string, any>>({});
+  
+  // LIS companies set
+  const [lisCompanySipiNumbers, setLisCompanySipiNumbers] = useState<Set<string>>(new Set());
   
   // Date filters - use external ones if provided, otherwise local state
   const [localStartDate, setLocalStartDate] = useState<Date>();
@@ -236,6 +240,27 @@ const CompaniesTableOnly = ({
           });
           setDepartmentManagement(deptMap);
         }
+
+        // Load companies that have ordered "LIS" article
+        const { data: lisOrderDetails, error: lisError } = await supabase
+          .from('order_details')
+          .select('order_number')
+          .eq('article_code', 'LIS');
+
+        if (!lisError && lisOrderDetails) {
+          const lisOrderNumbers = new Set(lisOrderDetails.map(d => d.order_number));
+          
+          // Get orders with these order numbers
+          const { data: lisOrders, error: lisOrdersError } = await supabase
+            .from('orders')
+            .select('sipi_number')
+            .in('order_number', Array.from(lisOrderNumbers));
+
+          if (!lisOrdersError && lisOrders) {
+            const lisSipiNumbers = new Set(lisOrders.map(o => o.sipi_number).filter(Boolean));
+            setLisCompanySipiNumbers(lisSipiNumbers);
+          }
+        }
         
       } catch (error) {
         console.error('Error loading data:', error);
@@ -291,6 +316,17 @@ const CompaniesTableOnly = ({
       if (qualityFilter) {
         const displayQuality = company.quality === 'Industrie' ? 'Client' : company.quality === 'Distributeur' ? 'Revendeur' : company.quality;
         if (displayQuality !== qualityFilter) {
+          return false;
+        }
+      }
+
+      // LIS Only filter
+      if (lisOnlyFilter === 'oui') {
+        if (!lisCompanySipiNumbers.has(company.sipi_number)) {
+          return false;
+        }
+      } else if (lisOnlyFilter === 'non') {
+        if (lisCompanySipiNumbers.has(company.sipi_number)) {
           return false;
         }
       }
@@ -370,7 +406,7 @@ const CompaniesTableOnly = ({
       
       return true;
     });
-  }, [companies, allOrders, sipiFilter, cityFilter, companyNameFilter, minAverageFilter, maxAverageFilter, selectedDepartments, formateurFilter, responsableBOFilter, qualityFilter, formationFilter, departmentManagement, startDate, endDate]);
+  }, [companies, allOrders, sipiFilter, cityFilter, companyNameFilter, minAverageFilter, maxAverageFilter, selectedDepartments, formateurFilter, responsableBOFilter, qualityFilter, formationFilter, departmentManagement, startDate, endDate, lisOnlyFilter, lisCompanySipiNumbers]);
 
   // Get unique departments for filter
   const uniqueDepartments = useMemo(() => {
@@ -875,6 +911,46 @@ const CompaniesTableOnly = ({
               </PopoverContent>
             </Popover>
           </div>
+        </div>
+
+        {/* LIS Only filter */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">LIS Only</label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-full justify-between">
+                <span className="truncate">
+                  {lisOnlyFilter === 'oui' ? 'Oui' : lisOnlyFilter === 'non' ? 'Non' : 'Tous'}
+                </span>
+                <ChevronDown className="w-4 h-4 ml-2 flex-shrink-0" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-60 bg-background z-50">
+              <div className="space-y-2">
+                <Button
+                  variant={lisOnlyFilter === '' ? "secondary" : "ghost"}
+                  className="w-full justify-start text-sm"
+                  onClick={() => setLisOnlyFilter('')}
+                >
+                  Tous
+                </Button>
+                <Button
+                  variant={lisOnlyFilter === 'oui' ? "secondary" : "ghost"}
+                  className="w-full justify-start text-sm"
+                  onClick={() => setLisOnlyFilter('oui')}
+                >
+                  Oui
+                </Button>
+                <Button
+                  variant={lisOnlyFilter === 'non' ? "secondary" : "ghost"}
+                  className="w-full justify-start text-sm"
+                  onClick={() => setLisOnlyFilter('non')}
+                >
+                  Non
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
 
         {/* Department filter */}

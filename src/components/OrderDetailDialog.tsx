@@ -4,6 +4,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogOverlay,
+  DialogPortal,
 } from '@/components/ui/dialog';
 import { useOrderDetails } from '@/hooks/useOrderDetails';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -35,13 +37,15 @@ export const OrderDetailDialog: React.FC<OrderDetailDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto z-[100]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Package className="w-5 h-5" />
-            Détails de la commande {orderNumber}
-          </DialogTitle>
-        </DialogHeader>
+      <DialogPortal>
+        <DialogOverlay className="z-[100]" />
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto z-[100]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="w-5 h-5" />
+              Détails de la commande {orderNumber}
+            </DialogTitle>
+          </DialogHeader>
 
         <div className="space-y-4">
           {loading ? (
@@ -97,7 +101,8 @@ export const OrderDetailDialog: React.FC<OrderDetailDialogProps> = ({
             </>
           )}
         </div>
-      </DialogContent>
+        </DialogContent>
+      </DialogPortal>
     </Dialog>
   );
 };

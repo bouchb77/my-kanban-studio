@@ -116,44 +116,65 @@ const CompaniesTableOnly = ({
   // Column manager state
   const [columnManagerOpen, setColumnManagerOpen] = useState(false);
 
-  // Load companies and order data
+  // Load companies and order data using server-side filtering when applicable
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
       setError(null);
       
       try {
-        // Load companies with pagination
+        // Determine if we should use RPC filtering
+        const useRpcFilter = lisOnlyFilter !== '' || selectedArticles.length > 0;
+        
         let allCompanies: any[] = [];
-        let from = 0;
-        const batchSize = 1000;
-        let hasMore = true;
-
-        while (hasMore) {
-          const { data: companiesData, error: companiesError } = await supabase
-            .from('companies')
-            .select('*')
-            .range(from, from + batchSize - 1);
+        
+        if (useRpcFilter) {
+          // Use server-side RPC function for efficient filtering
+          const { data: companiesData, error: companiesError } = await supabase.rpc('get_companies_by_articles', {
+            article_codes: selectedArticles.length > 0 ? selectedArticles : null,
+            lis_only: lisOnlyFilter === 'oui' ? true : (lisOnlyFilter === 'non' ? false : null)
+          });
 
           if (companiesError) {
-            console.error('Error loading companies:', companiesError);
-            setError('Erreur lors du chargement des entreprises');
+            console.error('Error loading filtered companies:', companiesError);
+            setError('Erreur lors du chargement des entreprises filtrées');
             return;
           }
 
-          if (companiesData && companiesData.length > 0) {
-            allCompanies = [...allCompanies, ...companiesData];
-            from += batchSize;
-            hasMore = companiesData.length === batchSize;
-          } else {
-            hasMore = false;
+          allCompanies = companiesData || [];
+        } else {
+          // Load all companies with pagination when no article/LIS filter
+          let from = 0;
+          const batchSize = 1000;
+          let hasMore = true;
+
+          while (hasMore) {
+            const { data: companiesData, error: companiesError } = await supabase
+              .from('companies')
+              .select('*')
+              .range(from, from + batchSize - 1);
+
+            if (companiesError) {
+              console.error('Error loading companies:', companiesError);
+              setError('Erreur lors du chargement des entreprises');
+              return;
+            }
+
+            if (companiesData && companiesData.length > 0) {
+              allCompanies = [...allCompanies, ...companiesData];
+              from += batchSize;
+              hasMore = companiesData.length === batchSize;
+            } else {
+              hasMore = false;
+            }
           }
         }
 
         // Load orders with pagination
         let loadedOrders: any[] = [];
-        from = 0;
-        hasMore = true;
+        let from = 0;
+        let hasMore = true;
+        const batchSize = 1000;
 
         while (hasMore) {
           const { data: ordersData, error: ordersError } = await supabase
@@ -231,13 +252,16 @@ const CompaniesTableOnly = ({
         setCompanies(companiesWithStats);
         setTotalCompanies(companiesWithStats.length);
 
-        // Load department management data
+        // Load department management data (admins only can see this now)
         const { data: deptData, error: deptError } = await supabase
           .from('department_management')
           .select('*');
 
         if (deptError) {
-          console.error('Error loading department management:', deptError);
+          // Silently fail if user doesn't have access
+          if (deptError.code !== 'PGRST116') {
+            console.error('Error loading department management:', deptError);
+          }
         } else if (deptData) {
           const deptMap: Record<string, any> = {};
           deptData.forEach(dept => {
@@ -246,7 +270,7 @@ const CompaniesTableOnly = ({
           setDepartmentManagement(deptMap);
         }
 
-        // Load all article codes
+        // Load available articles for the filter dropdown
         const { data: allArticlesData, error: articlesError } = await supabase
           .from('order_details')
           .select('article_code');
@@ -254,94 +278,6 @@ const CompaniesTableOnly = ({
         if (!articlesError && allArticlesData) {
           const uniqueArticles = Array.from(new Set(allArticlesData.map(d => d.article_code).filter(Boolean)));
           setAvailableArticles(uniqueArticles.sort());
-
-          // Build map of article -> sipi_numbers
-          const { data: allOrderDetails, error: allOrderDetailsError } = await supabase
-            .from('order_details')
-            .select('order_number, article_code');
-
-          if (!allOrderDetailsError && allOrderDetails) {
-            const { data: allOrders, error: allOrdersError } = await supabase
-              .from('orders')
-              .select('order_number, sipi_number');
-
-            if (!allOrdersError && allOrders) {
-              const articleMap = new Map<string, Set<string>>();
-              
-              allOrderDetails.forEach(detail => {
-                const order = allOrders.find(o => o.order_number === detail.order_number);
-                if (order && order.sipi_number && detail.article_code) {
-                  if (!articleMap.has(detail.article_code)) {
-                    articleMap.set(detail.article_code, new Set());
-                  }
-                  articleMap.get(detail.article_code)!.add(order.sipi_number);
-                }
-              });
-              
-              setArticleCompanyMap(articleMap);
-            }
-          }
-        }
-
-        // Load companies that order ONLY "LIS" article (and nothing else)
-        const { data: lisOrderDetails, error: lisError } = await supabase
-          .from('order_details')
-          .select('order_number')
-          .eq('article_code', 'LIS');
-
-        if (!lisError && lisOrderDetails) {
-          const lisOrderNumbers = new Set(lisOrderDetails.map(d => d.order_number));
-          
-          // Get orders with these order numbers to find sipi_numbers
-          const { data: lisOrders, error: lisOrdersError } = await supabase
-            .from('orders')
-            .select('sipi_number')
-            .in('order_number', Array.from(lisOrderNumbers));
-
-          if (!lisOrdersError && lisOrders) {
-            const potentialLisSipiNumbers = new Set(lisOrders.map(o => o.sipi_number).filter(Boolean));
-            
-            // Now check for each sipi_number if they have ordered OTHER articles than LIS
-            const { data: allOrders, error: allOrdersError } = await supabase
-              .from('orders')
-              .select('order_number, sipi_number')
-              .in('sipi_number', Array.from(potentialLisSipiNumbers));
-            
-            if (!allOrdersError && allOrders) {
-              const allOrderNumbers = allOrders.map(o => o.order_number);
-              
-              // Get all order details for these companies
-              const { data: allDetails, error: allDetailsError } = await supabase
-                .from('order_details')
-                .select('order_number, article_code')
-                .in('order_number', allOrderNumbers);
-              
-              if (!allDetailsError && allDetails) {
-                // Group details by sipi_number
-                const sipiArticles = new Map<string, Set<string>>();
-                
-                allDetails.forEach(detail => {
-                  const order = allOrders.find(o => o.order_number === detail.order_number);
-                  if (order && order.sipi_number) {
-                    if (!sipiArticles.has(order.sipi_number)) {
-                      sipiArticles.set(order.sipi_number, new Set());
-                    }
-                    sipiArticles.get(order.sipi_number)!.add(detail.article_code);
-                  }
-                });
-                
-                // Keep only sipi_numbers that have ONLY ordered LIS
-                const lisOnlySipiNumbers = new Set<string>();
-                sipiArticles.forEach((articles, sipiNumber) => {
-                  if (articles.size === 1 && articles.has('LIS')) {
-                    lisOnlySipiNumbers.add(sipiNumber);
-                  }
-                });
-                
-                setLisCompanySipiNumbers(lisOnlySipiNumbers);
-              }
-            }
-          }
         }
         
       } catch (error) {
@@ -353,7 +289,7 @@ const CompaniesTableOnly = ({
     };
 
     loadData();
-  }, []);
+  }, [lisOnlyFilter, selectedArticles]);
 
   // Filter companies based on all criteria INCLUDING date range
   const filteredCompanies = useMemo(() => {
@@ -402,27 +338,8 @@ const CompaniesTableOnly = ({
         }
       }
 
-      // LIS Only filter
-      if (lisOnlyFilter === 'oui') {
-        if (!lisCompanySipiNumbers.has(company.sipi_number)) {
-          return false;
-        }
-      } else if (lisOnlyFilter === 'non') {
-        if (lisCompanySipiNumbers.has(company.sipi_number)) {
-          return false;
-        }
-      }
-
-      // Filter by selected articles (company must have ordered at least one of the selected articles)
-      if (selectedArticles.length > 0) {
-        const hasSelectedArticle = selectedArticles.some(article => {
-          const companiesForArticle = articleCompanyMap.get(article);
-          return companiesForArticle?.has(company.sipi_number);
-        });
-        if (!hasSelectedArticle) {
-          return false;
-        }
-      }
+      // LIS Only filter and article filters are now handled server-side via RPC
+      // No need for client-side filtering of these
 
       // Formation filter
       if (formationFilter) {
@@ -499,7 +416,7 @@ const CompaniesTableOnly = ({
       
       return true;
     });
-  }, [companies, allOrders, sipiFilter, cityFilter, companyNameFilter, minAverageFilter, maxAverageFilter, selectedDepartments, formateurFilter, responsableBOFilter, qualityFilter, formationFilter, departmentManagement, startDate, endDate, lisOnlyFilter, lisCompanySipiNumbers]);
+  }, [companies, allOrders, sipiFilter, cityFilter, companyNameFilter, minAverageFilter, maxAverageFilter, selectedDepartments, formateurFilter, responsableBOFilter, qualityFilter, formationFilter, departmentManagement, startDate, endDate]);
 
   // Get unique departments for filter
   const uniqueDepartments = useMemo(() => {

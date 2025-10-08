@@ -816,6 +816,30 @@ export type Database = {
         Args: { task_uuid: string }
         Returns: boolean
       }
+      get_companies_by_articles: {
+        Args: { article_codes?: string[]; lis_only?: boolean }
+        Returns: {
+          address1: string | null
+          address2: string | null
+          city: string | null
+          client_blocked_date: string | null
+          company_name: string
+          created_at: string
+          general_department: string | null
+          geocoded_address: string | null
+          geocoding_date: string | null
+          id: string
+          last_order_date: string | null
+          latitude: number | null
+          longitude: number | null
+          postal_code: string | null
+          quality: string | null
+          report_creation_date: string | null
+          sipi_number: string
+          training_date: string | null
+          updated_at: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

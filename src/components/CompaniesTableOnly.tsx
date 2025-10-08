@@ -241,7 +241,7 @@ const CompaniesTableOnly = ({
           setDepartmentManagement(deptMap);
         }
 
-        // Load companies that have ordered "LIS" article
+        // Load companies that order ONLY "LIS" article (and nothing else)
         const { data: lisOrderDetails, error: lisError } = await supabase
           .from('order_details')
           .select('order_number')
@@ -250,15 +250,55 @@ const CompaniesTableOnly = ({
         if (!lisError && lisOrderDetails) {
           const lisOrderNumbers = new Set(lisOrderDetails.map(d => d.order_number));
           
-          // Get orders with these order numbers
+          // Get orders with these order numbers to find sipi_numbers
           const { data: lisOrders, error: lisOrdersError } = await supabase
             .from('orders')
             .select('sipi_number')
             .in('order_number', Array.from(lisOrderNumbers));
 
           if (!lisOrdersError && lisOrders) {
-            const lisSipiNumbers = new Set(lisOrders.map(o => o.sipi_number).filter(Boolean));
-            setLisCompanySipiNumbers(lisSipiNumbers);
+            const potentialLisSipiNumbers = new Set(lisOrders.map(o => o.sipi_number).filter(Boolean));
+            
+            // Now check for each sipi_number if they have ordered OTHER articles than LIS
+            const { data: allOrders, error: allOrdersError } = await supabase
+              .from('orders')
+              .select('order_number, sipi_number')
+              .in('sipi_number', Array.from(potentialLisSipiNumbers));
+            
+            if (!allOrdersError && allOrders) {
+              const allOrderNumbers = allOrders.map(o => o.order_number);
+              
+              // Get all order details for these companies
+              const { data: allDetails, error: allDetailsError } = await supabase
+                .from('order_details')
+                .select('order_number, article_code')
+                .in('order_number', allOrderNumbers);
+              
+              if (!allDetailsError && allDetails) {
+                // Group details by sipi_number
+                const sipiArticles = new Map<string, Set<string>>();
+                
+                allDetails.forEach(detail => {
+                  const order = allOrders.find(o => o.order_number === detail.order_number);
+                  if (order && order.sipi_number) {
+                    if (!sipiArticles.has(order.sipi_number)) {
+                      sipiArticles.set(order.sipi_number, new Set());
+                    }
+                    sipiArticles.get(order.sipi_number)!.add(detail.article_code);
+                  }
+                });
+                
+                // Keep only sipi_numbers that have ONLY ordered LIS
+                const lisOnlySipiNumbers = new Set<string>();
+                sipiArticles.forEach((articles, sipiNumber) => {
+                  if (articles.size === 1 && articles.has('LIS')) {
+                    lisOnlySipiNumbers.add(sipiNumber);
+                  }
+                });
+                
+                setLisCompanySipiNumbers(lisOnlySipiNumbers);
+              }
+            }
           }
         }
         

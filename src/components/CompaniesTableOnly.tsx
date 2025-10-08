@@ -89,6 +89,11 @@ const CompaniesTableOnly = ({
   // LIS companies set
   const [lisCompanySipiNumbers, setLisCompanySipiNumbers] = useState<Set<string>>(new Set());
   
+  // Article filter states
+  const [availableArticles, setAvailableArticles] = useState<string[]>([]);
+  const [selectedArticles, setSelectedArticles] = useState<string[]>([]);
+  const [articleCompanyMap, setArticleCompanyMap] = useState<Map<string, Set<string>>>(new Map());
+  
   // Date filters - use external ones if provided, otherwise local state
   const [localStartDate, setLocalStartDate] = useState<Date>();
   const [localEndDate, setLocalEndDate] = useState<Date>();
@@ -241,6 +246,43 @@ const CompaniesTableOnly = ({
           setDepartmentManagement(deptMap);
         }
 
+        // Load all article codes
+        const { data: allArticlesData, error: articlesError } = await supabase
+          .from('order_details')
+          .select('article_code');
+
+        if (!articlesError && allArticlesData) {
+          const uniqueArticles = Array.from(new Set(allArticlesData.map(d => d.article_code).filter(Boolean)));
+          setAvailableArticles(uniqueArticles.sort());
+
+          // Build map of article -> sipi_numbers
+          const { data: allOrderDetails, error: allOrderDetailsError } = await supabase
+            .from('order_details')
+            .select('order_number, article_code');
+
+          if (!allOrderDetailsError && allOrderDetails) {
+            const { data: allOrders, error: allOrdersError } = await supabase
+              .from('orders')
+              .select('order_number, sipi_number');
+
+            if (!allOrdersError && allOrders) {
+              const articleMap = new Map<string, Set<string>>();
+              
+              allOrderDetails.forEach(detail => {
+                const order = allOrders.find(o => o.order_number === detail.order_number);
+                if (order && order.sipi_number && detail.article_code) {
+                  if (!articleMap.has(detail.article_code)) {
+                    articleMap.set(detail.article_code, new Set());
+                  }
+                  articleMap.get(detail.article_code)!.add(order.sipi_number);
+                }
+              });
+              
+              setArticleCompanyMap(articleMap);
+            }
+          }
+        }
+
         // Load companies that order ONLY "LIS" article (and nothing else)
         const { data: lisOrderDetails, error: lisError } = await supabase
           .from('order_details')
@@ -367,6 +409,17 @@ const CompaniesTableOnly = ({
         }
       } else if (lisOnlyFilter === 'non') {
         if (lisCompanySipiNumbers.has(company.sipi_number)) {
+          return false;
+        }
+      }
+
+      // Filter by selected articles (company must have ordered at least one of the selected articles)
+      if (selectedArticles.length > 0) {
+        const hasSelectedArticle = selectedArticles.some(article => {
+          const companiesForArticle = articleCompanyMap.get(article);
+          return companiesForArticle?.has(company.sipi_number);
+        });
+        if (!hasSelectedArticle) {
           return false;
         }
       }
@@ -988,6 +1041,57 @@ const CompaniesTableOnly = ({
                 >
                   Non
                 </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        {/* Article filter */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Produits commandés</label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-full justify-between">
+                <span className="truncate">
+                  {selectedArticles.length > 0 
+                    ? `${selectedArticles.length} produit${selectedArticles.length > 1 ? 's' : ''} sélectionné${selectedArticles.length > 1 ? 's' : ''}` 
+                    : 'Tous les produits'}
+                </span>
+                <ChevronDown className="w-4 h-4 ml-2 flex-shrink-0" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 bg-background z-50">
+              <div className="space-y-2">
+                {selectedArticles.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => setSelectedArticles([])}
+                  >
+                    Effacer la sélection
+                  </Button>
+                )}
+                <div className="max-h-60 overflow-y-auto space-y-2">
+                  {availableArticles.map((article) => (
+                    <div key={article} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`article-${article}`}
+                        checked={selectedArticles.includes(article)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedArticles([...selectedArticles, article]);
+                          } else {
+                            setSelectedArticles(selectedArticles.filter(a => a !== article));
+                          }
+                        }}
+                      />
+                      <label htmlFor={`article-${article}`} className="text-sm cursor-pointer flex-1">
+                        {article}
+                      </label>
+                    </div>
+                  ))}
+                </div>
               </div>
             </PopoverContent>
           </Popover>

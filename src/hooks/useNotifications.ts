@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useTasks } from './useTasks';
+import { useEncryptedTasks } from './useEncryptedTasks';
 
 export interface Notification {
   id: string;
@@ -19,7 +19,7 @@ export const useNotifications = () => {
   const [readNotifications, setReadNotifications] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
-  const { tasks } = useTasks();
+  const { tasks } = useEncryptedTasks();
 
   // Load read notifications from database
   const loadReadNotifications = async () => {
@@ -138,8 +138,8 @@ export const useNotifications = () => {
     const now = new Date();
 
     tasks.forEach(task => {
-      if (task.due_date) {
-        const dueDate = new Date(task.due_date);
+      if (task.dueDate) {
+        const dueDate = new Date(task.dueDate);
         const timeDiff = dueDate.getTime() - now.getTime();
         const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
 
@@ -152,7 +152,7 @@ export const useNotifications = () => {
             type: 'task_overdue',
             read: readNotifications.has(`overdue-${task.id}`),
             task_id: task.id,
-            created_at: task.due_date
+            created_at: task.dueDate.toISOString()
           });
         }
         // Tâche due dans les 3 prochains jours
@@ -164,14 +164,14 @@ export const useNotifications = () => {
             type: 'task_due',
             read: readNotifications.has(`due-${task.id}`),
             task_id: task.id,
-            created_at: task.due_date
+            created_at: task.dueDate.toISOString()
           });
         }
       }
 
       // Tâche terminée récemment
-      if (task.status === 'done' && task.updated_at) {
-        const updatedDate = new Date(task.updated_at);
+      if (task.status === 'done' && task.updatedAt) {
+        const updatedDate = new Date(task.updatedAt);
         const timeDiff = now.getTime() - updatedDate.getTime();
         const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
 
@@ -183,7 +183,7 @@ export const useNotifications = () => {
             type: 'task_completed',
             read: readNotifications.has(`completed-${task.id}`),
             task_id: task.id,
-            created_at: task.updated_at
+            created_at: task.updatedAt.toISOString()
           });
         }
       }

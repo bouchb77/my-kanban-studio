@@ -8,6 +8,7 @@ import { Upload, FileSpreadsheet, Trash2, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import * as XLSX from 'xlsx';
+import { useEncryptedCompanies } from '@/hooks/useEncryptedCompanies';
 
 interface Company {
   id?: string;
@@ -34,6 +35,7 @@ export function CompanyImportSection() {
   const [isUploading, setIsUploading] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const { bulkUpsertCompanies } = useEncryptedCompanies();
 
   // Fonction pour convertir les dates Excel
   const cleanCity = (cityName: string): string => {
@@ -245,122 +247,45 @@ export function CompanyImportSection() {
     }
     
     try {
-      // Traitement par lots pour optimiser les performances
-      const batchSize = 50;
-      let totalInserted = 0;
-      let totalUpdated = 0;
+      // Convertir les données au format attendu par le service de chiffrement
+      const companiesData = companies.map(company => ({
+        sipiNumber: company.sipi_number,
+        companyName: company.company_name,
+        address1: company.address1 || undefined,
+        address2: company.address2 || undefined,
+        city: company.city || undefined,
+        postalCode: company.postal_code || undefined,
+        generalDepartment: company.general_department || undefined,
+        quality: company.quality || undefined,
+        lastOrderDate: company.last_order_date ? new Date(company.last_order_date) : undefined,
+        clientBlockedDate: company.client_blocked_date ? new Date(company.client_blocked_date) : undefined,
+        trainingDate: company.training_date ? new Date(company.training_date) : undefined,
+        reportCreationDate: company.report_creation_date ? new Date(company.report_creation_date) : undefined,
+      }));
+
+      console.log('Import via service de chiffrement...');
       
-      console.log('Début du traitement par lots avec upserts');
+      // Utiliser le service de chiffrement pour l'import
+      const success = await bulkUpsertCompanies(companiesData);
       
-      for (let i = 0; i < companies.length; i += batchSize) {
-        const batch = companies.slice(i, Math.min(i + batchSize, companies.length));
+      if (success) {
+        console.log('Import terminé avec succès');
+        toast({
+          title: "Import réussi",
+          description: `${companies.length} entreprises importées (cryptées). Géolocalisation en cours...`,
+        });
+        setCompanies([]);
         
-        console.log(`Traitement du lot ${Math.floor(i/batchSize) + 1}/${Math.ceil(companies.length/batchSize)}`);
-        
-        // Traitement des entreprises du lot
-        for (const company of batch) {
-          // Vérifier si l'entreprise existe déjà
-          const { data: existingCompany, error: checkError } = await supabase
-            .from('companies')
-            .select('id, address1, city, latitude, longitude')
-            .eq('sipi_number', company.sipi_number)
-            .maybeSingle();
-
-          if (checkError) {
-            console.error('Erreur vérification entreprise:', checkError);
-            continue;
-          }
-
-          const companyData = {
-            sipi_number: company.sipi_number,
-            company_name: company.company_name,
-            address1: company.address1 || null,
-            address2: company.address2 || null,
-            city: company.city || null,
-            postal_code: company.postal_code || null,
-            general_department: company.general_department || null,
-            quality: company.quality || null,
-            last_order_date: company.last_order_date || null,
-            client_blocked_date: company.client_blocked_date || null,
-            training_date: company.training_date || null,
-            report_creation_date: company.report_creation_date || null
-          };
-
-          if (existingCompany) {
-            // L'entreprise existe, vérifier si l'adresse a changé
-            const addressChanged = 
-              existingCompany.address1 !== companyData.address1 || 
-              existingCompany.city !== companyData.city;
-
-            if (addressChanged) {
-              console.log(`Adresse modifiée pour ${company.company_name}, géolocalisation à recalculer`);
-            }
-
-            // Mettre à jour l'entreprise existante
-            const updateData: any = { ...companyData };
-            if (addressChanged) {
-              updateData.latitude = null;
-              updateData.longitude = null;
-              updateData.geocoded_address = null;
-              updateData.geocoding_date = null;
-            }
-
-            const { error: updateError } = await supabase
-              .from('companies')
-              .update(updateData)
-              .eq('id', existingCompany.id);
-
-            if (updateError) {
-              console.error('Erreur mise à jour entreprise:', updateError);
-            } else {
-              totalUpdated++;
-              console.log(`Entreprise mise à jour: ${company.company_name}`);
-            }
-          } else {
-            // Nouvelle entreprise, l'insérer
-            const { error: insertError } = await supabase
-              .from('companies')
-              .insert({
-                ...companyData,
-                latitude: null,
-                longitude: null,
-                geocoded_address: null,
-                geocoding_date: null
-              });
-
-            if (insertError) {
-              console.error('Erreur insertion entreprise:', insertError);
-            } else {
-              totalInserted++;
-              console.log(`Nouvelle entreprise insérée: ${company.company_name}`);
-            }
-          }
+        // Démarrer la géolocalisation en arrière-plan
+        const { error: geocodeError } = await supabase.functions.invoke('geocode-companies');
+        if (geocodeError) {
+          console.error('Erreur démarrage géolocalisation:', geocodeError);
+          toast({
+            title: "Géolocalisation",
+            description: "Erreur lors du démarrage de la géolocalisation automatique",
+            variant: "destructive",
+          });
         }
-        
-        // Mise à jour du progrès
-        toast({
-          title: "Import en cours...",
-          description: `Traitement ${Math.min(i + batchSize, companies.length)}/${companies.length} entreprises`,
-        });
-      }
-
-      console.log(`Import terminé avec succès: ${totalInserted} créées, ${totalUpdated} mises à jour`);
-
-      toast({
-        title: "Import réussi",
-        description: `${totalInserted} entreprises créées, ${totalUpdated} mises à jour. Géolocalisation Google Maps prioritaire en cours...`,
-      });
-      setCompanies([]);
-      
-      // Démarrer la géolocalisation en arrière-plan via la fonction edge
-      const { error: geocodeError } = await supabase.functions.invoke('geocode-companies');
-      if (geocodeError) {
-        console.error('Erreur démarrage géolocalisation:', geocodeError);
-        toast({
-          title: "Géolocalisation",
-          description: "Erreur lors du démarrage de la géolocalisation automatique améliorée",
-          variant: "destructive",
-        });
       }
     } catch (error) {
       console.error('Error importing companies:', error);

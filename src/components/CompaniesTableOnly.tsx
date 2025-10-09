@@ -15,6 +15,7 @@ import { useUserViewPreferences } from '@/hooks/useUserViewPreferences';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { DragDropList } from './DragDropList';
 import { Separator } from './ui/separator';
+import { useEncryptedCompanies } from '@/hooks/useEncryptedCompanies';
 
 interface Company {
   id: string;
@@ -109,6 +110,7 @@ const CompaniesTableOnly = ({
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   
   const { toast } = useToast();
+  const encryptedCompaniesHook = useEncryptedCompanies();
 
   // Column preferences - using 'table' for now, will create a reporting-specific view type later
   const { preferences, loading: preferencesLoading, toggleColumnVisibility, reorderColumns } = useUserViewPreferences('table');
@@ -129,46 +131,35 @@ const CompaniesTableOnly = ({
         let allCompanies: any[] = [];
         
         if (useRpcFilter) {
-          // Use server-side RPC function for efficient filtering
-          const { data: companiesData, error: companiesError } = await supabase.rpc('get_companies_by_articles', {
-            article_codes: selectedArticles.length > 0 ? selectedArticles : null,
-            lis_only: lisOnlyFilter === 'oui' ? true : (lisOnlyFilter === 'non' ? false : null)
-          });
-
-          if (companiesError) {
-            console.error('Error loading filtered companies:', companiesError);
-            setError('Erreur lors du chargement des entreprises filtrées');
-            return;
-          }
-
-          allCompanies = companiesData || [];
+          // Use encrypted companies service with article filtering
+          await encryptedCompaniesHook.loadCompaniesByArticles(
+            selectedArticles.length > 0 ? selectedArticles : null,
+            lisOnlyFilter === 'oui' ? true : lisOnlyFilter === 'non' ? false : false
+          );
+          
+          allCompanies = encryptedCompaniesHook.companies || [];
         } else {
-          // Load all companies with pagination when no article/LIS filter
-          let from = 0;
-          const batchSize = 1000;
-          let hasMore = true;
-
-          while (hasMore) {
-            const { data: companiesData, error: companiesError } = await supabase
-              .from('companies')
-              .select('*')
-              .range(from, from + batchSize - 1);
-
-            if (companiesError) {
-              console.error('Error loading companies:', companiesError);
-              setError('Erreur lors du chargement des entreprises');
-              return;
-            }
-
-            if (companiesData && companiesData.length > 0) {
-              allCompanies = [...allCompanies, ...companiesData];
-              from += batchSize;
-              hasMore = companiesData.length === batchSize;
-            } else {
-              hasMore = false;
-            }
-          }
+          // Load all companies via encrypted service
+          await encryptedCompaniesHook.loadCompanies();
+          allCompanies = encryptedCompaniesHook.companies || [];
         }
+
+        // Convert encrypted companies to match expected format
+        const formattedCompanies = allCompanies.map((c: any) => ({
+          id: c.id,
+          sipi_number: c.sipiNumber || c.sipi_number,
+          company_name: c.companyName || c.company_name,
+          latitude: c.latitude,
+          longitude: c.longitude,
+          address1: c.address1,
+          city: c.city,
+          general_department: c.generalDepartment || c.general_department,
+          client_blocked_date: c.clientBlockedDate ? (c.clientBlockedDate instanceof Date ? c.clientBlockedDate.toISOString().split('T')[0] : c.clientBlockedDate) : c.client_blocked_date,
+          training_date: c.trainingDate ? (c.trainingDate instanceof Date ? c.trainingDate.toISOString().split('T')[0] : c.trainingDate) : c.training_date,
+          report_creation_date: c.reportCreationDate ? (c.reportCreationDate instanceof Date ? c.reportCreationDate.toISOString().split('T')[0] : c.reportCreationDate) : c.report_creation_date,
+          last_order_date: c.lastOrderDate ? (c.lastOrderDate instanceof Date ? c.lastOrderDate.toISOString().split('T')[0] : c.lastOrderDate) : c.last_order_date,
+          quality: c.quality,
+        }));
 
         // Load orders with pagination
         let loadedOrders: any[] = [];

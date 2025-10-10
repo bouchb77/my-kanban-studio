@@ -217,6 +217,62 @@ async function handleSelectByArticles(supabase: any, body: any) {
   });
 }
 
+async function handleSearch(supabase: any, body: any) {
+  const { query, limit = 20 } = body;
+
+  console.log('🔍 Searching companies with query:', query, 'limit:', limit);
+
+  if (!query || query.length < 2) {
+    return new Response(JSON.stringify({ data: [], error: null }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  // Récupérer toutes les entreprises avec pagination
+  // On récupère plus que nécessaire pour compenser le filtrage post-décryptage
+  const batchSize = Math.min(5000, limit * 50);
+  
+  const { data, error } = await supabase
+    .from('companies')
+    .select('id, company_name, sipi_number')
+    .order('company_name', { ascending: true })
+    .limit(batchSize);
+
+  if (error) {
+    throw new Error(`Database error: ${error.message}`);
+  }
+
+  console.log(`📦 Retrieved ${data?.length || 0} companies from database`);
+
+  // Déchiffrer les entreprises
+  const decryptedCompanies = await Promise.all(
+    (data || []).map(async (company: any) => ({
+      id: company.id,
+      company_name: await encryption.decrypt(company.company_name),
+      sipi_number: await encryption.decrypt(company.sipi_number),
+    }))
+  );
+
+  console.log(`🔓 Decrypted ${decryptedCompanies.length} companies`);
+
+  // Filtrer les résultats
+  const cleanQuery = query.toLowerCase().trim();
+  const filteredCompanies = decryptedCompanies
+    .filter((c: any) => {
+      if (!c.sipi_number && !c.company_name) return false;
+      const sipiMatch = c.sipi_number && c.sipi_number.toLowerCase().includes(cleanQuery);
+      const nameMatch = c.company_name && c.company_name.toLowerCase().includes(cleanQuery);
+      return sipiMatch || nameMatch;
+    })
+    .slice(0, limit);
+
+  console.log(`✅ Found ${filteredCompanies.length} matching companies`);
+
+  return new Response(JSON.stringify({ data: filteredCompanies, error: null }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+
 async function handleInsert(supabase: any, body: any) {
   const { companyData } = body;
 

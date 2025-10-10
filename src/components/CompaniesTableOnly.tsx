@@ -596,14 +596,22 @@ const CompaniesTableOnly = ({
   // Get visible columns based on preferences
   const visibleColumns = useMemo(() => {
     if (!preferences?.visible_columns || preferences.visible_columns.length === 0) {
+      // No preferences set, show all columns by default
       return allColumns.map(col => col.id);
     }
-    // Filter out columns that no longer exist and ensure all year columns are included
-    const yearColumns = allColumns.filter(col => col.id.startsWith('year_')).map(col => col.id);
-    const visibleWithYears = [...preferences.visible_columns.filter(id => 
+    
+    // Get user's saved visible columns
+    const savedVisibleColumns = preferences.visible_columns.filter(id => 
       !id.startsWith('year_') && allColumns.some(col => col.id === id)
-    ), ...yearColumns];
-    return visibleWithYears;
+    );
+    
+    // Add any columns from allColumns that aren't in preferences yet (newly added columns)
+    const allNonYearColumns = allColumns.filter(col => !col.id.startsWith('year_')).map(col => col.id);
+    const missingColumns = allNonYearColumns.filter(col => !preferences.visible_columns.includes(col));
+    
+    // Combine saved columns with missing ones, then add year columns
+    const yearColumns = allColumns.filter(col => col.id.startsWith('year_')).map(col => col.id);
+    return [...savedVisibleColumns, ...missingColumns, ...yearColumns];
   }, [preferences, allColumns]);
 
   // Get column order based on preferences

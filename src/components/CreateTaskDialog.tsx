@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
@@ -9,15 +9,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Sparkles } from "lucide-react";
+import { CalendarIcon, Search } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserColumns, useUserCustomFields } from "@/hooks/useUserSettings";
-import { getCompanyBySipi, validateSipiFormat } from "@/services/sipiService";
+import { searchCompanies } from "@/services/sipiService";
 import { useUserCategories } from "@/hooks/useUserCategories";
 import { useEncryptedTasks } from "@/hooks/useEncryptedTasks";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 interface CreateTaskDialogProps {
   open: boolean;
@@ -43,7 +44,10 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({});
   const [sipiNumber, setSipiNumber] = useState("");
   const [companyName, setCompanyName] = useState("");
-  const [isLoadingSipi, setIsLoadingSipi] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Array<{ name: string; sipi: string }>>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showResults, setShowResults] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -71,24 +75,35 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
     availableColumns = defaultColumns;
   }
 
-  const handleSipiChange = async (value: string) => {
-    setSipiNumber(value);
-
-    if (value && validateSipiFormat(value)) {
-      setIsLoadingSipi(true);
-      try {
-        const company = await getCompanyBySipi(value);
-        if (company) {
-          setCompanyName(company.name);
-        } else {
-          setCompanyName("");
+  // Recherche d'entreprise avec debounce
+  useEffect(() => {
+    const searchTimeout = setTimeout(async () => {
+      if (searchQuery.length >= 2) {
+        setIsSearching(true);
+        setShowResults(true);
+        try {
+          const results = await searchCompanies(searchQuery, 10);
+          setSearchResults(results);
+        } catch (error) {
+          console.error('Error searching companies:', error);
+          setSearchResults([]);
+        } finally {
+          setIsSearching(false);
         }
-      } finally {
-        setIsLoadingSipi(false);
+      } else {
+        setSearchResults([]);
+        setShowResults(false);
       }
-    } else {
-      setCompanyName("");
-    }
+    }, 300);
+
+    return () => clearTimeout(searchTimeout);
+  }, [searchQuery]);
+
+  const handleSelectCompany = (company: { name: string; sipi: string }) => {
+    setSipiNumber(company.sipi);
+    setCompanyName(company.name);
+    setSearchQuery(company.sipi);
+    setShowResults(false);
   };
 
 
@@ -146,6 +161,9 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
       setCustomFieldValues({});
       setSipiNumber("");
       setCompanyName("");
+      setSearchQuery("");
+      setSearchResults([]);
+      setShowResults(false);
       
       // Close dialog
       onOpenChange(false);
@@ -282,27 +300,73 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
             </Popover>
           </div>
 
-          <div className={isMobile ? "space-y-3" : "grid grid-cols-2 gap-4"}>
-            <div className="space-y-2">
-              <Label>Numéro SIPI</Label>
-              <Input
-                value={sipiNumber}
-                onChange={(e) => handleSipiChange(e.target.value)}
-                placeholder="12345678"
-                className={isMobile ? "h-12 text-base" : ""}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Société</Label>
-              <Input
-                value={companyName}
-                placeholder="Nom de l'entreprise"
-                disabled={true}
-                className={isMobile ? "bg-muted h-12 text-base" : "bg-muted"}
-              />
-            </div>
+          <div className="space-y-2">
+            <Label>Rechercher une entreprise</Label>
+            <Popover open={showResults} onOpenChange={setShowResults}>
+              <PopoverTrigger asChild>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Rechercher par SIPI ou nom d'entreprise..."
+                    className={isMobile ? "h-12 text-base pl-10" : "pl-10"}
+                    onFocus={() => searchQuery.length >= 2 && setShowResults(true)}
+                  />
+                </div>
+              </PopoverTrigger>
+              <PopoverContent className="p-0 w-[var(--radix-popover-trigger-width)]" align="start">
+                <Command>
+                  <CommandList>
+                    {isSearching && (
+                      <CommandEmpty>Recherche en cours...</CommandEmpty>
+                    )}
+                    {!isSearching && searchResults.length === 0 && searchQuery.length >= 2 && (
+                      <CommandEmpty>Aucune entreprise trouvée</CommandEmpty>
+                    )}
+                    {!isSearching && searchResults.length > 0 && (
+                      <CommandGroup>
+                        {searchResults.map((company, index) => (
+                          <CommandItem
+                            key={`${company.sipi}-${index}`}
+                            onSelect={() => handleSelectCompany(company)}
+                            className="cursor-pointer"
+                          >
+                            <div className="flex flex-col">
+                              <span className="font-medium">{company.name}</span>
+                              <span className="text-xs text-muted-foreground">SIPI: {company.sipi}</span>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    )}
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
+
+          {sipiNumber && companyName && (
+            <div className={isMobile ? "space-y-3" : "grid grid-cols-2 gap-4"}>
+              <div className="space-y-2">
+                <Label>Numéro SIPI</Label>
+                <Input
+                  value={sipiNumber}
+                  disabled={true}
+                  className={isMobile ? "bg-muted h-12 text-base" : "bg-muted"}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Société</Label>
+                <Input
+                  value={companyName}
+                  disabled={true}
+                  className={isMobile ? "bg-muted h-12 text-base" : "bg-muted"}
+                />
+              </div>
+            </div>
+          )}
 
           {/* Custom Fields */}
           {customFields.map((field) => (

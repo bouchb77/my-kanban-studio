@@ -18,9 +18,8 @@ export const useEncryptedCompanies = () => {
     
     try {
       setLoading(true);
-      const rawCompanies = await encryptedCompaniesService.getAllCompanies();
-      const mappedCompanies = rawCompanies.map(company => encryptedCompaniesService.mapDbCompany(company));
-      setCompanies(mappedCompanies);
+      const companies = await encryptedCompaniesService.getAllCompanies();
+      setCompanies(companies);
     } catch (error) {
       console.error('Error loading encrypted companies:', error);
       toast({ 
@@ -42,9 +41,8 @@ export const useEncryptedCompanies = () => {
     
     try {
       setLoading(true);
-      const rawCompanies = await encryptedCompaniesService.getCompaniesByArticles(articleCodes, lisOnly);
-      const mappedCompanies = rawCompanies.map(company => encryptedCompaniesService.mapDbCompany(company));
-      setCompanies(mappedCompanies);
+      const companies = await encryptedCompaniesService.getCompaniesByArticles(articleCodes, lisOnly);
+      setCompanies(companies);
     } catch (error) {
       console.error('Error loading companies by articles:', error);
       toast({ 
@@ -62,8 +60,7 @@ export const useEncryptedCompanies = () => {
     
     try {
       const dbCompanyData = encryptedCompaniesService.companyToDbFormat(companyData);
-      const rawCompany = await encryptedCompaniesService.createCompany(dbCompanyData);
-      const newCompany = encryptedCompaniesService.mapDbCompany(rawCompany);
+      const newCompany = await encryptedCompaniesService.createCompany(dbCompanyData);
       
       setCompanies(prev => [newCompany, ...prev]);
       
@@ -89,8 +86,7 @@ export const useEncryptedCompanies = () => {
     
     try {
       const dbUpdates = encryptedCompaniesService.companyToDbFormat(updates);
-      const rawCompany = await encryptedCompaniesService.updateCompany(companyId, dbUpdates);
-      const updatedCompany = encryptedCompaniesService.mapDbCompany(rawCompany);
+      const updatedCompany = await encryptedCompaniesService.updateCompany(companyId, dbUpdates);
       
       setCompanies(prev => prev.map(company => 
         company.id === companyId ? updatedCompany : company

@@ -152,14 +152,33 @@ serve(async (req) => {
 });
 
 async function decryptCompany(company: any) {
-  return {
+  console.log('🔐 Before decrypt:', {
+    id: company.id,
+    company_name: company.company_name,
+    sipi_number: company.sipi_number,
+    address1: company.address1?.substring(0, 20),
+    city: company.city?.substring(0, 20),
+  });
+  
+  const decrypted = {
     ...company,
-    company_name: await encryption.decrypt(company.company_name),
+    company_name: company.company_name ? await encryption.decrypt(company.company_name) : company.company_name,
+    sipi_number: company.sipi_number ? await encryption.decrypt(company.sipi_number) : company.sipi_number,
     address1: company.address1 ? await encryption.decrypt(company.address1) : company.address1,
     address2: company.address2 ? await encryption.decrypt(company.address2) : company.address2,
     city: company.city ? await encryption.decrypt(company.city) : company.city,
     postal_code: company.postal_code ? await encryption.decrypt(company.postal_code) : company.postal_code,
   };
+  
+  console.log('✅ After decrypt:', {
+    id: decrypted.id,
+    company_name: decrypted.company_name,
+    sipi_number: decrypted.sipi_number,
+    address1: decrypted.address1?.substring(0, 20),
+    city: decrypted.city?.substring(0, 20),
+  });
+  
+  return decrypted;
 }
 
 async function encryptCompanyData(data: any) {

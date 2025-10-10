@@ -199,7 +199,7 @@ async function handleSelectByArticles(supabase: any, body: any) {
   const { data, error } = await supabase.rpc('get_companies_by_articles', {
     article_codes,
     lis_only
-  });
+  }).limit(100000);
 
   if (error) {
     throw new Error(`Database error: ${error.message}`);

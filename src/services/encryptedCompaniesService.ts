@@ -53,7 +53,8 @@ class EncryptedCompaniesService {
 
   async getAllCompanies(): Promise<Company[]> {
     const response = await this.callEncryptedFunction('SELECT');
-    return response.data || [];
+    const companies = response.data || [];
+    return companies.map((c: any) => this.mapDbCompany(c));
   }
 
   async getCompaniesByArticles(articleCodes: string[] | null, lisOnly: boolean): Promise<Company[]> {
@@ -61,7 +62,8 @@ class EncryptedCompaniesService {
       article_codes: articleCodes,
       lis_only: lisOnly 
     });
-    return response.data || [];
+    const companies = response.data || [];
+    return companies.map((c: any) => this.mapDbCompany(c));
   }
 
   async createCompany(companyData: Partial<Company>): Promise<Company> {

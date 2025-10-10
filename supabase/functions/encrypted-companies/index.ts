@@ -120,7 +120,8 @@ serve(async (req) => {
       });
     }
 
-    const { method, body } = await req.json();
+    const requestBody = await req.json();
+    const { method, ...body } = requestBody;
 
     switch (method) {
       case 'SELECT':

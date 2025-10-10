@@ -1,5 +1,5 @@
 // Service pour récupérer les informations d'entreprise via le numéro SIPI
-import { supabase } from "@/integrations/supabase/client";
+import { encryptedCompaniesService } from "./encryptedCompaniesService";
 
 interface CompanyInfo {
   name: string;
@@ -18,19 +18,19 @@ export const getCompanyBySipi = async (sipi: string): Promise<CompanyInfo | null
     
     if (cleanSipi.length === 0) return null;
     
-    const { data, error } = await supabase
-      .from('companies')
-      .select('sipi_number, company_name')
-      .ilike('sipi_number', `${cleanSipi}%`)
-      .order('sipi_number')
-      .limit(1)
-      .maybeSingle();
+    // Récupérer toutes les entreprises décryptées
+    const companies = await encryptedCompaniesService.getAllCompanies();
     
-    if (error || !data) return null;
+    // Trouver l'entreprise correspondant au SIPI
+    const company = companies.find(c => 
+      c.sipiNumber.toLowerCase().startsWith(cleanSipi.toLowerCase())
+    );
+    
+    if (!company) return null;
     
     return {
-      name: data.company_name,
-      sipi: data.sipi_number
+      name: company.companyName,
+      sipi: company.sipiNumber
     };
   } catch (error) {
     console.error('Error fetching company:', error);

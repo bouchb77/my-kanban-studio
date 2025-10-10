@@ -6,6 +6,69 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Encryption/Decryption utilities using Web Crypto API
+class CompanyEncryption {
+  private key: CryptoKey | null = null;
+
+  async init() {
+    const keyString = Deno.env.get('ENCRYPTION_KEY');
+    if (!keyString) {
+      throw new Error('ENCRYPTION_KEY not found in environment variables');
+    }
+
+    // Convert the string key to a CryptoKey for AES-GCM
+    const keyData = new TextEncoder().encode(keyString.padEnd(32).slice(0, 32));
+    this.key = await crypto.subtle.importKey(
+      'raw',
+      keyData,
+      { name: 'AES-GCM' },
+      false,
+      ['encrypt', 'decrypt']
+    );
+  }
+
+  isEncrypted(data: string): boolean {
+    if (!data || data.length < 20) return false;
+    
+    const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+    if (!base64Regex.test(data)) return false;
+    
+    return data.length >= 32;
+  }
+
+  async decrypt(encryptedData: string): Promise<string> {
+    if (!encryptedData) return encryptedData;
+    
+    if (!this.isEncrypted(encryptedData)) {
+      return encryptedData;
+    }
+
+    if (!this.key) await this.init();
+
+    try {
+      const combined = new Uint8Array(
+        atob(encryptedData).split('').map(c => c.charCodeAt(0))
+      );
+
+      const iv = combined.slice(0, 12);
+      const encrypted = combined.slice(12);
+
+      const decrypted = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv },
+        this.key!,
+        encrypted
+      );
+
+      return new TextDecoder().decode(decrypted);
+    } catch (error) {
+      console.error('Decryption failed for data:', encryptedData.substring(0, 20) + '...');
+      return encryptedData;
+    }
+  }
+}
+
+const encryption = new CompanyEncryption();
+
 interface GeocodeResult {
   lat: number;
   lng: number;
@@ -277,30 +340,36 @@ serve(async (req) => {
 
           for (const company of companies) {
             try {
+              // Decrypt encrypted fields first
+              const decryptedAddress1 = company.address1 ? await encryption.decrypt(company.address1) : null;
+              const decryptedAddress2 = company.address2 ? await encryption.decrypt(company.address2) : null;
+              const decryptedCity = company.city ? await encryption.decrypt(company.city) : null;
+              const decryptedPostalCode = company.postal_code ? await encryption.decrypt(company.postal_code) : null;
+
               // Build address string with multiple fallback strategies
               const buildAddress = (company: any): string[] => {
                 const strategies = [];
                 
                 // Stratégie 1: Adresse complète avec ville
-                if (company.address1 && company.city) {
+                if (decryptedAddress1 && decryptedCity) {
                   const parts = [
-                    company.address1,
-                    company.address2,
-                    company.postal_code,
-                    company.city,
+                    decryptedAddress1,
+                    decryptedAddress2,
+                    decryptedPostalCode,
+                    decryptedCity,
                     'France'
                   ].filter(Boolean);
                   strategies.push(parts.join(', '));
                 }
                 
                 // Stratégie 2: Ville + code postal seulement
-                if (company.city && company.postal_code) {
-                  strategies.push(`${company.postal_code} ${company.city}, France`);
+                if (decryptedCity && decryptedPostalCode) {
+                  strategies.push(`${decryptedPostalCode} ${decryptedCity}, France`);
                 }
                 
                 // Stratégie 3: Ville seulement
-                if (company.city) {
-                  strategies.push(`${company.city}, France`);
+                if (decryptedCity) {
+                  strategies.push(`${decryptedCity}, France`);
                 }
                 
                 return strategies;
@@ -345,8 +414,8 @@ serve(async (req) => {
 
               // Extract department from postal code (first 2 digits)
               let expectedDepartment = company.general_department || ''
-              if (!expectedDepartment && company.postal_code) {
-                const postalCode = company.postal_code.replace(/\s/g, '')
+              if (!expectedDepartment && decryptedPostalCode) {
+                const postalCode = decryptedPostalCode.replace(/\s/g, '')
                 if (postalCode.length >= 2) {
                   expectedDepartment = postalCode.substring(0, 2)
                   
@@ -369,8 +438,8 @@ serve(async (req) => {
               let qualityScore = 100
               let validationWarnings = []
               
-              if (company.postal_code && geocodeResult.display_name) {
-                const postalCode = company.postal_code.replace(/\s/g, '')
+              if (decryptedPostalCode && geocodeResult.display_name) {
+                const postalCode = decryptedPostalCode.replace(/\s/g, '')
                 
                 if (!geocodeResult.display_name.toLowerCase().includes(postalCode)) {
                   qualityScore -= 20
@@ -378,8 +447,8 @@ serve(async (req) => {
                 }
               }
               
-              if (company.city && geocodeResult.display_name) {
-                const cityName = company.city.toLowerCase().replace(/\s*cedex.*$/i, '').trim()
+              if (decryptedCity && geocodeResult.display_name) {
+                const cityName = decryptedCity.toLowerCase().replace(/\s*cedex.*$/i, '').trim()
                 if (!geocodeResult.display_name.toLowerCase().includes(cityName)) {
                   qualityScore -= 15
                   validationWarnings.push(`City name not found in geocoded address: ${cityName}`)

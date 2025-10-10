@@ -16,15 +16,21 @@ export const getCompanyBySipi = async (sipi: string): Promise<CompanyInfo | null
     // Nettoyer le numéro SIPI (enlever espaces et caractères non numériques)
     const cleanSipi = sipi.replace(/\D/g, '');
     
+    console.log('🔍 Recherche SIPI:', cleanSipi);
+    
     if (cleanSipi.length === 0) return null;
     
     // Récupérer toutes les entreprises décryptées
     const companies = await encryptedCompaniesService.getAllCompanies();
     
-    // Trouver l'entreprise correspondant au SIPI
+    console.log('📊 Nombre total d\'entreprises chargées:', companies.length);
+    
+    // Trouver l'entreprise correspondant exactement au SIPI
     const company = companies.find(c => 
-      c.sipiNumber.toLowerCase().startsWith(cleanSipi.toLowerCase())
+      c.sipiNumber === cleanSipi
     );
+    
+    console.log('✅ Entreprise trouvée:', company ? `${company.companyName} (${company.sipiNumber})` : 'Aucune');
     
     if (!company) return null;
     

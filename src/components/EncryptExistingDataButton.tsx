@@ -81,7 +81,6 @@ export const EncryptExistingDataButton = () => {
               Les champs suivants seront chiffrés :
               <ul className="list-disc list-inside mt-2">
                 <li>Nom de l'entreprise</li>
-                <li>Numéro SIPI</li>
                 <li>Adresse 1</li>
                 <li>Adresse 2</li>
                 <li>Ville</li>

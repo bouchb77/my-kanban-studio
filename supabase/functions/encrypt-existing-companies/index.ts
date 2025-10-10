@@ -142,8 +142,7 @@ serve(async (req) => {
       try {
         // Check if already encrypted
         const isAlreadyEncrypted = 
-          encryption.isEncrypted(company.company_name || '') ||
-          encryption.isEncrypted(company.sipi_number || '');
+          encryption.isEncrypted(company.company_name || '');
 
         if (isAlreadyEncrypted) {
           alreadyEncrypted++;
@@ -156,9 +155,6 @@ serve(async (req) => {
 
         if (company.company_name) {
           encryptedData.company_name = await encryption.encrypt(company.company_name);
-        }
-        if (company.sipi_number) {
-          encryptedData.sipi_number = await encryption.encrypt(company.sipi_number);
         }
         if (company.address1) {
           encryptedData.address1 = await encryption.encrypt(company.address1);

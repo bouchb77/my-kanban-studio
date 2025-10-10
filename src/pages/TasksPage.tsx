@@ -62,6 +62,7 @@ const TasksPage = () => {
   const { 
     tasks, 
     loading, 
+    loadTasks,
     updateTaskField, 
     deleteTask: deleteEncryptedTask 
   } = useEncryptedTasks();
@@ -860,14 +861,14 @@ const systemColumns = [
       <CreateTaskDialog 
         open={isCreateTaskOpen} 
         onOpenChange={setIsCreateTaskOpen} 
-        onTaskCreated={() => {}} // Auto-refresh with encrypted tasks hook
+        onTaskCreated={loadTasks}
       />
 
       <EditTaskDialog 
         open={isEditTaskOpen} 
         onOpenChange={setIsEditTaskOpen} 
         task={editingTask} 
-        onTaskUpdated={() => {}} // No need to refresh, hook handles it
+        onTaskUpdated={loadTasks}
       />
 
       <CompanyDetailDialog

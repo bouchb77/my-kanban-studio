@@ -127,6 +127,8 @@ serve(async (req) => {
         return await handleSelect(supabase);
       case 'SELECT_BY_ARTICLES':
         return await handleSelectByArticles(supabase, body);
+      case 'SEARCH':
+        return await handleSearch(supabase, body);
       case 'INSERT':
         return await handleInsert(supabase, body);
       case 'UPDATE':

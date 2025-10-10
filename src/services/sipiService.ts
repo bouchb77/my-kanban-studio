@@ -58,12 +58,14 @@ export const searchCompanies = async (query: string, limit: number = 10): Promis
       return [];
     }
     
-    const cleanQuery = query.toLowerCase().trim();
-    
-    // Appeler la fonction edge pour récupérer les données chiffrées
-    console.log('📡 Calling encrypted-companies edge function...');
+    // Appeler la fonction edge avec la méthode SEARCH optimisée
+    console.log('📡 Calling encrypted-companies SEARCH...');
     const { data, error } = await supabase.functions.invoke('encrypted-companies', {
-      body: { method: 'SELECT' }
+      body: { 
+        method: 'SEARCH',
+        query: query,
+        limit: limit
+      }
     });
     
     if (error) {
@@ -80,21 +82,13 @@ export const searchCompanies = async (query: string, limit: number = 10): Promis
     
     const companies = data.data || [];
     
-    // Filtrer par SIPI ou nom d'entreprise
-    const results = companies
-      .filter((c: any) => {
-        if (!c.sipi_number && !c.company_name) return false;
-        const sipiMatch = c.sipi_number && c.sipi_number.toLowerCase().includes(cleanQuery);
-        const nameMatch = c.company_name && c.company_name.toLowerCase().includes(cleanQuery);
-        return sipiMatch || nameMatch;
-      })
-      .slice(0, limit)
-      .map((c: any) => ({
-        name: c.company_name,
-        sipi: c.sipi_number
-      }));
+    // Mapper les résultats
+    const results = companies.map((c: any) => ({
+      name: c.company_name,
+      sipi: c.sipi_number
+    }));
     
-    console.log('✅ Found', results.length, 'matching companies');
+    console.log('✅ Returning', results.length, 'companies');
     return results;
   } catch (error) {
     console.error('❌ Error searching companies:', error);

@@ -120,16 +120,13 @@ serve(async (req) => {
       });
     }
 
-    const requestBody = await req.json();
-    const { method, ...body } = requestBody;
+    const { method, body } = await req.json();
 
     switch (method) {
       case 'SELECT':
         return await handleSelect(supabase);
       case 'SELECT_BY_ARTICLES':
         return await handleSelectByArticles(supabase, body);
-      case 'SEARCH':
-        return await handleSearch(supabase, body);
       case 'INSERT':
         return await handleInsert(supabase, body);
       case 'UPDATE':
@@ -214,78 +211,6 @@ async function handleSelectByArticles(supabase: any, body: any) {
   );
 
   return new Response(JSON.stringify({ data: decryptedCompanies, error: null }), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
-}
-
-async function handleSearch(supabase: any, body: any) {
-  const { query, limit = 20 } = body;
-
-  console.log('🔍 Searching companies with query:', query, 'limit:', limit);
-
-  if (!query || query.length < 2) {
-    return new Response(JSON.stringify({ data: [], error: null }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  // Récupérer TOUTES les entreprises en plusieurs batchs si nécessaire
-  let allCompanies: any[] = [];
-  let from = 0;
-  const batchSize = 1000;
-  let hasMore = true;
-  
-  while (hasMore && allCompanies.length < 10000) { // Limite de sécurité à 10000 entreprises
-    const { data, error } = await supabase
-      .from('companies')
-      .select('id, company_name, sipi_number')
-      .order('company_name', { ascending: true })
-      .range(from, from + batchSize - 1);
-
-    if (error) {
-      console.error('Database error:', error);
-      break;
-    }
-
-    if (!data || data.length === 0) {
-      hasMore = false;
-      break;
-    }
-
-    allCompanies = [...allCompanies, ...data];
-    hasMore = data.length === batchSize;
-    from += batchSize;
-    
-    console.log(`📦 Retrieved batch: ${data.length} companies, total so far: ${allCompanies.length}`);
-  }
-
-  console.log(`📦 Total companies retrieved: ${allCompanies.length}`);
-
-  // Déchiffrer les entreprises
-  const decryptedCompanies = await Promise.all(
-    allCompanies.map(async (company: any) => ({
-      id: company.id,
-      company_name: await encryption.decrypt(company.company_name),
-      sipi_number: await encryption.decrypt(company.sipi_number),
-    }))
-  );
-
-  console.log(`🔓 Decrypted ${decryptedCompanies.length} companies`);
-
-  // Filtrer les résultats
-  const cleanQuery = query.toLowerCase().trim();
-  const filteredCompanies = decryptedCompanies
-    .filter((c: any) => {
-      if (!c.sipi_number && !c.company_name) return false;
-      const sipiMatch = c.sipi_number && c.sipi_number.toLowerCase().includes(cleanQuery);
-      const nameMatch = c.company_name && c.company_name.toLowerCase().includes(cleanQuery);
-      return sipiMatch || nameMatch;
-    })
-    .slice(0, limit);
-
-  console.log(`✅ Found ${filteredCompanies.length} matching companies`);
-
-  return new Response(JSON.stringify({ data: filteredCompanies, error: null }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 }

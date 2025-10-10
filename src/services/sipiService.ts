@@ -18,81 +18,23 @@ export const getCompanyBySipi = async (sipi: string): Promise<CompanyInfo | null
     
     if (cleanSipi.length === 0) return null;
     
-    // Appeler la fonction edge pour récupérer les données chiffrées
-    const { data, error } = await supabase.functions.invoke('encrypted-companies', {
-      body: { method: 'SELECT' }
-    });
+    const { data, error } = await supabase
+      .from('companies')
+      .select('sipi_number, company_name')
+      .ilike('sipi_number', `${cleanSipi}%`)
+      .order('sipi_number')
+      .limit(1)
+      .maybeSingle();
     
     if (error || !data) return null;
     
-    // Les données décryptées sont directement dans data.data
-    const companies = data.data || [];
-    const matchingCompany = companies.find((c: any) => 
-      c.sipi_number && c.sipi_number.startsWith(cleanSipi)
-    );
-    
-    if (!matchingCompany) return null;
-    
     return {
-      name: matchingCompany.company_name,
-      sipi: matchingCompany.sipi_number
+      name: data.company_name,
+      sipi: data.sipi_number
     };
   } catch (error) {
     console.error('Error fetching company:', error);
     return null;
-  }
-};
-
-/**
- * Recherche des entreprises par numéro SIPI ou nom (pour autocomplétion)
- * @param query - Recherche par SIPI ou nom
- * @param limit - Nombre max de résultats
- * @returns Liste d'entreprises correspondantes
- */
-export const searchCompanies = async (query: string, limit: number = 10): Promise<CompanyInfo[]> => {
-  try {
-    console.log('🔍 Searching companies with query:', query);
-    
-    if (!query || query.length < 2) {
-      console.log('❌ Query too short');
-      return [];
-    }
-    
-    // Appeler la fonction edge avec la méthode SEARCH optimisée
-    console.log('📡 Calling encrypted-companies SEARCH...');
-    const { data, error } = await supabase.functions.invoke('encrypted-companies', {
-      body: { 
-        method: 'SEARCH',
-        query: query,
-        limit: limit
-      }
-    });
-    
-    if (error) {
-      console.error('❌ Error from edge function:', error);
-      return [];
-    }
-    
-    if (!data) {
-      console.log('❌ No data returned');
-      return [];
-    }
-    
-    console.log('✅ Received data, companies count:', data.data?.length || 0);
-    
-    const companies = data.data || [];
-    
-    // Mapper les résultats
-    const results = companies.map((c: any) => ({
-      name: c.company_name,
-      sipi: c.sipi_number
-    }));
-    
-    console.log('✅ Returning', results.length, 'companies');
-    return results;
-  } catch (error) {
-    console.error('❌ Error searching companies:', error);
-    return [];
   }
 };
 

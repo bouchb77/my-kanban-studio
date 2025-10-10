@@ -110,7 +110,12 @@ const CompaniesTableOnly = ({
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   
   const { toast } = useToast();
-  const encryptedCompaniesHook = useEncryptedCompanies();
+  const { 
+    companies: encryptedCompanies, 
+    loading: encryptedLoading,
+    loadCompanies: loadAllCompanies,
+    loadCompaniesByArticles
+  } = useEncryptedCompanies();
 
   // Column preferences - using 'table' for now, will create a reporting-specific view type later
   const { preferences, loading: preferencesLoading, toggleColumnVisibility, reorderColumns } = useUserViewPreferences('table');
@@ -118,34 +123,50 @@ const CompaniesTableOnly = ({
   // Column manager state
   const [columnManagerOpen, setColumnManagerOpen] = useState(false);
 
-  // Load companies and order data using server-side filtering when applicable
+  // Load companies with filters
+  useEffect(() => {
+    const applyFilters = async () => {
+      // Determine if we should use RPC filtering
+      const useRpcFilter = lisOnlyFilter !== '' || selectedArticles.length > 0;
+      
+      if (useRpcFilter) {
+        // Use encrypted companies service with article filtering
+        await loadCompaniesByArticles(
+          selectedArticles.length > 0 ? selectedArticles : null,
+          lisOnlyFilter === 'oui' ? true : lisOnlyFilter === 'non' ? false : false
+        );
+      } else {
+        // Load all companies via encrypted service
+        await loadAllCompanies();
+      }
+    };
+    
+    applyFilters();
+  }, [lisOnlyFilter, selectedArticles]);
+
+  // Process companies data when encrypted companies change
   useEffect(() => {
     const loadData = async () => {
+      // Si les entreprises sont en cours de chargement, attendre
+      if (encryptedLoading) {
+        setLoading(true);
+        return;
+      }
+      
+      // Si pas d'entreprises, vider la liste et marquer comme non chargé
+      if (!encryptedCompanies || encryptedCompanies.length === 0) {
+        setCompanies([]);
+        setTotalCompanies(0);
+        setLoading(false);
+        return;
+      }
+      
       setLoading(true);
       setError(null);
       
       try {
-        // Determine if we should use RPC filtering
-        const useRpcFilter = lisOnlyFilter !== '' || selectedArticles.length > 0;
-        
-        let allCompanies: any[] = [];
-        
-        if (useRpcFilter) {
-          // Use encrypted companies service with article filtering
-          await encryptedCompaniesHook.loadCompaniesByArticles(
-            selectedArticles.length > 0 ? selectedArticles : null,
-            lisOnlyFilter === 'oui' ? true : lisOnlyFilter === 'non' ? false : false
-          );
-          
-          allCompanies = encryptedCompaniesHook.companies || [];
-        } else {
-          // Load all companies via encrypted service
-          await encryptedCompaniesHook.loadCompanies();
-          allCompanies = encryptedCompaniesHook.companies || [];
-        }
-
         // Convert encrypted companies to match expected format
-        const formattedCompanies = allCompanies.map((c: any) => ({
+        const formattedCompanies = encryptedCompanies.map((c: any) => ({
           id: c.id,
           sipi_number: c.sipiNumber || c.sipi_number,
           company_name: c.companyName || c.company_name,
@@ -214,7 +235,7 @@ const CompaniesTableOnly = ({
         });
 
         // Add order stats to companies
-        const companiesWithStats = allCompanies.map(company => {
+        const companiesWithStats = formattedCompanies.map(company => {
           const orderStats: CompanyOrderStats[] = [];
           const companyOrders = ordersByCompany.get(company.sipi_number);
           
@@ -280,7 +301,7 @@ const CompaniesTableOnly = ({
     };
 
     loadData();
-  }, [lisOnlyFilter, selectedArticles]);
+  }, [encryptedCompanies, encryptedLoading]);
 
   // Filter companies based on all criteria INCLUDING date range
   const filteredCompanies = useMemo(() => {

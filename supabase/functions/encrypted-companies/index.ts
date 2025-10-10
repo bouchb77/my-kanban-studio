@@ -152,15 +152,7 @@ serve(async (req) => {
 });
 
 async function decryptCompany(company: any) {
-  console.log('🔐 Before decrypt:', {
-    id: company.id,
-    company_name: company.company_name,
-    sipi_number: company.sipi_number,
-    address1: company.address1?.substring(0, 20),
-    city: company.city?.substring(0, 20),
-  });
-  
-  const decrypted = {
+  return {
     ...company,
     company_name: company.company_name ? await encryption.decrypt(company.company_name) : company.company_name,
     sipi_number: company.sipi_number ? await encryption.decrypt(company.sipi_number) : company.sipi_number,
@@ -169,16 +161,6 @@ async function decryptCompany(company: any) {
     city: company.city ? await encryption.decrypt(company.city) : company.city,
     postal_code: company.postal_code ? await encryption.decrypt(company.postal_code) : company.postal_code,
   };
-  
-  console.log('✅ After decrypt:', {
-    id: decrypted.id,
-    company_name: decrypted.company_name,
-    sipi_number: decrypted.sipi_number,
-    address1: decrypted.address1?.substring(0, 20),
-    city: decrypted.city?.substring(0, 20),
-  });
-  
-  return decrypted;
 }
 
 async function encryptCompanyData(data: any) {
@@ -223,12 +205,30 @@ async function handleSelect(supabase: any) {
   }
 
   console.log(`Total entreprises chargées depuis la DB: ${allCompanies.length}`);
+  
+  // Log sample avant décryptage
+  if (allCompanies.length > 0) {
+    console.log('📋 Sample company from DB:', {
+      id: allCompanies[0].id,
+      company_name: allCompanies[0].company_name?.substring(0, 30),
+      sipi_number: allCompanies[0].sipi_number?.substring(0, 30),
+    });
+  }
 
   const decryptedCompanies = await Promise.all(
     allCompanies.map(async (company: any) => await decryptCompany(company))
   );
 
   console.log(`Entreprises décryptées: ${decryptedCompanies.length}`);
+  
+  // Log sample après décryptage
+  if (decryptedCompanies.length > 0) {
+    console.log('✅ Sample decrypted company:', {
+      id: decryptedCompanies[0].id,
+      company_name: decryptedCompanies[0].company_name,
+      sipi_number: decryptedCompanies[0].sipi_number,
+    });
+  }
 
   return new Response(JSON.stringify({ data: decryptedCompanies, error: null }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -165,6 +165,8 @@ const CompaniesTableOnly = ({
       setError(null);
       
       try {
+        console.log('🔍 Encrypted companies received:', encryptedCompanies?.length, encryptedCompanies?.[0]);
+        
         // Convert encrypted companies to match expected format
         const formattedCompanies = encryptedCompanies.map((c: any) => ({
           id: c.id,
@@ -181,6 +183,8 @@ const CompaniesTableOnly = ({
           last_order_date: c.lastOrderDate ? (c.lastOrderDate instanceof Date ? c.lastOrderDate.toISOString().split('T')[0] : c.lastOrderDate) : c.last_order_date,
           quality: c.quality,
         }));
+        
+        console.log('✅ Formatted companies:', formattedCompanies?.length, formattedCompanies?.[0]);
 
         // Load orders with pagination
         let loadedOrders: any[] = [];

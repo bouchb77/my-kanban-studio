@@ -53,8 +53,12 @@ class EncryptedCompaniesService {
 
   async getAllCompanies(): Promise<Company[]> {
     const response = await this.callEncryptedFunction('SELECT');
+    console.log('📦 Raw response from edge function:', response);
     const companies = response.data || [];
-    return companies.map((c: any) => this.mapDbCompany(c));
+    console.log('📊 Companies before mapping:', companies?.length, companies?.[0]);
+    const mapped = companies.map((c: any) => this.mapDbCompany(c));
+    console.log('✅ Companies after mapping:', mapped?.length, mapped?.[0]);
+    return mapped;
   }
 
   async getCompaniesByArticles(articleCodes: string[] | null, lisOnly: boolean): Promise<Company[]> {

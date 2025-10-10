@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { encryptedCompaniesService } from '@/services/encryptedCompaniesService';
 
 export interface CompanyOrderPeriod {
   company_id: string;
@@ -28,30 +29,21 @@ export const useCompanyOrderStats = () => {
       setLoading(true);
       setError(null);
 
-      // Récupérer toutes les entreprises avec leurs coordonnées (avec pagination)
-      let allCompanies: any[] = [];
-      let companiesFrom = 0;
-      const companiesBatchSize = 1000;
-      let hasMoreCompanies = true;
-
-      while (hasMoreCompanies) {
-        const { data: companiesBatch, error: companiesError } = await supabase
-          .from('companies')
-          .select('id, sipi_number, company_name, latitude, longitude, address1, city, general_department, quality')
-          .not('latitude', 'is', null)
-          .not('longitude', 'is', null)
-          .range(companiesFrom, companiesFrom + companiesBatchSize - 1);
-
-        if (companiesError) throw companiesError;
-
-        if (companiesBatch && companiesBatch.length > 0) {
-          allCompanies = [...allCompanies, ...companiesBatch];
-          companiesFrom += companiesBatchSize;
-          hasMoreCompanies = companiesBatch.length === companiesBatchSize;
-        } else {
-          hasMoreCompanies = false;
-        }
-      }
+      // Récupérer toutes les entreprises décryptées avec leurs coordonnées
+      const rawCompanies = await encryptedCompaniesService.getAllCompanies();
+      const allCompanies = rawCompanies
+        .filter(c => c.latitude && c.longitude)
+        .map(c => ({
+          id: c.id,
+          sipi_number: c.sipiNumber,
+          company_name: c.companyName,
+          latitude: c.latitude,
+          longitude: c.longitude,
+          address1: c.address1,
+          city: c.city,
+          general_department: c.generalDepartment,
+          quality: c.quality
+        }));
 
       console.log(`Entreprises avec coordonnées trouvées: ${allCompanies.length}`);
 

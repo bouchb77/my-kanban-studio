@@ -51,23 +51,40 @@ export const getCompanyBySipi = async (sipi: string): Promise<CompanyInfo | null
  */
 export const searchCompanies = async (query: string, limit: number = 10): Promise<CompanyInfo[]> => {
   try {
-    if (!query || query.length < 2) return [];
+    console.log('🔍 Searching companies with query:', query);
+    
+    if (!query || query.length < 2) {
+      console.log('❌ Query too short');
+      return [];
+    }
     
     const cleanQuery = query.toLowerCase().trim();
     
     // Appeler la fonction edge pour récupérer les données chiffrées
+    console.log('📡 Calling encrypted-companies edge function...');
     const { data, error } = await supabase.functions.invoke('encrypted-companies', {
       body: { method: 'SELECT' }
     });
     
-    if (error || !data) return [];
+    if (error) {
+      console.error('❌ Error from edge function:', error);
+      return [];
+    }
+    
+    if (!data) {
+      console.log('❌ No data returned');
+      return [];
+    }
+    
+    console.log('✅ Received data, companies count:', data.companies?.length || 0);
     
     const companies = data.companies || [];
     
     // Filtrer par SIPI ou nom d'entreprise
     const results = companies
       .filter((c: any) => {
-        const sipiMatch = c.sipi_number && c.sipi_number.includes(cleanQuery);
+        if (!c.sipi_number && !c.company_name) return false;
+        const sipiMatch = c.sipi_number && c.sipi_number.toLowerCase().includes(cleanQuery);
         const nameMatch = c.company_name && c.company_name.toLowerCase().includes(cleanQuery);
         return sipiMatch || nameMatch;
       })
@@ -77,9 +94,10 @@ export const searchCompanies = async (query: string, limit: number = 10): Promis
         sipi: c.sipi_number
       }));
     
+    console.log('✅ Found', results.length, 'matching companies');
     return results;
   } catch (error) {
-    console.error('Error searching companies:', error);
+    console.error('❌ Error searching companies:', error);
     return [];
   }
 };

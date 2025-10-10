@@ -704,7 +704,7 @@ const CompaniesTableOnly = ({
                   {startDate ? format(startDate, "dd/MM/yyyy") : "Sélectionner"}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
+              <PopoverContent className="w-auto p-0 z-50" align="start">
                 <Calendar
                   mode="single"
                   selected={startDate}
@@ -730,7 +730,7 @@ const CompaniesTableOnly = ({
                   {endDate ? format(endDate, "dd/MM/yyyy") : "Sélectionner"}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
+              <PopoverContent className="w-auto p-0 z-50" align="start">
                 <Calendar
                   mode="single"
                   selected={endDate}
@@ -1044,7 +1044,7 @@ const CompaniesTableOnly = ({
                 <ChevronDown className="w-4 h-4 ml-2" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-80">
+            <PopoverContent className="w-80 bg-background z-50">
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {uniqueDepartments.map((dept) => (
                   <div key={dept} className="flex items-center space-x-2">
@@ -1156,10 +1156,10 @@ const CompaniesTableOnly = ({
       </div>
 
       {/* Table */}
-      <div className="border rounded-lg">
+      <div className="border rounded-lg overflow-hidden">
         <div className="max-h-[600px] overflow-auto">
           <Table>
-            <TableHeader>
+            <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
               <TableRow>
                 {orderedColumns.map((column) => {
                   if (!column) return null;
@@ -1174,7 +1174,7 @@ const CompaniesTableOnly = ({
                   // Year columns - not sortable
                   if (column.id.startsWith('year_')) {
                     return (
-                      <TableHead key={column.id} className="text-center min-w-[100px]">
+                      <TableHead key={column.id} className="text-center min-w-[100px] bg-background">
                         {column.label}
                       </TableHead>
                     );
@@ -1202,6 +1202,7 @@ const CompaniesTableOnly = ({
                     <TableHead 
                       key={column.id} 
                       className={cn(
+                        'bg-background',
                         column.id === 'sipi_number' && 'w-[120px]',
                         ['quality', 'formation', 'training_date', 'report_creation_date', 'averageAmountPerYear'].includes(column.id) && 'text-center'
                       )}

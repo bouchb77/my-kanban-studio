@@ -357,24 +357,21 @@ const KanbanPage = () => {
     }
   };
 
-  // Handle company name click
+  // Handle company name click - load from encrypted service
   const handleCompanyClick = async (companyName: string, sipiNumber?: string) => {
     if (!companyName) return;
     
     try {
-      let query = supabase
-        .from('companies')
-        .select('*')
-        .eq('company_name', companyName);
+      // Use the encrypted companies service via edge function
+      const { data, error } = await supabase.functions.invoke('encrypted-companies', {
+        body: {
+          method: 'SELECT',
+          body: null
+        }
+      });
       
-      if (sipiNumber) {
-        query = query.eq('sipi_number', sipiNumber);
-      }
-      
-      const { data, error } = await query.limit(1).single();
-      
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error loading company:', error);
+      if (error) {
+        console.error('Error loading companies:', error);
         toast({
           title: "Erreur",
           description: "Impossible de charger les détails de l'entreprise",
@@ -383,8 +380,14 @@ const KanbanPage = () => {
         return;
       }
       
-      if (data) {
-        setSelectedCompany(data);
+      // Find matching company
+      const companies = data?.data || [];
+      let matchingCompany = companies.find((c: any) => 
+        c.company_name === companyName && (!sipiNumber || c.sipi_number === sipiNumber)
+      );
+      
+      if (matchingCompany) {
+        setSelectedCompany(matchingCompany);
         setCompanyDetailOpen(true);
       } else {
         toast({

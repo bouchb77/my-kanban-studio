@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapPin, AlertCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { useEncryptedCompanies } from '@/hooks/useEncryptedCompanies';
 import { useToast } from "@/hooks/use-toast";
 
 interface Company {
@@ -19,6 +19,11 @@ interface SimpleHeatmapMapProps {
 }
 
 const SimpleHeatmapMap = ({ companies: externalCompanies }: SimpleHeatmapMapProps = {}) => {
+  const { 
+    companies: encryptedCompanies, 
+    loading: encryptedLoading 
+  } = useEncryptedCompanies();
+  
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [mapReady, setMapReady] = useState(false);
@@ -36,53 +41,24 @@ const SimpleHeatmapMap = ({ companies: externalCompanies }: SimpleHeatmapMapProp
       return;
     }
 
-    const loadCompanies = async () => {
-      setLoading(true);
-      try {
-        let allCompanies: any[] = [];
-        let from = 0;
-        const batchSize = 1000;
-        let hasMore = true;
-
-        while (hasMore) {
-          const { data, error } = await supabase
-            .from('companies')
-            .select('id, company_name, latitude, longitude, city, postal_code')
-            .not('latitude', 'is', null)
-            .not('longitude', 'is', null)
-            .range(from, from + batchSize - 1);
-
-          if (error) {
-            console.error('Error loading companies:', error);
-            setLoading(false);
-            return;
-          }
-
-          if (data && data.length > 0) {
-            allCompanies = [...allCompanies, ...data];
-            from += batchSize;
-            hasMore = data.length === batchSize;
-          } else {
-            hasMore = false;
-          }
-        }
-
-        console.log(`Total entreprises chargées pour heatmap: ${allCompanies.length}`);
-        setCompanies(allCompanies);
-        setLoading(false);
-      } catch (error) {
-        console.error('Error loading companies:', error);
-        setLoading(false);
-        toast({
-          title: "Erreur de chargement",
-          description: "Impossible de charger les données des entreprises.",
-          variant: "destructive"
-        });
-      }
-    };
-
-    loadCompanies();
-  }, [toast, externalCompanies]);
+    // Use encrypted companies data
+    if (!encryptedLoading) {
+      const mappedCompanies = encryptedCompanies
+        .filter(c => c.latitude && c.longitude)
+        .map(c => ({
+          id: c.id,
+          company_name: c.companyName,
+          latitude: c.latitude!,
+          longitude: c.longitude!,
+          city: c.city || '',
+          postal_code: c.postalCode || ''
+        }));
+      
+      console.log(`Total entreprises chargées pour heatmap: ${mappedCompanies.length}`);
+      setCompanies(mappedCompanies);
+      setLoading(false);
+    }
+  }, [encryptedCompanies, encryptedLoading, externalCompanies]);
 
   // Initialize map
   useEffect(() => {

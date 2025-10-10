@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useEncryptedCompanies } from '@/hooks/useEncryptedCompanies';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -56,6 +57,11 @@ const CompaniesMap = ({
   endDate: externalEndDate,
   onDateChange
 }: CompaniesMapProps) => {
+  const { 
+    companies: encryptedCompanies, 
+    loading: encryptedLoading 
+  } = useEncryptedCompanies();
+  
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -309,23 +315,29 @@ const CompaniesMap = ({
   };
 
   const handleCompanyClick = async (company: Company) => {
-    // Fetch complete company data
-    try {
-      const { data: fullCompanyData, error } = await supabase
-        .from('companies')
-        .select('*')
-        .eq('id', company.id)
-        .single();
-
-      if (error) {
-        console.error('Error fetching company details:', error);
-        return;
-      }
-
-      setSelectedCompany(fullCompanyData);
+    // Find company in encrypted data
+    const fullCompanyData = encryptedCompanies.find(c => c.id === company.id);
+    if (fullCompanyData) {
+      setSelectedCompany({
+        id: fullCompanyData.id,
+        sipi_number: fullCompanyData.sipiNumber,
+        company_name: fullCompanyData.companyName,
+        latitude: fullCompanyData.latitude,
+        longitude: fullCompanyData.longitude,
+        address1: fullCompanyData.address1,
+        address2: fullCompanyData.address2,
+        city: fullCompanyData.city,
+        postal_code: fullCompanyData.postalCode,
+        general_department: fullCompanyData.generalDepartment,
+        quality: fullCompanyData.quality,
+        geocoded_address: fullCompanyData.geocodedAddress,
+        geocoding_date: fullCompanyData.geocodingDate?.toISOString(),
+        training_date: fullCompanyData.trainingDate?.toISOString().split('T')[0],
+        client_blocked_date: fullCompanyData.clientBlockedDate?.toISOString().split('T')[0],
+        last_order_date: fullCompanyData.lastOrderDate?.toISOString().split('T')[0],
+        report_creation_date: fullCompanyData.reportCreationDate?.toISOString().split('T')[0],
+      } as any);
       setCompanyDetailOpen(true);
-    } catch (error) {
-      console.error('Error fetching company details:', error);
     }
   };
 
@@ -408,50 +420,41 @@ const CompaniesMap = ({
     try {
       console.log('Fetching companies with GPS coordinates...');
       
-      // Récupérer toutes les entreprises en utilisant une approche de pagination
-      let allCompanies: any[] = [];
-      let from = 0;
-      const batchSize = 1000;
-      let hasMore = true;
-
-      while (hasMore) {
-        const { data: companiesBatch, error: companiesError } = await supabase
-          .from('companies')
-          .select('id, sipi_number, company_name, latitude, longitude, address1, city, general_department, client_blocked_date, training_date, report_creation_date, last_order_date, quality')
-          .not('latitude', 'is', null)
-          .not('longitude', 'is', null)
-          .range(from, from + batchSize - 1);
-
-        if (companiesError) {
-          console.error('Error fetching companies:', companiesError);
-          setError('Erreur lors du chargement des entreprises');
-          return;
-        }
-
-        if (companiesBatch && companiesBatch.length > 0) {
-          allCompanies = [...allCompanies, ...companiesBatch];
-          from += batchSize;
-          hasMore = companiesBatch.length === batchSize;
-        } else {
-          hasMore = false;
-        }
-      }
+      // Use encrypted companies data
+      const allCompanies = encryptedCompanies
+        .filter(c => c.latitude && c.longitude)
+        .map(c => ({
+          id: c.id,
+          sipi_number: c.sipiNumber,
+          company_name: c.companyName,
+          latitude: c.latitude,
+          longitude: c.longitude,
+          address1: c.address1,
+          city: c.city,
+          general_department: c.generalDepartment,
+          client_blocked_date: c.clientBlockedDate?.toISOString().split('T')[0],
+          training_date: c.trainingDate?.toISOString().split('T')[0],
+          report_creation_date: c.reportCreationDate?.toISOString().split('T')[0],
+          last_order_date: c.lastOrderDate?.toISOString().split('T')[0],
+          quality: c.quality
+        }));
 
       console.log(`Total entreprises récupérées: ${allCompanies.length}`);
 
       console.log('Fetching order statistics...');
       let allOrders: any[] = [];
-      from = 0;
-      hasMore = true;
+      let ordersFrom = 0;
+      const ordersBatchSize = 1000;
+      let ordersHasMore = true;
 
-      while (hasMore) {
+      while (ordersHasMore) {
         let query = supabase
           .from('orders')
           .select('sipi_number, order_date, amount');
         
         // No date filters here - we'll calculate period orders later
         const { data: ordersBatch, error: ordersError } = await query
-          .range(from, from + batchSize - 1);
+          .range(ordersFrom, ordersFrom + ordersBatchSize - 1);
 
         if (ordersError) {
           console.error('Error fetching orders:', ordersError);
@@ -461,10 +464,10 @@ const CompaniesMap = ({
 
         if (ordersBatch && ordersBatch.length > 0) {
           allOrders = [...allOrders, ...ordersBatch];
-          from += batchSize;
-          hasMore = ordersBatch.length === batchSize;
+          ordersFrom += ordersBatchSize;
+          ordersHasMore = ordersBatch.length === ordersBatchSize;
         } else {
-          hasMore = false;
+          ordersHasMore = false;
         }
       }
 

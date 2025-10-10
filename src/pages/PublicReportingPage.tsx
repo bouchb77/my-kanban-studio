@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Search, MapPin, Building2, Calendar, Users } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { useEncryptedCompanies } from '@/hooks/useEncryptedCompanies';
 import { useToast } from '@/hooks/use-toast';
 
 interface CompanyData {
@@ -29,45 +29,46 @@ interface CompanyData {
 }
 
 const PublicReportingPage: React.FC = () => {
+  const { 
+    companies: encryptedCompanies, 
+    loading: encryptedLoading 
+  } = useEncryptedCompanies();
+  
   const [companies, setCompanies] = useState<CompanyData[]>([]);
   const [filteredCompanies, setFilteredCompanies] = useState<CompanyData[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [qualityFilter, setQualityFilter] = useState<string>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchCompanies();
-  }, []);
+    if (!encryptedLoading) {
+      const mappedCompanies = encryptedCompanies.map(c => ({
+        id: c.id,
+        sipi_number: c.sipiNumber,
+        company_name: c.companyName,
+        address1: c.address1,
+        address2: c.address2,
+        city: c.city,
+        postal_code: c.postalCode,
+        general_department: c.generalDepartment,
+        quality: c.quality,
+        last_order_date: c.lastOrderDate?.toISOString().split('T')[0],
+        client_blocked_date: c.clientBlockedDate?.toISOString().split('T')[0],
+        training_date: c.trainingDate?.toISOString().split('T')[0],
+        report_creation_date: c.reportCreationDate?.toISOString().split('T')[0],
+        latitude: c.latitude,
+        longitude: c.longitude,
+        geocoded_address: c.geocodedAddress,
+        created_at: c.createdAt.toISOString()
+      }));
+      setCompanies(mappedCompanies);
+    }
+  }, [encryptedCompanies, encryptedLoading]);
 
   useEffect(() => {
     filterCompanies();
   }, [companies, searchTerm, qualityFilter, departmentFilter]);
-
-  const fetchCompanies = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('companies')
-        .select('*')
-        .order('company_name');
-
-      if (error) {
-        throw error;
-      }
-
-      setCompanies(data || []);
-    } catch (error) {
-      console.error('Error fetching companies:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les données des entreprises",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const filterCompanies = () => {
     let filtered = companies;
@@ -119,7 +120,7 @@ const PublicReportingPage: React.FC = () => {
     blocked: companies.filter(c => c.client_blocked_date).length,
   };
 
-  if (loading) {
+  if (encryptedLoading) {
     return (
       <div className="p-6">
         <div className="animate-pulse space-y-4">

@@ -174,20 +174,39 @@ async function encryptCompanyData(data: any) {
 }
 
 async function handleSelect(supabase: any) {
-  const { data, error } = await supabase
-    .from('companies')
-    .select('*')
-    .order('company_name', { ascending: true })
-    .limit(100000);
+  // Charger toutes les entreprises avec pagination (limite Supabase = 1000 par requête)
+  let allCompanies: any[] = [];
+  let from = 0;
+  const batchSize = 1000;
+  let hasMore = true;
 
-  if (error) {
-    throw new Error(`Database error: ${error.message}`);
+  console.log('Début du chargement paginé des entreprises...');
+
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from('companies')
+      .select('*')
+      .order('company_name', { ascending: true })
+      .range(from, from + batchSize - 1);
+
+    if (error) {
+      throw new Error(`Database error: ${error.message}`);
+    }
+
+    if (data && data.length > 0) {
+      allCompanies = [...allCompanies, ...data];
+      from += batchSize;
+      hasMore = data.length === batchSize;
+      console.log(`Lot chargé: ${data.length} entreprises (total: ${allCompanies.length})`);
+    } else {
+      hasMore = false;
+    }
   }
 
-  console.log(`Entreprises chargées depuis la DB: ${data?.length || 0}`);
+  console.log(`Total entreprises chargées depuis la DB: ${allCompanies.length}`);
 
   const decryptedCompanies = await Promise.all(
-    (data || []).map(async (company: any) => await decryptCompany(company))
+    allCompanies.map(async (company: any) => await decryptCompany(company))
   );
 
   console.log(`Entreprises décryptées: ${decryptedCompanies.length}`);
@@ -202,15 +221,10 @@ async function handleSelectByArticles(supabase: any, body: any) {
 
   console.log(`Paramètres reçus - article_codes: ${article_codes}, lis_only: ${lis_only}`);
 
-  // Construire la requête directement au lieu d'utiliser RPC
-  let query = supabase
-    .from('companies')
-    .select('*')
-    .order('company_name', { ascending: true });
+  // Charger les SIPI à filtrer UNE SEULE FOIS avant la boucle
+  let allowedSipiNumbers: string[] | null = null;
 
-  // Si des filtres sont appliqués, on doit joindre avec orders et order_details
   if (article_codes && article_codes.length > 0) {
-    // On va d'abord récupérer les sipi_numbers qui correspondent aux articles
     const { data: orderDetails, error: odError } = await supabase
       .from('order_details')
       .select('order_number')
@@ -231,15 +245,11 @@ async function handleSelectByArticles(supabase: any, body: any) {
       throw new Error(`Error fetching orders: ${ordersError.message}`);
     }
 
-    const sipiNumbers = [...new Set(orders?.map((o: any) => o.sipi_number) || [])];
-    console.log(`SIPI numbers trouvés pour les articles: ${sipiNumbers.length}`);
-    
-    query = query.in('sipi_number', sipiNumbers);
+    allowedSipiNumbers = [...new Set(orders?.map((o: any) => o.sipi_number) || [])];
+    console.log(`SIPI numbers trouvés pour les articles: ${allowedSipiNumbers.length}`);
   }
 
-  // Filtre LIS only
   if (lis_only === true) {
-    // Récupérer uniquement les entreprises qui n'ont commandé QUE du LIS
     const { data: allOrderDetails, error: aodError } = await supabase
       .from('order_details')
       .select('order_number, article_code');
@@ -248,7 +258,6 @@ async function handleSelectByArticles(supabase: any, body: any) {
       throw new Error(`Error fetching all order details: ${aodError.message}`);
     }
 
-    // Grouper par order_number et vérifier que tous les articles sont 'LIS'
     const orderNumbersLisOnly = new Set<string>();
     const orderArticles = new Map<string, Set<string>>();
     
@@ -277,22 +286,55 @@ async function handleSelectByArticles(supabase: any, body: any) {
     const lisSipiNumbers = [...new Set(lisOrders?.map((o: any) => o.sipi_number) || [])];
     console.log(`SIPI numbers LIS only: ${lisSipiNumbers.length}`);
     
-    query = query.in('sipi_number', lisSipiNumbers);
+    // Intersect with previous filter if any
+    if (allowedSipiNumbers !== null) {
+      const lisSet = new Set(lisSipiNumbers);
+      allowedSipiNumbers = allowedSipiNumbers.filter(sipi => lisSet.has(sipi));
+    } else {
+      allowedSipiNumbers = lisSipiNumbers;
+    }
   }
 
-  // Appliquer la limite
-  query = query.limit(100000);
+  // Maintenant charger les entreprises avec pagination
+  let allFilteredCompanies: any[] = [];
+  let from = 0;
+  const batchSize = 1000;
+  let hasMore = true;
 
-  const { data, error } = await query;
+  console.log('Début du chargement paginé des entreprises filtrées...');
 
-  if (error) {
-    throw new Error(`Database error: ${error.message}`);
+  while (hasMore) {
+    let batchQuery = supabase
+      .from('companies')
+      .select('*')
+      .order('company_name', { ascending: true })
+      .range(from, from + batchSize - 1);
+
+    // Appliquer le filtre SIPI si nécessaire
+    if (allowedSipiNumbers !== null && allowedSipiNumbers.length > 0) {
+      batchQuery = batchQuery.in('sipi_number', allowedSipiNumbers);
+    }
+
+    const { data, error } = await batchQuery;
+
+    if (error) {
+      throw new Error(`Database error: ${error.message}`);
+    }
+
+    if (data && data.length > 0) {
+      allFilteredCompanies = [...allFilteredCompanies, ...data];
+      from += batchSize;
+      hasMore = data.length === batchSize;
+      console.log(`Lot filtré chargé: ${data.length} entreprises (total: ${allFilteredCompanies.length})`);
+    } else {
+      hasMore = false;
+    }
   }
 
-  console.log(`Entreprises chargées par requête directe: ${data?.length || 0}`);
+  console.log(`Total entreprises filtrées chargées: ${allFilteredCompanies.length}`);
 
   const decryptedCompanies = await Promise.all(
-    (data || []).map(async (company: any) => await decryptCompany(company))
+    allFilteredCompanies.map(async (company: any) => await decryptCompany(company))
   );
 
   console.log(`Entreprises décryptées: ${decryptedCompanies.length}`);

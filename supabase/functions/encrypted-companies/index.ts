@@ -184,9 +184,13 @@ async function handleSelect(supabase: any) {
     throw new Error(`Database error: ${error.message}`);
   }
 
+  console.log(`Entreprises chargées depuis la DB: ${data?.length || 0}`);
+
   const decryptedCompanies = await Promise.all(
     (data || []).map(async (company: any) => await decryptCompany(company))
   );
+
+  console.log(`Entreprises décryptées: ${decryptedCompanies.length}`);
 
   return new Response(JSON.stringify({ data: decryptedCompanies, error: null }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -196,18 +200,102 @@ async function handleSelect(supabase: any) {
 async function handleSelectByArticles(supabase: any, body: any) {
   const { article_codes, lis_only } = body;
 
-  const { data, error } = await supabase.rpc('get_companies_by_articles', {
-    article_codes,
-    lis_only
-  }).limit(100000);
+  console.log(`Paramètres reçus - article_codes: ${article_codes}, lis_only: ${lis_only}`);
+
+  // Construire la requête directement au lieu d'utiliser RPC
+  let query = supabase
+    .from('companies')
+    .select('*')
+    .order('company_name', { ascending: true });
+
+  // Si des filtres sont appliqués, on doit joindre avec orders et order_details
+  if (article_codes && article_codes.length > 0) {
+    // On va d'abord récupérer les sipi_numbers qui correspondent aux articles
+    const { data: orderDetails, error: odError } = await supabase
+      .from('order_details')
+      .select('order_number')
+      .in('article_code', article_codes);
+    
+    if (odError) {
+      throw new Error(`Error fetching order details: ${odError.message}`);
+    }
+
+    const orderNumbers = [...new Set(orderDetails?.map((od: any) => od.order_number) || [])];
+    
+    const { data: orders, error: ordersError } = await supabase
+      .from('orders')
+      .select('sipi_number')
+      .in('order_number', orderNumbers);
+    
+    if (ordersError) {
+      throw new Error(`Error fetching orders: ${ordersError.message}`);
+    }
+
+    const sipiNumbers = [...new Set(orders?.map((o: any) => o.sipi_number) || [])];
+    console.log(`SIPI numbers trouvés pour les articles: ${sipiNumbers.length}`);
+    
+    query = query.in('sipi_number', sipiNumbers);
+  }
+
+  // Filtre LIS only
+  if (lis_only === true) {
+    // Récupérer uniquement les entreprises qui n'ont commandé QUE du LIS
+    const { data: allOrderDetails, error: aodError } = await supabase
+      .from('order_details')
+      .select('order_number, article_code');
+    
+    if (aodError) {
+      throw new Error(`Error fetching all order details: ${aodError.message}`);
+    }
+
+    // Grouper par order_number et vérifier que tous les articles sont 'LIS'
+    const orderNumbersLisOnly = new Set<string>();
+    const orderArticles = new Map<string, Set<string>>();
+    
+    allOrderDetails?.forEach((od: any) => {
+      if (!orderArticles.has(od.order_number)) {
+        orderArticles.set(od.order_number, new Set());
+      }
+      orderArticles.get(od.order_number)!.add(od.article_code);
+    });
+
+    orderArticles.forEach((articles, orderNumber) => {
+      if (articles.size === 1 && articles.has('LIS')) {
+        orderNumbersLisOnly.add(orderNumber);
+      }
+    });
+
+    const { data: lisOrders, error: lisError } = await supabase
+      .from('orders')
+      .select('sipi_number')
+      .in('order_number', Array.from(orderNumbersLisOnly));
+    
+    if (lisError) {
+      throw new Error(`Error fetching LIS orders: ${lisError.message}`);
+    }
+
+    const lisSipiNumbers = [...new Set(lisOrders?.map((o: any) => o.sipi_number) || [])];
+    console.log(`SIPI numbers LIS only: ${lisSipiNumbers.length}`);
+    
+    query = query.in('sipi_number', lisSipiNumbers);
+  }
+
+  // Appliquer la limite
+  query = query.limit(100000);
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(`Database error: ${error.message}`);
   }
 
+  console.log(`Entreprises chargées par requête directe: ${data?.length || 0}`);
+
   const decryptedCompanies = await Promise.all(
     (data || []).map(async (company: any) => await decryptCompany(company))
   );
+
+  console.log(`Entreprises décryptées: ${decryptedCompanies.length}`);
 
   return new Response(JSON.stringify({ data: decryptedCompanies, error: null }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -229,25 +229,41 @@ async function handleSearch(supabase: any, body: any) {
     });
   }
 
-  // Récupérer toutes les entreprises avec pagination
-  // On récupère plus que nécessaire pour compenser le filtrage post-décryptage
-  const batchSize = Math.min(5000, limit * 50);
+  // Récupérer TOUTES les entreprises en plusieurs batchs si nécessaire
+  let allCompanies: any[] = [];
+  let from = 0;
+  const batchSize = 1000;
+  let hasMore = true;
   
-  const { data, error } = await supabase
-    .from('companies')
-    .select('id, company_name, sipi_number')
-    .order('company_name', { ascending: true })
-    .limit(batchSize);
+  while (hasMore && allCompanies.length < 10000) { // Limite de sécurité à 10000 entreprises
+    const { data, error } = await supabase
+      .from('companies')
+      .select('id, company_name, sipi_number')
+      .order('company_name', { ascending: true })
+      .range(from, from + batchSize - 1);
 
-  if (error) {
-    throw new Error(`Database error: ${error.message}`);
+    if (error) {
+      console.error('Database error:', error);
+      break;
+    }
+
+    if (!data || data.length === 0) {
+      hasMore = false;
+      break;
+    }
+
+    allCompanies = [...allCompanies, ...data];
+    hasMore = data.length === batchSize;
+    from += batchSize;
+    
+    console.log(`📦 Retrieved batch: ${data.length} companies, total so far: ${allCompanies.length}`);
   }
 
-  console.log(`📦 Retrieved ${data?.length || 0} companies from database`);
+  console.log(`📦 Total companies retrieved: ${allCompanies.length}`);
 
   // Déchiffrer les entreprises
   const decryptedCompanies = await Promise.all(
-    (data || []).map(async (company: any) => ({
+    allCompanies.map(async (company: any) => ({
       id: company.id,
       company_name: await encryption.decrypt(company.company_name),
       sipi_number: await encryption.decrypt(company.sipi_number),

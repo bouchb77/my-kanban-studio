@@ -177,7 +177,8 @@ async function handleSelect(supabase: any) {
   const { data, error } = await supabase
     .from('companies')
     .select('*')
-    .order('company_name', { ascending: true });
+    .order('company_name', { ascending: true })
+    .limit(100000);
 
   if (error) {
     throw new Error(`Database error: ${error.message}`);

@@ -8,6 +8,7 @@ import { OrderDetailImportSection } from '@/components/OrderDetailImportSection'
 import DepartmentImportSection from '@/components/DepartmentImportSection';
 import ContactImportSection from '@/components/ContactImportSection';
 import IncompleteGeocodingTable from '@/components/IncompleteGeocodingTable';
+import { EncryptExistingDataButton } from '@/components/EncryptExistingDataButton';
 
 const ImportReportingPage: React.FC = () => {
   const { isAdmin, loading } = useUserRole();
@@ -50,6 +51,19 @@ const ImportReportingPage: React.FC = () => {
       </div>
 
       <div className="space-y-8">
+        {/* Chiffrement des données */}
+        <div>
+          <h2 className="text-2xl font-semibold mb-4">Chiffrement des Données</h2>
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm text-muted-foreground mb-4">
+                Chiffrez les données sensibles des entreprises déjà présentes dans la base de données.
+              </p>
+              <EncryptExistingDataButton />
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Import des départements */}
         <div>
           <h2 className="text-2xl font-semibold mb-4">Import des Départements</h2>

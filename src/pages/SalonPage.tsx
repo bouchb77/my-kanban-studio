@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Package, Calendar, Euro, Filter, X } from 'lucide-react';
+import { Search, Package, Calendar, Euro, Filter, X, MessageSquare, Send } from 'lucide-react';
 import { useEncryptedCompanies } from '@/hooks/useEncryptedCompanies';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
@@ -11,6 +11,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from '@/hooks/use-toast';
 
 interface Order {
   order_number: string;
@@ -24,6 +27,17 @@ interface OrderDetail {
   quantity: number;
 }
 
+interface Comment {
+  id: string;
+  comment: string;
+  created_at: string;
+  user_id: string;
+  profiles: {
+    full_name: string;
+    email: string;
+  };
+}
+
 const SalonPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -33,8 +47,12 @@ const SalonPage = () => {
   const [loading, setLoading] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
   const [selectedCity, setSelectedCity] = useState<string>('all');
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [submittingComment, setSubmittingComment] = useState(false);
   
   const { companies } = useEncryptedCompanies();
+  const { user } = useAuth();
 
   // Extraire les départements et villes uniques des résultats
   const uniqueDepartments = useMemo(() => {
@@ -90,6 +108,62 @@ const SalonPage = () => {
   const handleSelectCompany = (company: any) => {
     setSelectedCompany(company);
     loadOrders(company.sipiNumber);
+    loadComments(company.id);
+  };
+
+  const loadComments = async (companyId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('company_comments')
+        .select(`
+          *,
+          profiles:user_id (
+            full_name,
+            email
+          )
+        `)
+        .eq('company_id', companyId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setComments(data || []);
+    } catch (error) {
+      console.error('Erreur lors du chargement des commentaires:', error);
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!newComment.trim() || !selectedCompany || !user) return;
+
+    setSubmittingComment(true);
+    try {
+      const { error } = await supabase
+        .from('company_comments')
+        .insert({
+          company_id: selectedCompany.id,
+          user_id: user.id,
+          comment: newComment.trim(),
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Commentaire ajouté',
+        description: 'Votre commentaire a été enregistré avec succès.',
+      });
+
+      setNewComment('');
+      loadComments(selectedCompany.id);
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout du commentaire:', error);
+      toast({
+        title: 'Erreur',
+        description: 'Impossible d\'ajouter le commentaire.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmittingComment(false);
+    }
   };
 
   const loadOrders = async (sipiNumber: string) => {
@@ -419,6 +493,73 @@ const SalonPage = () => {
                       Aucune commande trouvée
                     </p>
                   )}
+                </CardContent>
+              </Card>
+
+              {/* Commentaires */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5" />
+                    <CardTitle>Commentaires</CardTitle>
+                  </div>
+                  <CardDescription>
+                    Ajoutez des notes sur cette entreprise
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {/* Formulaire d'ajout de commentaire */}
+                  <div className="space-y-4 mb-6">
+                    <Textarea
+                      placeholder="Ajouter un commentaire..."
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      className="min-h-[100px]"
+                    />
+                    <Button
+                      onClick={handleAddComment}
+                      disabled={!newComment.trim() || submittingComment}
+                      className="w-full md:w-auto"
+                    >
+                      <Send className="w-4 h-4 mr-2" />
+                      {submittingComment ? 'Envoi...' : 'Ajouter un commentaire'}
+                    </Button>
+                  </div>
+
+                  {/* Liste des commentaires */}
+                  <div className="space-y-4">
+                    {comments.length > 0 ? (
+                      comments.map((comment) => (
+                        <div
+                          key={comment.id}
+                          className="p-4 border rounded-lg bg-muted/30"
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                <span className="text-sm font-semibold text-primary">
+                                  {comment.profiles.full_name?.[0] || comment.profiles.email[0].toUpperCase()}
+                                </span>
+                              </div>
+                              <div>
+                                <p className="font-medium text-sm">
+                                  {comment.profiles.full_name || comment.profiles.email}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {format(new Date(comment.created_at), "d MMM yyyy 'à' HH:mm", { locale: fr })}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          <p className="text-sm whitespace-pre-wrap">{comment.comment}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-muted-foreground text-center py-8">
+                        Aucun commentaire pour le moment
+                      </p>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </>

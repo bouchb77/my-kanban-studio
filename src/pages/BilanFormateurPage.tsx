@@ -111,13 +111,32 @@ export default function BilanFormateurPage() {
           departmentNames.includes(company.generalDepartment || '')
         );
 
-        // Get order details for all companies (based on order_date)
+        // Get order details for all companies (based on order_date and FSITE/FSITEJ articles)
         const companiesWithOrdersData = await Promise.all(
           departmentCompanies.map(async (company) => {
+            // Get orders with FSITE or FSITEJ articles
+            const { data: orderDetails } = await supabase
+              .from('order_details')
+              .select('order_number, article_code')
+              .in('article_code', ['FSITE', 'FSITEJ']);
+
+            const relevantOrderNumbers = orderDetails?.map(od => od.order_number) || [];
+
+            if (relevantOrderNumbers.length === 0) {
+              return {
+                sipi_number: company.sipiNumber,
+                company_name: company.companyName,
+                training_date: company.trainingDate?.toISOString().split('T')[0] || '',
+                total_orders: 0,
+                total_amount: 0
+              };
+            }
+
             const { data: orders } = await supabase
               .from('orders')
-              .select('amount, order_date')
+              .select('amount, order_date, order_number')
               .eq('sipi_number', company.sipiNumber)
+              .in('order_number', relevantOrderNumbers)
               .gte('order_date', `${selectedYear}-01-01`)
               .lte('order_date', `${selectedYear}-12-31`);
 

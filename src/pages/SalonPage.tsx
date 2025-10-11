@@ -369,75 +369,77 @@ const SalonPage = () => {
       </Card>
 
       {/* Export des entreprises commentées */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Download className="w-5 h-5" />
-            Export des entreprises commentées
-          </CardTitle>
-          <CardDescription>
-            Exportez les entreprises ayant reçu des commentaires sur une période donnée
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="flex-1 min-w-[200px]">
-              <label className="text-sm font-medium mb-2 block">Date de début</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left font-normal"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {exportStartDate ? format(exportStartDate, "PPP", { locale: fr }) : "Sélectionner"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={exportStartDate}
-                    onSelect={setExportStartDate}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
+      {!selectedCompany && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Download className="w-5 h-5" />
+              Export des entreprises commentées
+            </CardTitle>
+            <CardDescription>
+              Exportez les entreprises ayant reçu des commentaires sur une période donnée
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="flex-1 min-w-[200px]">
+                <label className="text-sm font-medium mb-2 block">Date de début</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {exportStartDate ? format(exportStartDate, "PPP", { locale: fr }) : "Sélectionner"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={exportStartDate}
+                      onSelect={setExportStartDate}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="flex-1 min-w-[200px]">
+                <label className="text-sm font-medium mb-2 block">Date de fin</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {exportEndDate ? format(exportEndDate, "PPP", { locale: fr }) : "Sélectionner"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={exportEndDate}
+                      onSelect={setExportEndDate}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <Button
+                onClick={handleExportCommentedCompanies}
+                disabled={isExporting || !exportStartDate || !exportEndDate}
+                className="min-w-[150px]"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                {isExporting ? "Export en cours..." : "Exporter"}
+              </Button>
             </div>
-            <div className="flex-1 min-w-[200px]">
-              <label className="text-sm font-medium mb-2 block">Date de fin</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left font-normal"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {exportEndDate ? format(exportEndDate, "PPP", { locale: fr }) : "Sélectionner"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={exportEndDate}
-                    onSelect={setExportEndDate}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-            <Button
-              onClick={handleExportCommentedCompanies}
-              disabled={isExporting || !exportStartDate || !exportEndDate}
-              className="min-w-[150px]"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              {isExporting ? "Export en cours..." : "Exporter"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Liste des résultats */}
       {searchResults.length > 0 && !selectedCompany && (

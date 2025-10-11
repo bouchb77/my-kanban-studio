@@ -81,21 +81,18 @@ export default function BilanFormateurPage() {
           return;
         }
 
-        if (data && data.length > 0) {
-          setStats({
-            paid_trainings: Number(data[0].paid_trainings || 0),
-            total_trainings: Number(data[0].total_trainings || 0),
-            secured_revenue: Number(data[0].secured_revenue || 0),
-            secured_revenue_avg: 0
-          });
-        } else {
-          setStats({
-            paid_trainings: 0,
-            total_trainings: 0,
-            secured_revenue: 0,
-            secured_revenue_avg: 0
-          });
-        }
+        // Don't set stats here yet - we'll calculate secured_revenue below
+        let initialStats = data && data.length > 0 ? {
+          paid_trainings: Number(data[0].paid_trainings || 0),
+          total_trainings: Number(data[0].total_trainings || 0),
+          secured_revenue: 0,
+          secured_revenue_avg: 0
+        } : {
+          paid_trainings: 0,
+          total_trainings: 0,
+          secured_revenue: 0,
+          secured_revenue_avg: 0
+        };
 
         // Get departments for this formateur
         const { data: depts } = await supabase
@@ -266,13 +263,11 @@ export default function BilanFormateurPage() {
         });
 
         // Update stats with calculated secured revenue
-        if (stats) {
-          setStats({
-            ...stats,
-            secured_revenue: totalSecuredRevenue,
-            secured_revenue_avg: totalSecuredRevenueAvg
-          });
-        }
+        setStats({
+          ...initialStats,
+          secured_revenue: totalSecuredRevenue,
+          secured_revenue_avg: totalSecuredRevenueAvg
+        });
 
         setPaidCompanies(paidTrainings);
         setAllCompanies(trainedCompanies);

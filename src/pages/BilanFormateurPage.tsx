@@ -156,18 +156,18 @@ export default function BilanFormateurPage() {
           .filter(c => c.total_orders && c.total_orders > 0)
           .sort((a, b) => new Date(b.training_date).getTime() - new Date(a.training_date).getTime());
 
-        // All companies with training dates in the year
+        // All companies with report_creation_date in the year
         const trainedCompanies = departmentCompanies
           .filter(company => 
-            company.trainingDate &&
-            company.trainingDate.getFullYear() === selectedYear
+            company.reportCreationDate &&
+            company.reportCreationDate.getFullYear() === selectedYear
           )
           .map(company => {
             const orderData = companiesWithOrdersData.find(c => c.sipi_number === company.sipiNumber);
             return {
               sipi_number: company.sipiNumber,
               company_name: company.companyName,
-              training_date: company.trainingDate.toISOString().split('T')[0],
+              training_date: company.reportCreationDate.toISOString().split('T')[0],
               total_orders: orderData?.total_orders || 0,
               total_amount: orderData?.total_amount || 0
             };

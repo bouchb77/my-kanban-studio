@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 interface Order {
   order_number: string;
@@ -34,7 +34,6 @@ interface Comment {
   user_id: string;
   profiles: {
     full_name: string;
-    email: string;
   };
 }
 
@@ -53,6 +52,7 @@ const SalonPage = () => {
   
   const { companies } = useEncryptedCompanies();
   const { user } = useAuth();
+  const { toast } = useToast();
 
   // Extraire les départements et villes uniques des résultats
   const uniqueDepartments = useMemo(() => {
@@ -342,12 +342,14 @@ const SalonPage = () => {
       {/* Détails de l'entreprise sélectionnée */}
       {selectedCompany && (
         <>
-          <Button
+            <Button
             variant="ghost"
             onClick={() => {
               setSelectedCompany(null);
               setOrders([]);
               setOrderDetails([]);
+              setComments([]);
+              setNewComment('');
             }}
             className="mb-4"
           >
@@ -538,12 +540,12 @@ const SalonPage = () => {
                             <div className="flex items-center gap-2">
                               <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                                 <span className="text-sm font-semibold text-primary">
-                                  {comment.profiles.full_name?.[0] || comment.profiles.email[0].toUpperCase()}
+                                  {comment.profiles?.full_name?.[0]?.toUpperCase() || 'U'}
                                 </span>
                               </div>
                               <div>
                                 <p className="font-medium text-sm">
-                                  {comment.profiles.full_name || comment.profiles.email}
+                                  {comment.profiles?.full_name || 'Utilisateur inconnu'}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
                                   {format(new Date(comment.created_at), "d MMM yyyy 'à' HH:mm", { locale: fr })}

@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, GraduationCap, DollarSign, BarChart3 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
+import { encryptedCompaniesService } from '@/services/encryptedCompaniesService';
 
 interface TrainingStats {
   paid_trainings: number;
@@ -86,50 +87,61 @@ export default function BilanFormateurPage() {
           });
         }
 
-        // Load paid training companies
-        const { data: paidData, error: paidError } = await supabase
-          .from('companies')
-          .select(`
-            sipi_number,
-            company_name,
-            training_date
-          `)
-          .not('training_date', 'is', null)
-          .in('general_department', 
-            await supabase
-              .from('department_management')
-              .select('department_name')
-              .eq('formateur', formateur)
-              .then(({ data }) => data?.map(d => d.department_name) || [])
-          )
-          .gte('training_date', `${selectedYear}-01-01`)
-          .lte('training_date', `${selectedYear}-12-31`)
-          .order('training_date', { ascending: false });
+        // Get departments for this formateur
+        const { data: depts } = await supabase
+          .from('department_management')
+          .select('department_name')
+          .eq('formateur', formateur);
 
-        if (!paidError && paidData) {
-          // Get order details for each company
-          const companiesWithOrders = await Promise.all(
-            paidData.map(async (company) => {
-              const { data: orders } = await supabase
-                .from('orders')
-                .select('amount, order_date')
-                .eq('sipi_number', company.sipi_number)
-                .gte('order_date', `${selectedYear}-01-01`)
-                .lte('order_date', `${selectedYear}-12-31`);
+        const departmentNames = depts?.map(d => d.department_name) || [];
 
-              const totalAmount = orders?.reduce((sum, o) => sum + Number(o.amount), 0) || 0;
-              return {
-                ...company,
-                total_orders: orders?.length || 0,
-                total_amount: totalAmount
-              };
-            })
-          );
-
-          // Filter only companies with orders
-          setPaidCompanies(companiesWithOrders.filter(c => c.total_orders && c.total_orders > 0));
-          setAllCompanies(companiesWithOrders);
+        if (departmentNames.length === 0) {
+          setPaidCompanies([]);
+          setAllCompanies([]);
+          return;
         }
+
+        // Load all companies with training dates using encrypted service
+        const allEncryptedCompanies = await encryptedCompaniesService.getAllCompanies();
+        
+        // Filter companies by departments and training date
+        const filteredCompanies = allEncryptedCompanies.filter(company => 
+          company.trainingDate &&
+          departmentNames.includes(company.generalDepartment || '') &&
+          company.trainingDate.getFullYear() === selectedYear
+        );
+
+        // Get order details for each company
+        const companiesWithOrders = await Promise.all(
+          filteredCompanies.map(async (company) => {
+            const { data: orders } = await supabase
+              .from('orders')
+              .select('amount, order_date')
+              .eq('sipi_number', company.sipiNumber)
+              .gte('order_date', `${selectedYear}-01-01`)
+              .lte('order_date', `${selectedYear}-12-31`);
+
+            const totalAmount = orders?.reduce((sum, o) => sum + Number(o.amount), 0) || 0;
+            return {
+              sipi_number: company.sipiNumber,
+              company_name: company.companyName,
+              training_date: company.trainingDate.toISOString().split('T')[0],
+              total_orders: orders?.length || 0,
+              total_amount: totalAmount
+            };
+          })
+        );
+
+        // Sort by training date descending
+        companiesWithOrders.sort((a, b) => 
+          new Date(b.training_date).getTime() - new Date(a.training_date).getTime()
+        );
+
+        // Filter only companies with orders
+        setPaidCompanies(companiesWithOrders.filter(c => c.total_orders && c.total_orders > 0));
+        setAllCompanies(companiesWithOrders);
+      } catch (error) {
+        console.error('Error loading training data:', error);
       } finally {
         setLoading(false);
       }

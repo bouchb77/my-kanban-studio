@@ -25,6 +25,7 @@ interface OrderDetail {
 
 const SalonPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<any>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [orderDetails, setOrderDetails] = useState<OrderDetail[]>([]);
@@ -33,21 +34,26 @@ const SalonPage = () => {
   const { companies } = useEncryptedCompanies();
 
   const handleSearch = () => {
-    if (!searchTerm.trim()) return;
+    if (!searchTerm.trim()) {
+      setSearchResults([]);
+      return;
+    }
 
-    const found = companies.find(
+    const results = companies.filter(
       (c) =>
         c.companyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.sipiNumber?.includes(searchTerm)
     );
 
-    setSelectedCompany(found || null);
-    if (found) {
-      loadOrders(found.sipiNumber);
-    } else {
-      setOrders([]);
-      setOrderDetails([]);
-    }
+    setSearchResults(results);
+    setSelectedCompany(null);
+    setOrders([]);
+    setOrderDetails([]);
+  };
+
+  const handleSelectCompany = (company: any) => {
+    setSelectedCompany(company);
+    loadOrders(company.sipiNumber);
   };
 
   const loadOrders = async (sipiNumber: string) => {
@@ -130,6 +136,57 @@ const SalonPage = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Liste des résultats */}
+      {searchResults.length > 0 && !selectedCompany && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Résultats de recherche</CardTitle>
+            <CardDescription>
+              {searchResults.length} entreprise(s) trouvée(s)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {searchResults.map((company) => (
+                <Button
+                  key={company.id}
+                  variant="outline"
+                  className="w-full justify-between h-auto py-4"
+                  onClick={() => handleSelectCompany(company)}
+                >
+                  <div className="text-left">
+                    <p className="font-semibold">{company.companyName}</p>
+                    <p className="text-sm text-muted-foreground">
+                      SIPI: {company.sipiNumber} • {company.city || 'Ville inconnue'}
+                    </p>
+                  </div>
+                  <Badge variant={company.quality === 'CLIENT' ? 'default' : 'secondary'}>
+                    {company.quality || 'N/A'}
+                  </Badge>
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Détails de l'entreprise sélectionnée */}
+      {selectedCompany && (
+        <>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setSelectedCompany(null);
+              setOrders([]);
+              setOrderDetails([]);
+            }}
+            className="mb-4"
+          >
+            ← Retour aux résultats
+          </Button>
+        </>
+      )}
 
       {/* Résultats */}
       {selectedCompany && (
@@ -275,7 +332,7 @@ const SalonPage = () => {
         </>
       )}
 
-      {searchTerm && !selectedCompany && (
+      {searchTerm && searchResults.length === 0 && !selectedCompany && (
         <Card>
           <CardContent className="p-12 text-center">
             <p className="text-muted-foreground">

@@ -47,12 +47,18 @@ export default function BilanFormateurPage() {
     const loadFormateur = async () => {
       if (!user) return;
 
-      const { data } = await supabase
+      console.log('Loading formateur for user:', user.id);
+      const { data, error } = await supabase
         .from('user_fo_sectors')
         .select('formateur')
         .eq('user_id', user.id)
         .maybeSingle();
 
+      if (error) {
+        console.error('Error loading formateur:', error);
+      }
+      
+      console.log('Formateur data:', data);
       setFormateur(data?.formateur || null);
     };
 

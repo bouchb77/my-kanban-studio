@@ -8,7 +8,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, GraduationCap, DollarSign, BarChart3 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
-import { encryptedCompaniesService } from '@/services/encryptedCompaniesService';
 
 interface TrainingStats {
   paid_trainings: number;
@@ -70,208 +69,79 @@ export default function BilanFormateurPage() {
       setLoading(true);
       try {
         console.log('Loading stats for:', { formateur, selectedYear });
-        // Load aggregate stats
-        const { data, error } = await supabase.rpc('get_fo_training_stats', {
-          _user_id: user.id,
+        
+        // Load summary stats using optimized function
+        const { data: summaryData, error: summaryError } = await supabase.rpc('get_fo_training_summary', {
+          _formateur: formateur,
           _year: selectedYear
         });
 
-        if (error) {
-          console.error('Error loading stats:', error);
+        if (summaryError) {
+          console.error('Error loading summary:', summaryError);
           return;
         }
 
-        // Don't set stats here yet - we'll calculate secured_revenue below
-        let initialStats = data && data.length > 0 ? {
-          paid_trainings: Number(data[0].paid_trainings || 0),
-          total_trainings: Number(data[0].total_trainings || 0),
-          secured_revenue: 0,
-          secured_revenue_avg: 0
-        } : {
-          paid_trainings: 0,
-          total_trainings: 0,
-          secured_revenue: 0,
-          secured_revenue_avg: 0
-        };
+        // Load detailed training data using optimized function
+        const { data: trainingData, error: trainingError } = await supabase.rpc('get_fo_training_data', {
+          _formateur: formateur,
+          _year: selectedYear
+        });
 
-        // Get departments for this formateur
-        const { data: depts } = await supabase
-          .from('department_management')
-          .select('department_name')
-          .eq('formateur', formateur);
-
-        const departmentNames = depts?.map(d => d.department_name) || [];
-        console.log('Departments for formateur:', { formateur, count: departmentNames.length, departments: departmentNames });
-
-        if (departmentNames.length === 0) {
-          console.log('No departments found for formateur');
-          setPaidCompanies([]);
-          setAllCompanies([]);
-          setFreeCompanies([]);
+        if (trainingError) {
+          console.error('Error loading training data:', trainingError);
           return;
         }
 
-        // Load all companies using encrypted service
-        console.log('Loading all companies...');
-        const allEncryptedCompanies = await encryptedCompaniesService.getAllCompanies();
-        console.log('Total companies loaded:', allEncryptedCompanies.length);
-        
-        // Filter companies by departments
-        const departmentCompanies = allEncryptedCompanies.filter(company => 
-          departmentNames.includes(company.generalDepartment || '')
-        );
-        console.log('Companies in formateur departments:', departmentCompanies.length);
+        console.log('Data loaded:', { 
+          summaryCount: summaryData?.length, 
+          trainingCount: trainingData?.length 
+        });
 
-        // Get order details for all companies (based on order_date and FSITE/FSITEJ articles)
-        const companiesWithOrdersData = await Promise.all(
-          departmentCompanies.map(async (company) => {
-            // Get orders with FSITE or FSITEJ articles
-            const { data: orderDetails } = await supabase
-              .from('order_details')
-              .select('order_number, article_code')
-              .in('article_code', ['FSITE', 'FSITEJ']);
+        // Set summary stats
+        if (summaryData && summaryData.length > 0) {
+          setStats({
+            paid_trainings: Number(summaryData[0].total_paid_trainings || 0),
+            total_trainings: Number(summaryData[0].total_all_trainings || 0),
+            secured_revenue: Number(summaryData[0].secured_revenue || 0),
+            secured_revenue_avg: Number(summaryData[0].secured_revenue_avg || 0)
+          });
+        } else {
+          setStats({
+            paid_trainings: 0,
+            total_trainings: 0,
+            secured_revenue: 0,
+            secured_revenue_avg: 0
+          });
+        }
 
-            const relevantOrderNumbers = orderDetails?.map(od => od.order_number) || [];
+        // Transform training data to match component structure
+        const allCompaniesData: TrainingCompany[] = (trainingData || []).map(row => ({
+          sipi_number: row.sipi_number,
+          company_name: row.company_name,
+          training_date: row.report_creation_date,
+          total_orders: Number(row.paid_orders_count || 0),
+          total_amount: Number(row.paid_orders_amount || 0),
+          total_orders_all: Number(row.all_orders_count_year || 0),
+          total_amount_all: Number(row.all_orders_amount_year || 0)
+        }));
 
-            if (relevantOrderNumbers.length === 0) {
-              return {
-                sipi_number: company.sipiNumber,
-                company_name: company.companyName,
-                training_date: company.trainingDate?.toISOString().split('T')[0] || '',
-                total_orders: 0,
-                total_amount: 0
-              };
-            }
+        // Paid trainings: companies with orders
+        const paidTrainings = allCompaniesData.filter(c => c.total_orders && c.total_orders > 0);
 
-            const { data: orders } = await supabase
-              .from('orders')
-              .select('amount, order_date, order_number')
-              .eq('sipi_number', company.sipiNumber)
-              .in('order_number', relevantOrderNumbers)
-              .gte('order_date', `${selectedYear}-01-01`)
-              .lte('order_date', `${selectedYear}-12-31`);
-
-            const totalAmount = orders?.reduce((sum, o) => sum + Number(o.amount), 0) || 0;
-            return {
-              sipi_number: company.sipiNumber,
-              company_name: company.companyName,
-              training_date: company.trainingDate?.toISOString().split('T')[0] || '',
-              total_orders: orders?.length || 0,
-              total_amount: totalAmount
-            };
-          })
-        );
-
-        // Get ALL orders for companies (for free training stats)
-        const companiesWithAllOrdersData = await Promise.all(
-          departmentCompanies.map(async (company) => {
-            const { data: orders } = await supabase
-              .from('orders')
-              .select('amount, order_date')
-              .eq('sipi_number', company.sipiNumber)
-              .gte('order_date', `${selectedYear}-01-01`)
-              .lte('order_date', `${selectedYear}-12-31`);
-
-            const totalAmount = orders?.reduce((sum, o) => sum + Number(o.amount), 0) || 0;
-            return {
-              sipi_number: company.sipiNumber,
-              total_orders_all: orders?.length || 0,
-              total_amount_all: totalAmount
-            };
-          })
-        );
-
-        // Get ALL orders for companies (all years) for average calculation
-        const companiesWithHistoricalOrders = await Promise.all(
-          departmentCompanies.map(async (company) => {
-            const { data: allOrders } = await supabase
-              .from('orders')
-              .select('amount')
-              .eq('sipi_number', company.sipiNumber);
-
-            const totalAmount = allOrders?.reduce((sum, o) => sum + Number(o.amount), 0) || 0;
-            const orderCount = allOrders?.length || 0;
-            const avgAmount = orderCount > 0 ? totalAmount / orderCount : 0;
-            
-            return {
-              sipi_number: company.sipiNumber,
-              avg_order_amount: avgAmount
-            };
-          })
-        );
-
-        // All companies with report_creation_date in the year
-        const trainedCompanies = departmentCompanies
-          .filter(company => {
-            const hasDate = company.reportCreationDate && 
-                           company.reportCreationDate.getFullYear() === selectedYear;
-            return hasDate;
-          })
-          .map(company => {
-            const orderData = companiesWithOrdersData.find(c => c.sipi_number === company.sipiNumber);
-            const allOrderData = companiesWithAllOrdersData.find(c => c.sipi_number === company.sipiNumber);
-            return {
-              sipi_number: company.sipiNumber,
-              company_name: company.companyName,
-              training_date: company.reportCreationDate.toISOString().split('T')[0],
-              total_orders: orderData?.total_orders || 0,
-              total_amount: orderData?.total_amount || 0,
-              total_orders_all: allOrderData?.total_orders_all || 0,
-              total_amount_all: allOrderData?.total_amount_all || 0
-            };
-          })
-          .sort((a, b) => new Date(b.training_date).getTime() - new Date(a.training_date).getTime());
-        
-        console.log('Trained companies in year:', trainedCompanies.length);
-
-        // Formations payantes: trained companies with orders with FSITE/FSITEJ in the year
-        const paidTrainings = trainedCompanies
-          .filter(c => c.total_orders && c.total_orders > 0)
-          .sort((a, b) => new Date(b.training_date).getTime() - new Date(a.training_date).getTime());
-
-        // Formations gratuites: trained companies not in paid trainings
+        // Free trainings: companies without paid orders
         const paidSipiNumbers = new Set(paidTrainings.map(c => c.sipi_number));
-        const freeTrainings = trainedCompanies.filter(c => !paidSipiNumbers.has(c.sipi_number));
-
-        // Calculate total secured revenue (sum of all orders from ALL trained companies)
-        const totalSecuredRevenue = trainedCompanies.reduce(
-          (sum, company) => sum + (company.total_amount_all || 0), 
-          0
-        );
-        console.log('CA sécurisé calculation:', {
-          trainedCompaniesCount: trainedCompanies.length,
-          totalSecuredRevenue,
-          sample: trainedCompanies.slice(0, 3).map(c => ({
-            sipi: c.sipi_number,
-            total_amount_all: c.total_amount_all,
-            total_orders_all: c.total_orders_all
-          }))
-        });
-
-        // Calculate secured revenue based on average order amount
-        const trainedSipiNumbers = new Set(trainedCompanies.map(c => c.sipi_number));
-        const totalSecuredRevenueAvg = companiesWithHistoricalOrders
-          .filter(c => trainedSipiNumbers.has(c.sipi_number))
-          .reduce((sum, company) => sum + (company.avg_order_amount || 0), 0);
-        console.log('CA sécurisé (montant moyen) calculation:', {
-          totalSecuredRevenueAvg,
-          historicalCompaniesCount: companiesWithHistoricalOrders.length,
-          sample: companiesWithHistoricalOrders.slice(0, 3).map(c => ({
-            sipi: c.sipi_number,
-            avg_order_amount: c.avg_order_amount
-          }))
-        });
-
-        // Update stats with calculated secured revenue
-        setStats({
-          ...initialStats,
-          secured_revenue: totalSecuredRevenue,
-          secured_revenue_avg: totalSecuredRevenueAvg
-        });
+        const freeTrainings = allCompaniesData.filter(c => !paidSipiNumbers.has(c.sipi_number));
 
         setPaidCompanies(paidTrainings);
-        setAllCompanies(trainedCompanies);
+        setAllCompanies(allCompaniesData);
         setFreeCompanies(freeTrainings);
+
+        console.log('Stats set:', {
+          paid: paidTrainings.length,
+          free: freeTrainings.length,
+          total: allCompaniesData.length
+        });
+
       } catch (error) {
         console.error('Error loading training data:', error);
       } finally {

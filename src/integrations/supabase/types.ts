@@ -906,12 +906,27 @@ export type Database = {
           updated_at: string
         }[]
       }
-      get_fo_training_stats: {
-        Args: { _user_id: string; _year: number }
+      get_fo_training_data: {
+        Args: { _formateur: string; _year: number }
         Returns: {
-          paid_trainings: number
+          all_orders_amount_year: number
+          all_orders_count_year: number
+          avg_order_amount_historical: number
+          company_name: string
+          paid_orders_amount: number
+          paid_orders_count: number
+          report_creation_date: string
+          sipi_number: string
+        }[]
+      }
+      get_fo_training_summary: {
+        Args: { _formateur: string; _year: number }
+        Returns: {
           secured_revenue: number
-          total_trainings: number
+          secured_revenue_avg: number
+          total_all_trainings: number
+          total_free_trainings: number
+          total_paid_trainings: number
         }[]
       }
       has_role: {

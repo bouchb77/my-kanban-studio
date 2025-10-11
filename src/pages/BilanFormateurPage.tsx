@@ -214,9 +214,9 @@ export default function BilanFormateurPage() {
                 <GraduationCap className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats?.paid_trainings || 0}</div>
+                <div className="text-2xl font-bold">{paidCompanies.length}</div>
                 <p className="text-xs text-muted-foreground">
-                  Formations avec commandes en {selectedYear}
+                  Formations avec commandes (date rapport SIPI)
                 </p>
               </CardContent>
             </Card>
@@ -229,9 +229,9 @@ export default function BilanFormateurPage() {
                 <BarChart3 className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats?.total_trainings || 0}</div>
+                <div className="text-2xl font-bold">{allCompanies.length}</div>
                 <p className="text-xs text-muted-foreground">
-                  Payantes et gratuites en {selectedYear}
+                  Toutes formations (date rapport SIPI)
                 </p>
               </CardContent>
             </Card>

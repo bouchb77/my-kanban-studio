@@ -15,7 +15,7 @@ interface TrainingStats {
 
 export default function BilanFormateurPage() {
   const { user } = useAuth();
-  const { role, loading: roleLoading } = useUserRole();
+  const { roles, loading: roleLoading } = useUserRole();
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [stats, setStats] = useState<TrainingStats | null>(null);
   const [loading, setLoading] = useState(false);
@@ -88,8 +88,8 @@ export default function BilanFormateurPage() {
     );
   }
 
-  if (role !== 'fo') {
-    return <Navigate to="/" replace />;
+  if (!roles.includes('fo')) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return (

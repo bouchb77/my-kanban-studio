@@ -49,7 +49,7 @@ const settingsItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
-  const { isAdmin, role } = useUserRole();
+  const { isAdmin, roles } = useUserRole();
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
 
@@ -146,8 +146,8 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
 
-        {/* Section Formateur - Visible uniquement pour les formateurs FO */}
-        {role === 'fo' && (
+        {/* Section Formateur - Visible pour les formateurs FO */}
+        {roles.includes('fo') && (
           <SidebarGroup>
             <SidebarGroupLabel>Formation</SidebarGroupLabel>
             <SidebarGroupContent>

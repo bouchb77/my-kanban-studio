@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
-export type UserRole = 'admin' | 'bo' | 'ct' | 'fo' | null;
+export type UserRole = 'admin' | 'bo' | 'ct' | 'fo';
 
 export const useUserRole = () => {
-  const [role, setRole] = useState<UserRole>(null);
+  const [roles, setRoles] = useState<UserRole[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
@@ -13,7 +13,7 @@ export const useUserRole = () => {
   useEffect(() => {
     const checkUserRole = async () => {
       if (!user) {
-        setRole(null);
+        setRoles([]);
         setIsAdmin(false);
         setLoading(false);
         return;
@@ -23,21 +23,20 @@ export const useUserRole = () => {
         const { data, error } = await supabase
           .from('user_roles')
           .select('role')
-          .eq('user_id', user.id)
-          .maybeSingle();
+          .eq('user_id', user.id);
 
         if (error) {
           console.error('Error checking user role:', error);
-          setRole(null);
+          setRoles([]);
           setIsAdmin(false);
         } else {
-          const userRole = data?.role as UserRole;
-          setRole(userRole);
-          setIsAdmin(userRole === 'admin');
+          const userRoles = (data || []).map(r => r.role as UserRole);
+          setRoles(userRoles);
+          setIsAdmin(userRoles.includes('admin'));
         }
       } catch (error) {
         console.error('Error checking user role:', error);
-        setRole(null);
+        setRoles([]);
         setIsAdmin(false);
       } finally {
         setLoading(false);
@@ -47,5 +46,11 @@ export const useUserRole = () => {
     checkUserRole();
   }, [user]);
 
-  return { role, isAdmin, loading };
+  // Return the primary role (admin takes priority, then fo, ct, bo)
+  const role = roles.includes('admin') ? 'admin' : 
+               roles.includes('fo') ? 'fo' :
+               roles.includes('ct') ? 'ct' :
+               roles.includes('bo') ? 'bo' : null;
+
+  return { role, roles, isAdmin, loading };
 };

@@ -194,11 +194,6 @@ export default function BilanFormateurPage() {
           })
         );
 
-        // Formations payantes: companies with orders in the year (based on order_date)
-        const paidTrainings = companiesWithOrdersData
-          .filter(c => c.total_orders && c.total_orders > 0)
-          .sort((a, b) => new Date(b.training_date).getTime() - new Date(a.training_date).getTime());
-
         // All companies with report_creation_date in the year
         const trainedCompanies = departmentCompanies
           .filter(company => 
@@ -218,6 +213,11 @@ export default function BilanFormateurPage() {
               total_amount_all: allOrderData?.total_amount_all || 0
             };
           })
+          .sort((a, b) => new Date(b.training_date).getTime() - new Date(a.training_date).getTime());
+
+        // Formations payantes: trained companies with orders with FSITE/FSITEJ in the year
+        const paidTrainings = trainedCompanies
+          .filter(c => c.total_orders && c.total_orders > 0)
           .sort((a, b) => new Date(b.training_date).getTime() - new Date(a.training_date).getTime());
 
         // Formations gratuites: trained companies not in paid trainings

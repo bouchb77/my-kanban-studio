@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Package, Calendar, Euro, Filter, X, MessageSquare, Send } from 'lucide-react';
+import { Search, Package, Calendar as CalendarIcon, Euro, Filter, X, MessageSquare, Send, Download } from 'lucide-react';
 import { useEncryptedCompanies } from '@/hooks/useEncryptedCompanies';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
@@ -14,6 +14,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import ExcelJS from 'exceljs';
 
 interface Order {
   order_number: string;
@@ -49,6 +52,9 @@ const SalonPage = () => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [exportStartDate, setExportStartDate] = useState<Date>();
+  const [exportEndDate, setExportEndDate] = useState<Date>();
+  const [isExporting, setIsExporting] = useState(false);
   
   const { companies } = useEncryptedCompanies();
   const { user } = useAuth();
@@ -166,6 +172,121 @@ const SalonPage = () => {
     }
   };
 
+  const handleExportCommentedCompanies = async () => {
+    if (!exportStartDate || !exportEndDate) {
+      toast({
+        title: "Dates requises",
+        description: "Veuillez sélectionner une période d'export.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const { data: commentedCompanies, error } = await supabase
+        .from('company_comments')
+        .select(`
+          company_id,
+          created_at,
+          comment,
+          profiles!company_comments_user_id_fkey (
+            full_name
+          ),
+          companies (
+            sipi_number,
+            company_name,
+            address1,
+            address2,
+            postal_code,
+            city,
+            general_department
+          )
+        `)
+        .gte('created_at', exportStartDate.toISOString())
+        .lte('created_at', exportEndDate.toISOString())
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (!commentedCompanies || commentedCompanies.length === 0) {
+        toast({
+          title: "Aucune donnée",
+          description: "Aucun commentaire trouvé sur cette période.",
+        });
+        return;
+      }
+
+      // Créer le workbook Excel
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Entreprises commentées');
+
+      // Définir les colonnes
+      worksheet.columns = [
+        { header: 'N° SIPI', key: 'sipi_number', width: 15 },
+        { header: 'Nom entreprise', key: 'company_name', width: 30 },
+        { header: 'Adresse 1', key: 'address1', width: 30 },
+        { header: 'Adresse 2', key: 'address2', width: 30 },
+        { header: 'Code postal', key: 'postal_code', width: 12 },
+        { header: 'Ville', key: 'city', width: 20 },
+        { header: 'Département', key: 'general_department', width: 15 },
+        { header: 'Commentaire', key: 'comment', width: 50 },
+        { header: 'Auteur', key: 'author', width: 25 },
+        { header: 'Date commentaire', key: 'comment_date', width: 20 },
+      ];
+
+      // Style de l'en-tête
+      worksheet.getRow(1).font = { bold: true };
+      worksheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE0E0E0' },
+      };
+
+      // Ajouter les données
+      commentedCompanies.forEach((item: any) => {
+        worksheet.addRow({
+          sipi_number: item.companies?.sipi_number || '',
+          company_name: item.companies?.company_name || '',
+          address1: item.companies?.address1 || '',
+          address2: item.companies?.address2 || '',
+          postal_code: item.companies?.postal_code || '',
+          city: item.companies?.city || '',
+          general_department: item.companies?.general_department || '',
+          comment: item.comment || '',
+          author: item.profiles?.full_name || 'Utilisateur inconnu',
+          comment_date: format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: fr }),
+        });
+      });
+
+      // Générer et télécharger le fichier
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `entreprises_commentees_${format(exportStartDate, 'dd-MM-yyyy')}_${format(exportEndDate, 'dd-MM-yyyy')}.xlsx`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Export réussi",
+        description: `${commentedCompanies.length} entreprise(s) exportée(s).`,
+      });
+    } catch (error) {
+      console.error('Error exporting:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'exporter les données.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const loadOrders = async (sipiNumber: string) => {
     setLoading(true);
     try {
@@ -242,6 +363,77 @@ const SalonPage = () => {
             <Button onClick={handleSearch}>
               <Search className="w-4 h-4 mr-2" />
               Rechercher
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Export des entreprises commentées */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Download className="w-5 h-5" />
+            Export des entreprises commentées
+          </CardTitle>
+          <CardDescription>
+            Exportez les entreprises ayant reçu des commentaires sur une période donnée
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="flex-1 min-w-[200px]">
+              <label className="text-sm font-medium mb-2 block">Date de début</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {exportStartDate ? format(exportStartDate, "PPP", { locale: fr }) : "Sélectionner"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={exportStartDate}
+                    onSelect={setExportStartDate}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="flex-1 min-w-[200px]">
+              <label className="text-sm font-medium mb-2 block">Date de fin</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {exportEndDate ? format(exportEndDate, "PPP", { locale: fr }) : "Sélectionner"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={exportEndDate}
+                    onSelect={setExportEndDate}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <Button
+              onClick={handleExportCommentedCompanies}
+              disabled={isExporting || !exportStartDate || !exportEndDate}
+              className="min-w-[150px]"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              {isExporting ? "Export en cours..." : "Exporter"}
             </Button>
           </div>
         </CardContent>

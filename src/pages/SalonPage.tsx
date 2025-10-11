@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Package, Calendar, Euro } from 'lucide-react';
+import { Search, Package, Calendar, Euro, Filter, X } from 'lucide-react';
 import { useEncryptedCompanies } from '@/hooks/useEncryptedCompanies';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
@@ -10,6 +10,7 @@ import { fr } from 'date-fns/locale';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Order {
   order_number: string;
@@ -30,12 +31,45 @@ const SalonPage = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [orderDetails, setOrderDetails] = useState<OrderDetail[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
+  const [selectedCity, setSelectedCity] = useState<string>('all');
   
   const { companies } = useEncryptedCompanies();
+
+  // Extraire les départements et villes uniques des résultats
+  const uniqueDepartments = useMemo(() => {
+    const depts = new Set(
+      searchResults
+        .map((c) => c.generalDepartment)
+        .filter((d) => d && d !== '')
+    );
+    return Array.from(depts).sort();
+  }, [searchResults]);
+
+  const uniqueCities = useMemo(() => {
+    const cities = new Set(
+      searchResults
+        .filter((c) => selectedDepartment === 'all' || c.generalDepartment === selectedDepartment)
+        .map((c) => c.city)
+        .filter((c) => c && c !== '')
+    );
+    return Array.from(cities).sort();
+  }, [searchResults, selectedDepartment]);
+
+  // Filtrer les résultats
+  const filteredResults = useMemo(() => {
+    return searchResults.filter((company) => {
+      const matchDept = selectedDepartment === 'all' || company.generalDepartment === selectedDepartment;
+      const matchCity = selectedCity === 'all' || company.city === selectedCity;
+      return matchDept && matchCity;
+    });
+  }, [searchResults, selectedDepartment, selectedCity]);
 
   const handleSearch = () => {
     if (!searchTerm.trim()) {
       setSearchResults([]);
+      setSelectedDepartment('all');
+      setSelectedCity('all');
       return;
     }
 
@@ -47,6 +81,8 @@ const SalonPage = () => {
 
     setSearchResults(results);
     setSelectedCompany(null);
+    setSelectedDepartment('all');
+    setSelectedCity('all');
     setOrders([]);
     setOrderDetails([]);
   };
@@ -143,12 +179,70 @@ const SalonPage = () => {
           <CardHeader>
             <CardTitle>Résultats de recherche</CardTitle>
             <CardDescription>
-              {searchResults.length} entreprise(s) trouvée(s)
+              {filteredResults.length} entreprise(s) sur {searchResults.length} résultat(s)
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {/* Filtres */}
+            {searchResults.length > 1 && (
+              <div className="mb-4 pb-4 border-b space-y-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Filter className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Filtrer les résultats</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <label className="text-sm text-muted-foreground">Département</label>
+                    <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+                      <SelectTrigger className="bg-background">
+                        <SelectValue placeholder="Tous les départements" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background z-50">
+                        <SelectItem value="all">Tous les départements</SelectItem>
+                        {uniqueDepartments.map((dept) => (
+                          <SelectItem key={dept} value={dept}>
+                            {dept}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm text-muted-foreground">Commune</label>
+                    <Select value={selectedCity} onValueChange={setSelectedCity}>
+                      <SelectTrigger className="bg-background">
+                        <SelectValue placeholder="Toutes les communes" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background z-50 max-h-60">
+                        <SelectItem value="all">Toutes les communes</SelectItem>
+                        {uniqueCities.map((city) => (
+                          <SelectItem key={city} value={city}>
+                            {city}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {(selectedDepartment !== 'all' || selectedCity !== 'all') && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedDepartment('all');
+                      setSelectedCity('all');
+                    }}
+                    className="mt-2"
+                  >
+                    <X className="w-3 h-3 mr-1" />
+                    Réinitialiser les filtres
+                  </Button>
+                )}
+              </div>
+            )}
+
             <div className="space-y-2">
-              {searchResults.map((company) => (
+              {filteredResults.map((company) => (
                 <Button
                   key={company.id}
                   variant="outline"

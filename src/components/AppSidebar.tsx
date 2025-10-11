@@ -24,6 +24,7 @@ import {
   Upload,
   MapPin,
   Users,
+  Store,
 } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 
@@ -35,6 +36,7 @@ const navigationItems = [
   { title: "Agenda Outlook", url: "/calendar", icon: Calendar },
   { title: "Reporting", url: "/reporting", icon: BarChart3 },
   { title: "Isochrone Client", url: "/isochrone", icon: MapPin },
+  { title: "Recherche Salon", url: "/salon", icon: Store },
   { title: "Notifications", url: "/notifications", icon: Bell },
 ];
 

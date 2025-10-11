@@ -137,6 +137,20 @@ export default function BilanFormateurPage() {
           new Date(b.training_date).getTime() - new Date(a.training_date).getTime()
         );
 
+        // Calculate total secured revenue (sum of all orders)
+        const totalSecuredRevenue = companiesWithOrders.reduce(
+          (sum, company) => sum + (company.total_amount || 0), 
+          0
+        );
+
+        // Update stats with calculated secured revenue
+        if (stats) {
+          setStats({
+            ...stats,
+            secured_revenue: totalSecuredRevenue
+          });
+        }
+
         // Filter only companies with orders
         setPaidCompanies(companiesWithOrders.filter(c => c.total_orders && c.total_orders > 0));
         setAllCompanies(companiesWithOrders);
@@ -237,7 +251,7 @@ export default function BilanFormateurPage() {
                   }).format(stats?.secured_revenue || 0)}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Moyenne des commandes après formation
+                  Total des commandes des entreprises formées
                 </p>
               </CardContent>
             </Card>

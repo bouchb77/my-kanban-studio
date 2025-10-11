@@ -23,6 +23,7 @@ import ImportReportingPage from "./pages/ImportReportingPage";
 import PublicReportingPage from "./pages/PublicReportingPage";
 import IsochronePage from "./pages/IsochronePage";
 import UserApprovalPage from "./pages/UserApprovalPage";
+import BilanFormateurPage from "./pages/BilanFormateurPage";
 import SalonPage from "./pages/SalonPage";
 
 const queryClient = new QueryClient();
@@ -162,6 +163,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <MainLayout><UserApprovalPage /></MainLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/bilan-formateur" 
+              element={
+                <ProtectedRoute>
+                  <MainLayout><BilanFormateurPage /></MainLayout>
                 </ProtectedRoute>
               } 
             />

@@ -740,6 +740,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_fo_sectors: {
+        Row: {
+          created_at: string
+          formateur: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          formateur: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          formateur?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_notifications: {
         Row: {
           created_at: string
@@ -882,6 +906,14 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_fo_training_stats: {
+        Args: { _user_id: string; _year: number }
+        Returns: {
+          paid_trainings: number
+          secured_revenue: number
+          total_trainings: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -915,7 +947,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "user"
+      app_role: "admin" | "bo" | "ct" | "fo"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1043,7 +1075,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user"],
+      app_role: ["admin", "bo", "ct", "fo"],
     },
   },
 } as const

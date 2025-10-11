@@ -25,6 +25,7 @@ import {
   MapPin,
   Users,
   Store,
+  GraduationCap,
 } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 
@@ -48,7 +49,7 @@ const settingsItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
-  const { isAdmin } = useUserRole();
+  const { isAdmin, role } = useUserRole();
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
 
@@ -137,6 +138,25 @@ export function AppSidebar() {
                     <NavLink to="/admin/users">
                       <Users className="w-4 h-4 flex-shrink-0" />
                       {!collapsed && <span>Validation Utilisateurs</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* Section Formateur - Visible uniquement pour les formateurs FO */}
+        {role === 'fo' && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Formation</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive("/bilan-formateur")}>
+                    <NavLink to="/bilan-formateur">
+                      <GraduationCap className="w-4 h-4 flex-shrink-0" />
+                      {!collapsed && <span>Bilan Formateur</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

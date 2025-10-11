@@ -1,6 +1,8 @@
 import { UserApprovalPanel } from '@/components/UserApprovalPanel';
+import { UserRoleManager } from '@/components/UserRoleManager';
 import { useUserRole } from '@/hooks/useUserRole';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Users, UserCheck, UserX, Clock } from 'lucide-react';
 import { usePendingUsers } from '@/hooks/usePendingUsers';
 import { useState, useEffect } from 'react';
@@ -97,8 +99,19 @@ const UserApprovalPage = () => {
         </Card>
       </div>
 
-      {/* User Approval Panel */}
-      <UserApprovalPanel />
+      {/* User Management Tabs */}
+      <Tabs defaultValue="approval" className="w-full">
+        <TabsList>
+          <TabsTrigger value="approval">Approbation</TabsTrigger>
+          <TabsTrigger value="roles">Rôles et Secteurs</TabsTrigger>
+        </TabsList>
+        <TabsContent value="approval">
+          <UserApprovalPanel />
+        </TabsContent>
+        <TabsContent value="roles">
+          <UserRoleManager />
+        </TabsContent>
+      </Tabs>
 
       {/* Instructions */}
       <Card>

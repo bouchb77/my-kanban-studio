@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
+import { encryptedCompaniesService } from '@/services/encryptedCompaniesService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -120,10 +121,18 @@ export default function BilanFormateurPage() {
           });
         }
 
-        // Transform training data to match component structure
+        // Get all decrypted companies
+        const allCompanies = await encryptedCompaniesService.getAllCompanies();
+        
+        // Create a map for quick lookup of decrypted company names
+        const companyMap = new Map(
+          allCompanies.map(c => [c.sipiNumber, c.companyName])
+        );
+
+        // Transform training data to match component structure with decrypted names
         const allCompaniesData: TrainingCompany[] = (trainingData || []).map(row => ({
           sipi_number: row.sipi_number,
-          company_name: row.company_name,
+          company_name: companyMap.get(row.sipi_number) || row.company_name,
           training_date: row.report_creation_date,
           total_orders: Number(row.paid_orders_count || 0),
           total_amount: Number(row.paid_orders_amount || 0),

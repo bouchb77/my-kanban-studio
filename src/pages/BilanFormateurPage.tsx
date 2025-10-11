@@ -241,12 +241,29 @@ export default function BilanFormateurPage() {
           (sum, company) => sum + (company.total_amount_all || 0), 
           0
         );
+        console.log('CA sécurisé calculation:', {
+          trainedCompaniesCount: trainedCompanies.length,
+          totalSecuredRevenue,
+          sample: trainedCompanies.slice(0, 3).map(c => ({
+            sipi: c.sipi_number,
+            total_amount_all: c.total_amount_all,
+            total_orders_all: c.total_orders_all
+          }))
+        });
 
         // Calculate secured revenue based on average order amount
         const trainedSipiNumbers = new Set(trainedCompanies.map(c => c.sipi_number));
         const totalSecuredRevenueAvg = companiesWithHistoricalOrders
           .filter(c => trainedSipiNumbers.has(c.sipi_number))
           .reduce((sum, company) => sum + (company.avg_order_amount || 0), 0);
+        console.log('CA sécurisé (montant moyen) calculation:', {
+          totalSecuredRevenueAvg,
+          historicalCompaniesCount: companiesWithHistoricalOrders.length,
+          sample: companiesWithHistoricalOrders.slice(0, 3).map(c => ({
+            sipi: c.sipi_number,
+            avg_order_amount: c.avg_order_amount
+          }))
+        });
 
         // Update stats with calculated secured revenue
         if (stats) {

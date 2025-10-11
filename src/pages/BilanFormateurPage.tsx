@@ -14,6 +14,7 @@ interface TrainingStats {
   paid_trainings: number;
   total_trainings: number;
   secured_revenue: number;
+  secured_revenue_avg: number;
 }
 
 interface TrainingCompany {
@@ -80,13 +81,15 @@ export default function BilanFormateurPage() {
           setStats({
             paid_trainings: Number(data[0].paid_trainings || 0),
             total_trainings: Number(data[0].total_trainings || 0),
-            secured_revenue: Number(data[0].secured_revenue || 0)
+            secured_revenue: Number(data[0].secured_revenue || 0),
+            secured_revenue_avg: 0
           });
         } else {
           setStats({
             paid_trainings: 0,
             total_trainings: 0,
-            secured_revenue: 0
+            secured_revenue: 0,
+            secured_revenue_avg: 0
           });
         }
 
@@ -172,6 +175,25 @@ export default function BilanFormateurPage() {
           })
         );
 
+        // Get ALL orders for companies (all years) for average calculation
+        const companiesWithHistoricalOrders = await Promise.all(
+          departmentCompanies.map(async (company) => {
+            const { data: allOrders } = await supabase
+              .from('orders')
+              .select('amount')
+              .eq('sipi_number', company.sipiNumber);
+
+            const totalAmount = allOrders?.reduce((sum, o) => sum + Number(o.amount), 0) || 0;
+            const orderCount = allOrders?.length || 0;
+            const avgAmount = orderCount > 0 ? totalAmount / orderCount : 0;
+            
+            return {
+              sipi_number: company.sipiNumber,
+              avg_order_amount: avgAmount
+            };
+          })
+        );
+
         // Formations payantes: companies with orders in the year (based on order_date)
         const paidTrainings = companiesWithOrdersData
           .filter(c => c.total_orders && c.total_orders > 0)
@@ -208,11 +230,18 @@ export default function BilanFormateurPage() {
           0
         );
 
+        // Calculate secured revenue based on average order amount
+        const trainedSipiNumbers = new Set(trainedCompanies.map(c => c.sipi_number));
+        const totalSecuredRevenueAvg = companiesWithHistoricalOrders
+          .filter(c => trainedSipiNumbers.has(c.sipi_number))
+          .reduce((sum, company) => sum + (company.avg_order_amount || 0), 0);
+
         // Update stats with calculated secured revenue
         if (stats) {
           setStats({
             ...stats,
-            secured_revenue: totalSecuredRevenue
+            secured_revenue: totalSecuredRevenue,
+            secured_revenue_avg: totalSecuredRevenueAvg
           });
         }
 
@@ -270,7 +299,7 @@ export default function BilanFormateurPage() {
         </div>
       ) : (
         <>
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
@@ -317,6 +346,26 @@ export default function BilanFormateurPage() {
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Total des commandes des entreprises formées
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  CA Sécurisé (Montant Moyen)
+                </CardTitle>
+                <DollarSign className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {new Intl.NumberFormat('fr-FR', {
+                    style: 'currency',
+                    currency: 'EUR'
+                  }).format(stats?.secured_revenue_avg || 0)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Somme des montants moyens par entreprise formée
                 </p>
               </CardContent>
             </Card>

@@ -202,9 +202,9 @@ export default function BilanFormateurPage() {
         const paidSipiNumbers = new Set(paidTrainings.map(c => c.sipi_number));
         const freeTrainings = trainedCompanies.filter(c => !paidSipiNumbers.has(c.sipi_number));
 
-        // Calculate total secured revenue (sum of all orders from paid trainings)
-        const totalSecuredRevenue = paidTrainings.reduce(
-          (sum, company) => sum + (company.total_amount || 0), 
+        // Calculate total secured revenue (sum of all orders from ALL trained companies)
+        const totalSecuredRevenue = trainedCompanies.reduce(
+          (sum, company) => sum + (company.total_amount_all || 0), 
           0
         );
 

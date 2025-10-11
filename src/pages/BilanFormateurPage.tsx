@@ -33,6 +33,7 @@ export default function BilanFormateurPage() {
   const [formateur, setFormateur] = useState<string | null>(null);
   const [paidCompanies, setPaidCompanies] = useState<TrainingCompany[]>([]);
   const [allCompanies, setAllCompanies] = useState<TrainingCompany[]>([]);
+  const [freeCompanies, setFreeCompanies] = useState<TrainingCompany[]>([]);
 
   // Generate list of years from 2020 to current year
   const years = Array.from(
@@ -98,22 +99,21 @@ export default function BilanFormateurPage() {
         if (departmentNames.length === 0) {
           setPaidCompanies([]);
           setAllCompanies([]);
+          setFreeCompanies([]);
           return;
         }
 
-        // Load all companies with training dates using encrypted service
+        // Load all companies using encrypted service
         const allEncryptedCompanies = await encryptedCompaniesService.getAllCompanies();
         
-        // Filter companies by departments and training date
-        const filteredCompanies = allEncryptedCompanies.filter(company => 
-          company.trainingDate &&
-          departmentNames.includes(company.generalDepartment || '') &&
-          company.trainingDate.getFullYear() === selectedYear
+        // Filter companies by departments
+        const departmentCompanies = allEncryptedCompanies.filter(company => 
+          departmentNames.includes(company.generalDepartment || '')
         );
 
-        // Get order details for each company
-        const companiesWithOrders = await Promise.all(
-          filteredCompanies.map(async (company) => {
+        // Get order details for all companies (based on order_date)
+        const companiesWithOrdersData = await Promise.all(
+          departmentCompanies.map(async (company) => {
             const { data: orders } = await supabase
               .from('orders')
               .select('amount, order_date')
@@ -125,20 +125,42 @@ export default function BilanFormateurPage() {
             return {
               sipi_number: company.sipiNumber,
               company_name: company.companyName,
-              training_date: company.trainingDate.toISOString().split('T')[0],
+              training_date: company.trainingDate?.toISOString().split('T')[0] || '',
               total_orders: orders?.length || 0,
               total_amount: totalAmount
             };
           })
         );
 
-        // Sort by training date descending
-        companiesWithOrders.sort((a, b) => 
-          new Date(b.training_date).getTime() - new Date(a.training_date).getTime()
-        );
+        // Formations payantes: companies with orders in the year (based on order_date)
+        const paidTrainings = companiesWithOrdersData
+          .filter(c => c.total_orders && c.total_orders > 0)
+          .sort((a, b) => new Date(b.training_date).getTime() - new Date(a.training_date).getTime());
 
-        // Calculate total secured revenue (sum of all orders)
-        const totalSecuredRevenue = companiesWithOrders.reduce(
+        // All companies with training dates in the year
+        const trainedCompanies = departmentCompanies
+          .filter(company => 
+            company.trainingDate &&
+            company.trainingDate.getFullYear() === selectedYear
+          )
+          .map(company => {
+            const orderData = companiesWithOrdersData.find(c => c.sipi_number === company.sipiNumber);
+            return {
+              sipi_number: company.sipiNumber,
+              company_name: company.companyName,
+              training_date: company.trainingDate.toISOString().split('T')[0],
+              total_orders: orderData?.total_orders || 0,
+              total_amount: orderData?.total_amount || 0
+            };
+          })
+          .sort((a, b) => new Date(b.training_date).getTime() - new Date(a.training_date).getTime());
+
+        // Formations gratuites: trained companies not in paid trainings
+        const paidSipiNumbers = new Set(paidTrainings.map(c => c.sipi_number));
+        const freeTrainings = trainedCompanies.filter(c => !paidSipiNumbers.has(c.sipi_number));
+
+        // Calculate total secured revenue (sum of all orders from paid trainings)
+        const totalSecuredRevenue = paidTrainings.reduce(
           (sum, company) => sum + (company.total_amount || 0), 
           0
         );
@@ -151,9 +173,9 @@ export default function BilanFormateurPage() {
           });
         }
 
-        // Filter only companies with orders
-        setPaidCompanies(companiesWithOrders.filter(c => c.total_orders && c.total_orders > 0));
-        setAllCompanies(companiesWithOrders);
+        setPaidCompanies(paidTrainings);
+        setAllCompanies(trainedCompanies);
+        setFreeCompanies(freeTrainings);
       } catch (error) {
         console.error('Error loading training data:', error);
       } finally {
@@ -216,7 +238,7 @@ export default function BilanFormateurPage() {
               <CardContent>
                 <div className="text-2xl font-bold">{paidCompanies.length}</div>
                 <p className="text-xs text-muted-foreground">
-                  Formations avec commandes (date rapport SIPI)
+                  Basé sur date commande SIPI
                 </p>
               </CardContent>
             </Card>
@@ -224,14 +246,14 @@ export default function BilanFormateurPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  Total Formations
+                  Formations Payantes ou Gratuites
                 </CardTitle>
                 <BarChart3 className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{allCompanies.length}</div>
+                <div className="text-2xl font-bold">{freeCompanies.length}</div>
                 <p className="text-xs text-muted-foreground">
-                  Toutes formations (date rapport SIPI)
+                  Basé sur date formation (rapport SIPI), hors formations payantes
                 </p>
               </CardContent>
             </Card>
@@ -260,6 +282,7 @@ export default function BilanFormateurPage() {
           <Tabs defaultValue="paid" className="space-y-4">
             <TabsList>
               <TabsTrigger value="paid">Formations Payantes ({paidCompanies.length})</TabsTrigger>
+              <TabsTrigger value="free">Formations Payantes ou Gratuites ({freeCompanies.length})</TabsTrigger>
               <TabsTrigger value="all">Toutes les Formations ({allCompanies.length})</TabsTrigger>
             </TabsList>
 
@@ -293,6 +316,53 @@ export default function BilanFormateurPage() {
                               {new Date(company.training_date).toLocaleDateString('fr-FR')}
                             </TableCell>
                             <TableCell className="text-right">{company.total_orders}</TableCell>
+                            <TableCell className="text-right">
+                              {new Intl.NumberFormat('fr-FR', {
+                                style: 'currency',
+                                currency: 'EUR'
+                              }).format(company.total_amount || 0)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="free" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Entreprises Formées (Payantes ou Gratuites)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {freeCompanies.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">
+                      Aucune entreprise formée sans commande en {selectedYear}
+                    </p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>SIPI</TableHead>
+                          <TableHead>Entreprise</TableHead>
+                          <TableHead>Date Formation</TableHead>
+                          <TableHead className="text-right">Nb Commandes</TableHead>
+                          <TableHead className="text-right">CA Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {freeCompanies.map((company) => (
+                          <TableRow key={company.sipi_number}>
+                            <TableCell className="font-mono">{company.sipi_number}</TableCell>
+                            <TableCell>{company.company_name}</TableCell>
+                            <TableCell>
+                              {new Date(company.training_date).toLocaleDateString('fr-FR')}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {company.total_orders || 0}
+                            </TableCell>
                             <TableCell className="text-right">
                               {new Intl.NumberFormat('fr-FR', {
                                 style: 'currency',

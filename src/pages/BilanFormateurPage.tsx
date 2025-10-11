@@ -22,6 +22,8 @@ interface TrainingCompany {
   training_date: string;
   total_orders?: number;
   total_amount?: number;
+  total_orders_all?: number;
+  total_amount_all?: number;
 }
 
 export default function BilanFormateurPage() {
@@ -151,6 +153,25 @@ export default function BilanFormateurPage() {
           })
         );
 
+        // Get ALL orders for companies (for free training stats)
+        const companiesWithAllOrdersData = await Promise.all(
+          departmentCompanies.map(async (company) => {
+            const { data: orders } = await supabase
+              .from('orders')
+              .select('amount, order_date')
+              .eq('sipi_number', company.sipiNumber)
+              .gte('order_date', `${selectedYear}-01-01`)
+              .lte('order_date', `${selectedYear}-12-31`);
+
+            const totalAmount = orders?.reduce((sum, o) => sum + Number(o.amount), 0) || 0;
+            return {
+              sipi_number: company.sipiNumber,
+              total_orders_all: orders?.length || 0,
+              total_amount_all: totalAmount
+            };
+          })
+        );
+
         // Formations payantes: companies with orders in the year (based on order_date)
         const paidTrainings = companiesWithOrdersData
           .filter(c => c.total_orders && c.total_orders > 0)
@@ -164,12 +185,15 @@ export default function BilanFormateurPage() {
           )
           .map(company => {
             const orderData = companiesWithOrdersData.find(c => c.sipi_number === company.sipiNumber);
+            const allOrderData = companiesWithAllOrdersData.find(c => c.sipi_number === company.sipiNumber);
             return {
               sipi_number: company.sipiNumber,
               company_name: company.companyName,
               training_date: company.reportCreationDate.toISOString().split('T')[0],
               total_orders: orderData?.total_orders || 0,
-              total_amount: orderData?.total_amount || 0
+              total_amount: orderData?.total_amount || 0,
+              total_orders_all: allOrderData?.total_orders_all || 0,
+              total_amount_all: allOrderData?.total_amount_all || 0
             };
           })
           .sort((a, b) => new Date(b.training_date).getTime() - new Date(a.training_date).getTime());
@@ -380,13 +404,13 @@ export default function BilanFormateurPage() {
                               {new Date(company.training_date).toLocaleDateString('fr-FR')}
                             </TableCell>
                             <TableCell className="text-right">
-                              {company.total_orders || 0}
+                              {company.total_orders_all || 0}
                             </TableCell>
                             <TableCell className="text-right">
                               {new Intl.NumberFormat('fr-FR', {
                                 style: 'currency',
                                 currency: 'EUR'
-                              }).format(company.total_amount || 0)}
+                              }).format(company.total_amount_all || 0)}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -427,13 +451,13 @@ export default function BilanFormateurPage() {
                               {new Date(company.training_date).toLocaleDateString('fr-FR')}
                             </TableCell>
                             <TableCell className="text-right">
-                              {company.total_orders || 0}
+                              {company.total_orders_all || 0}
                             </TableCell>
                             <TableCell className="text-right">
                               {new Intl.NumberFormat('fr-FR', {
                                 style: 'currency',
                                 currency: 'EUR'
-                              }).format(company.total_amount || 0)}
+                              }).format(company.total_amount_all || 0)}
                             </TableCell>
                           </TableRow>
                         ))}

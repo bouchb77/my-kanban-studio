@@ -62,10 +62,14 @@ export default function BilanFormateurPage() {
 
   useEffect(() => {
     const loadStats = async () => {
-      if (!user || !selectedYear || !formateur) return;
+      if (!user || !selectedYear || !formateur) {
+        console.log('Missing required data:', { user: !!user, selectedYear, formateur });
+        return;
+      }
 
       setLoading(true);
       try {
+        console.log('Loading stats for:', { formateur, selectedYear });
         // Load aggregate stats
         const { data, error } = await supabase.rpc('get_fo_training_stats', {
           _user_id: user.id,
@@ -100,8 +104,10 @@ export default function BilanFormateurPage() {
           .eq('formateur', formateur);
 
         const departmentNames = depts?.map(d => d.department_name) || [];
+        console.log('Departments for formateur:', { formateur, count: departmentNames.length, departments: departmentNames });
 
         if (departmentNames.length === 0) {
+          console.log('No departments found for formateur');
           setPaidCompanies([]);
           setAllCompanies([]);
           setFreeCompanies([]);
@@ -109,12 +115,15 @@ export default function BilanFormateurPage() {
         }
 
         // Load all companies using encrypted service
+        console.log('Loading all companies...');
         const allEncryptedCompanies = await encryptedCompaniesService.getAllCompanies();
+        console.log('Total companies loaded:', allEncryptedCompanies.length);
         
         // Filter companies by departments
         const departmentCompanies = allEncryptedCompanies.filter(company => 
           departmentNames.includes(company.generalDepartment || '')
         );
+        console.log('Companies in formateur departments:', departmentCompanies.length);
 
         // Get order details for all companies (based on order_date and FSITE/FSITEJ articles)
         const companiesWithOrdersData = await Promise.all(
@@ -196,10 +205,11 @@ export default function BilanFormateurPage() {
 
         // All companies with report_creation_date in the year
         const trainedCompanies = departmentCompanies
-          .filter(company => 
-            company.reportCreationDate &&
-            company.reportCreationDate.getFullYear() === selectedYear
-          )
+          .filter(company => {
+            const hasDate = company.reportCreationDate && 
+                           company.reportCreationDate.getFullYear() === selectedYear;
+            return hasDate;
+          })
           .map(company => {
             const orderData = companiesWithOrdersData.find(c => c.sipi_number === company.sipiNumber);
             const allOrderData = companiesWithAllOrdersData.find(c => c.sipi_number === company.sipiNumber);
@@ -214,6 +224,8 @@ export default function BilanFormateurPage() {
             };
           })
           .sort((a, b) => new Date(b.training_date).getTime() - new Date(a.training_date).getTime());
+        
+        console.log('Trained companies in year:', trainedCompanies.length);
 
         // Formations payantes: trained companies with orders with FSITE/FSITEJ in the year
         const paidTrainings = trainedCompanies

@@ -51,7 +51,7 @@ serve(async (req) => {
     - Les tags doivent être pertinents et en français
     - Choisis la catégorie la plus appropriée parmi celles disponibles`;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

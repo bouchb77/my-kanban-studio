@@ -30,6 +30,7 @@ interface Company {
   training_date?: string;
   report_creation_date?: string;
   last_order_date?: string;
+  last_training_order_date?: string; // Dernière commande FSITE/FSITEJ
   quality?: string;
   orderStats?: CompanyOrderStats[];
   averageOrderPerYear?: number;
@@ -191,7 +192,7 @@ const CompaniesTableOnly = ({
         while (hasMore) {
           const { data: ordersData, error: ordersError } = await supabase
             .from('orders')
-            .select('sipi_number, amount, order_date')
+            .select('order_number, sipi_number, amount, order_date')
             .range(from, from + batchSize - 1);
 
           if (ordersError) {
@@ -210,6 +211,33 @@ const CompaniesTableOnly = ({
         }
 
         setAllOrders(loadedOrders);
+
+        // Load order details to find FSITE/FSITEJ orders
+        const { data: orderDetailsData, error: orderDetailsError } = await supabase
+          .from('order_details')
+          .select('order_number, article_code')
+          .in('article_code', ['FSITE', 'FSITEJ']);
+
+        if (orderDetailsError) {
+          console.error('Error loading order details:', orderDetailsError);
+        }
+
+        // Create a map of order_number to training articles
+        const trainingOrderNumbers = new Set(
+          orderDetailsData?.map(d => d.order_number) || []
+        );
+
+        // Find last training order date for each company
+        const lastTrainingOrderByCompany = new Map<string, string>();
+        
+        loadedOrders.forEach(order => {
+          if (trainingOrderNumbers.has(order.order_number)) {
+            const currentLast = lastTrainingOrderByCompany.get(order.sipi_number);
+            if (!currentLast || new Date(order.order_date) > new Date(currentLast)) {
+              lastTrainingOrderByCompany.set(order.sipi_number, order.order_date);
+            }
+          }
+        });
 
         // Group orders by SIPI number and year (for display)
         const ordersByCompany = new Map<string, Map<number, { totalOrders: number; totalAmount: number }>>();
@@ -254,10 +282,14 @@ const CompaniesTableOnly = ({
           const totalOrders = orderStats.reduce((sum, stat) => sum + stat.totalOrders, 0);
           const averageOrderPerYear = orderStats.length > 0 ? totalOrders / orderStats.length : 0;
 
+          // Get last training order date for this company
+          const lastTrainingOrderDate = lastTrainingOrderByCompany.get(company.sipi_number);
+
           return {
             ...company,
             orderStats,
-            averageOrderPerYear
+            averageOrderPerYear,
+            last_training_order_date: lastTrainingOrderDate
           };
         });
 
@@ -355,7 +387,7 @@ const CompaniesTableOnly = ({
 
       // Formation filter
       if (formationFilter) {
-        const formationStatus = company.training_date 
+        const formationStatus = company.last_training_order_date 
           ? 'Structure Formée (Uniquement payant)' 
           : company.report_creation_date 
           ? 'Structure Formée* (Payant comme gratuit)' 
@@ -533,12 +565,12 @@ const CompaniesTableOnly = ({
           bValue = b.quality === 'Industrie' ? 'Client' : b.quality === 'Distributeur' ? 'Revendeur' : b.quality || '';
           break;
         case 'formation':
-          aValue = a.training_date ? 2 : a.report_creation_date ? 1 : 0;
-          bValue = b.training_date ? 2 : b.report_creation_date ? 1 : 0;
+          aValue = a.last_training_order_date ? 2 : a.report_creation_date ? 1 : 0;
+          bValue = b.last_training_order_date ? 2 : b.report_creation_date ? 1 : 0;
           break;
-        case 'training_date':
-          aValue = a.training_date ? new Date(a.training_date).getTime() : 0;
-          bValue = b.training_date ? new Date(b.training_date).getTime() : 0;
+        case 'last_training_order_date':
+          aValue = a.last_training_order_date ? new Date(a.last_training_order_date).getTime() : 0;
+          bValue = b.last_training_order_date ? new Date(b.last_training_order_date).getTime() : 0;
           break;
         case 'report_creation_date':
           aValue = a.report_creation_date ? new Date(a.report_creation_date).getTime() : 0;
@@ -576,7 +608,7 @@ const CompaniesTableOnly = ({
       { id: 'general_department', label: 'Département', type: 'system' as const, order: 3 },
       { id: 'quality', label: 'Type', type: 'system' as const, order: 4 },
       { id: 'formation', label: 'Formation', type: 'system' as const, order: 5 },
-      { id: 'training_date', label: 'Formation (Date de cmd SIPI)', type: 'system' as const, order: 6 },
+      { id: 'last_training_order_date', label: 'Formation (Date cmd SIPI)', type: 'system' as const, order: 6 },
       { id: 'report_creation_date', label: 'Date approx Formation (Rapport SIPI)', type: 'system' as const, order: 7 },
       { id: 'averageAmountPerYear', label: 'Moyenne/An', type: 'system' as const, order: 8 },
     ];
@@ -1204,7 +1236,7 @@ const CompaniesTableOnly = ({
                       className={cn(
                         'bg-background',
                         column.id === 'sipi_number' && 'w-[120px]',
-                        ['quality', 'formation', 'training_date', 'report_creation_date', 'averageAmountPerYear'].includes(column.id) && 'text-center'
+                        ['quality', 'formation', 'last_training_order_date', 'report_creation_date', 'averageAmountPerYear'].includes(column.id) && 'text-center'
                       )}
                     >
                       <Button
@@ -1270,17 +1302,17 @@ const CompaniesTableOnly = ({
                     case 'formation':
                       return (
                         <TableCell key={columnId} className="text-center text-sm">
-                          {company.training_date 
+                          {company.last_training_order_date 
                             ? 'Formée (payant)' 
                             : company.report_creation_date 
                             ? 'Formée* (P+G)' 
                             : 'Non formée'}
                         </TableCell>
                       );
-                    case 'training_date':
+                    case 'last_training_order_date':
                       return (
                         <TableCell key={columnId} className="text-center text-sm">
-                          {company.training_date ? format(new Date(company.training_date), 'dd/MM/yyyy') : '-'}
+                          {company.last_training_order_date ? format(new Date(company.last_training_order_date), 'dd/MM/yyyy') : '-'}
                         </TableCell>
                       );
                     case 'report_creation_date':

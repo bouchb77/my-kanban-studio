@@ -646,12 +646,17 @@ const CompaniesTableOnly = ({
     setLocalColumnOrder(order);
   }, [preferences?.visible_columns, preferences?.column_order, allColumns.length, preferencesLoading]);
 
-  // Get visible columns - use local state for immediate UI updates
+  // Get visible columns - always include year columns
   const visibleColumns = useMemo(() => {
+    const yearColumns = allColumns.filter(col => col.id.startsWith('year_')).map(col => col.id);
+    
     if (localVisibleColumns.length === 0) {
       return allColumns.map(col => col.id);
     }
-    return localVisibleColumns;
+    
+    // Merge non-year visible columns with all year columns
+    const nonYearVisible = localVisibleColumns.filter(id => !id.startsWith('year_'));
+    return [...nonYearVisible, ...yearColumns];
   }, [localVisibleColumns, allColumns]);
 
   // Get column order based on local state

@@ -1,7 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,8 +21,8 @@ serve(async (req) => {
       throw new Error('Prompt is required');
     }
 
-    if (!geminiApiKey) {
-      throw new Error('Gemini API key not configured');
+    if (!lovableApiKey) {
+      throw new Error('Lovable API key not configured');
     }
 
     const categoryList = userCategories.length > 0 
@@ -34,7 +34,7 @@ serve(async (req) => {
 
     Catégories disponibles: ${categoryList}
 
-    Tu dois répondre UNIQUEMENT avec un objet JSON valide contenant:
+    Tu dois répondre UNIQUEMENT avec un objet JSON valide (sans bloc markdown) contenant:
     {
       "title": "Titre concis et clair de la tâche (max 60 caractères)",
       "description": "Description détaillée expliquant les étapes et objectifs",
@@ -49,48 +49,70 @@ serve(async (req) => {
     - La description doit être détaillée et utile
     - La priorité doit être basée sur l'urgence et l'importance
     - Les tags doivent être pertinents et en français
-    - Choisis la catégorie la plus appropriée parmi celles disponibles`;
+    - Choisis la catégorie la plus appropriée parmi celles disponibles
+    - Réponds UNIQUEMENT avec le JSON, sans texte avant ou après`;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${geminiApiKey}`, {
+    console.log('Calling Lovable AI Gateway with prompt:', prompt);
+
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
+        'Authorization': `Bearer ${lovableApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: `${systemPrompt}\n\nUtilisateur: ${prompt}`
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 1000,
-        }
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 1000,
       }),
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Gemini API error:', errorData);
-      throw new Error(`Gemini API error: ${errorData.error?.message || 'Unknown error'}`);
+      const errorText = await response.text();
+      console.error('Lovable AI Gateway error:', response.status, errorText);
+      
+      if (response.status === 429) {
+        throw new Error('Limite de requêtes atteinte. Veuillez réessayer dans quelques instants.');
+      }
+      if (response.status === 402) {
+        throw new Error('Crédits épuisés. Veuillez ajouter des crédits à votre workspace Lovable.');
+      }
+      
+      throw new Error(`Lovable AI Gateway error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
-    const generatedContent = data.candidates[0].content.parts[0].text;
+    const generatedContent = data.choices?.[0]?.message?.content;
+
+    if (!generatedContent) {
+      console.error('No content in response:', JSON.stringify(data));
+      throw new Error('No content generated from AI');
+    }
 
     console.log('Generated content:', generatedContent);
 
-    // Parse the JSON response
+    // Parse the JSON response (remove markdown code blocks if present)
     let taskData;
     try {
-      taskData = JSON.parse(generatedContent);
+      const cleanedContent = generatedContent
+        .replace(/```json\n?/g, '')
+        .replace(/```\n?/g, '')
+        .trim();
+      
+      taskData = JSON.parse(cleanedContent);
     } catch (parseError) {
       console.error('Failed to parse AI response:', generatedContent);
+      console.error('Parse error:', parseError);
       throw new Error('Invalid response format from AI');
     }
 
     // Validate required fields
     if (!taskData.title || !taskData.description) {
+      console.error('Missing required fields in task data:', taskData);
       throw new Error('AI response missing required fields');
     }
 

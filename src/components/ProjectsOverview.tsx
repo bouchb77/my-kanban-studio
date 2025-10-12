@@ -168,6 +168,9 @@ export const ProjectsOverview: React.FC = () => {
     );
   }
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   return (
     <Card className="shadow-card border-0">
       <CardHeader>
@@ -223,17 +226,29 @@ export const ProjectsOverview: React.FC = () => {
                       {project.currentTasks.length === 0 ? (
                         <p className="text-xs text-muted-foreground">Aucune tâche en cours</p>
                       ) : (
-                        project.currentTasks.map((task) => (
-                          <div key={task.id} className="text-xs p-2 bg-orange-50 dark:bg-orange-900/20 rounded border border-orange-200 dark:border-orange-800">
-                            <div className="font-medium truncate">{task.title}</div>
-                            <div className="text-muted-foreground flex items-center justify-between">
-                              <span>Priorité: {task.priority === 'high' ? '🔴' : task.priority === 'medium' ? '🟡' : '🔵'}</span>
-                              <span className="text-xs">
-                                Période active
-                              </span>
+                        project.currentTasks.map((task) => {
+                          const endDate = task.end_date ? new Date(task.end_date) : null;
+                          const isOverdue = endDate ? endDate < today : false;
+                          
+                          return (
+                            <div 
+                              key={task.id} 
+                              className={`text-xs p-2 rounded border ${
+                                isOverdue 
+                                  ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' 
+                                  : 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800'
+                              }`}
+                            >
+                              <div className="font-medium truncate">{task.title}</div>
+                              <div className="text-muted-foreground flex items-center justify-between">
+                                <span>Priorité: {task.priority === 'high' ? '🔴' : task.priority === 'medium' ? '🟡' : '🔵'}</span>
+                                <span className={`text-xs font-semibold ${isOverdue ? 'text-red-600 dark:text-red-400' : ''}`}>
+                                  {isOverdue ? '⚠️ En retard' : 'Période active'}
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                        ))
+                          );
+                        })
                       )}
                     </div>
                   </div>

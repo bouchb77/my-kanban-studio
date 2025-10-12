@@ -123,6 +123,10 @@ const CompaniesTableOnly = ({
   
   // Column manager state
   const [columnManagerOpen, setColumnManagerOpen] = useState(false);
+  
+  // Local state for immediate UI updates in column manager
+  const [localVisibleColumns, setLocalVisibleColumns] = useState<string[]>([]);
+  const [localColumnOrder, setLocalColumnOrder] = useState<string[]>([]);
 
   // Load companies with filters
   useEffect(() => {
@@ -625,40 +629,39 @@ const CompaniesTableOnly = ({
     return columns;
   }, [startDate, endDate, availableYears]);
 
-  // Get visible columns based on preferences
+  // Initialize local state from preferences
+  useEffect(() => {
+    if (!preferences || preferencesLoading) return;
+    
+    const defaultVisible = allColumns.map(col => col.id);
+    const visible = preferences.visible_columns?.length > 0
+      ? preferences.visible_columns.filter(id => allColumns.some(col => col.id === id))
+      : defaultVisible;
+    
+    const order = preferences.column_order?.length > 0
+      ? preferences.column_order.filter(id => allColumns.some(col => col.id === id))
+      : allColumns.map(col => col.id);
+    
+    setLocalVisibleColumns(visible);
+    setLocalColumnOrder(order);
+  }, [preferences?.visible_columns, preferences?.column_order, allColumns.length, preferencesLoading]);
+
+  // Get visible columns - use local state for immediate UI updates
   const visibleColumns = useMemo(() => {
-    if (!preferences?.visible_columns || preferences.visible_columns.length === 0) {
-      // No preferences set, show all columns by default
+    if (localVisibleColumns.length === 0) {
       return allColumns.map(col => col.id);
     }
-    
-    // Get user's saved visible columns
-    let savedVisibleColumns = preferences.visible_columns.filter(id => 
-      !id.startsWith('year_') && allColumns.some(col => col.id === id)
-    );
-    
-    // Add any columns from allColumns that aren't in preferences yet (newly added columns)
-    const allNonYearColumns = allColumns.filter(col => !col.id.startsWith('year_')).map(col => col.id);
-    const missingColumns = allNonYearColumns.filter(col => !preferences.visible_columns.includes(col));
-    
-    // Force last_training_order_date to be visible if it was missing
-    if (missingColumns.includes('last_training_order_date') || !savedVisibleColumns.includes('last_training_order_date')) {
-      savedVisibleColumns = [...savedVisibleColumns.filter(id => id !== 'last_training_order_date'), 'last_training_order_date'];
-    }
-    
-    // Combine saved columns with missing ones, then add year columns
-    const yearColumns = allColumns.filter(col => col.id.startsWith('year_')).map(col => col.id);
-    return [...savedVisibleColumns, ...missingColumns.filter(col => col !== 'last_training_order_date'), ...yearColumns];
-  }, [preferences, allColumns]);
+    return localVisibleColumns;
+  }, [localVisibleColumns, allColumns]);
 
-  // Get column order based on preferences
+  // Get column order based on local state
   const orderedColumns = useMemo(() => {
-    if (!preferences?.column_order || preferences.column_order.length === 0) {
+    if (localColumnOrder.length === 0) {
       return allColumns.filter(col => visibleColumns.includes(col.id));
     }
     
     const ordered: typeof allColumns = [];
-    preferences.column_order.forEach(id => {
+    localColumnOrder.forEach(id => {
       if (visibleColumns.includes(id) && !id.startsWith('year_')) {
         const col = allColumns.find(col => col.id === id);
         if (col) ordered.push(col);
@@ -668,17 +671,16 @@ const CompaniesTableOnly = ({
     // Add year columns at the end
     const yearCols = allColumns.filter(col => col.id.startsWith('year_') && visibleColumns.includes(col.id));
     return [...ordered, ...yearCols];
-  }, [preferences, allColumns, visibleColumns]);
+  }, [localColumnOrder, allColumns, visibleColumns]);
 
-  // Get visible column objects for DragDropList - include ALL visible non-year columns
+  // Get visible column objects for DragDropList - use local order
   const visibleColumnObjects = useMemo(() => {
     const nonYearColumns = allColumns.filter(col => !col.id.startsWith('year_'));
     const visibleNonYear = nonYearColumns.filter(col => visibleColumns.includes(col.id));
     
-    // Order them according to orderedColumns if available
-    if (preferences?.column_order && preferences.column_order.length > 0) {
+    if (localColumnOrder.length > 0) {
       const ordered: typeof allColumns = [];
-      preferences.column_order.forEach(id => {
+      localColumnOrder.forEach(id => {
         const col = visibleNonYear.find(c => c.id === id);
         if (col) ordered.push(col);
       });
@@ -692,15 +694,44 @@ const CompaniesTableOnly = ({
     }
     
     return visibleNonYear;
-  }, [allColumns, visibleColumns, preferences]);
+  }, [allColumns, visibleColumns, localColumnOrder]);
 
   const handleToggleColumn = async (columnId: string) => {
-    await toggleColumnVisibility(columnId);
+    // Update local state immediately for responsive UI
+    const newVisible = localVisibleColumns.includes(columnId)
+      ? localVisibleColumns.filter(id => id !== columnId)
+      : [...localVisibleColumns, columnId];
+    
+    setLocalVisibleColumns(newVisible);
+    
+    // Save to preferences in background
+    try {
+      await toggleColumnVisibility(columnId);
+    } catch (error) {
+      console.error('Error toggling column:', error);
+      // Revert on error
+      setLocalVisibleColumns(localVisibleColumns);
+    }
   };
 
   const handleReorderColumns = async (reorderedItems: typeof allColumns) => {
-    const newOrder = reorderedItems.map(item => item.id);
-    await reorderColumns(newOrder);
+    const newVisibleOrder = reorderedItems.map(item => item.id);
+    
+    // Keep non-visible columns in their original order
+    const nonVisible = localColumnOrder.filter(id => !localVisibleColumns.includes(id));
+    const finalOrder = [...newVisibleOrder, ...nonVisible];
+    
+    // Update local state immediately for responsive UI
+    setLocalColumnOrder(finalOrder);
+    
+    // Save to preferences in background
+    try {
+      await reorderColumns(finalOrder);
+    } catch (error) {
+      console.error('Error reordering columns:', error);
+      // Revert on error
+      setLocalColumnOrder(localColumnOrder);
+    }
   };
 
   // Early returns after all hooks are called

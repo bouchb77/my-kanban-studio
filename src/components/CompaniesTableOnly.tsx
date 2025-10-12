@@ -633,7 +633,7 @@ const CompaniesTableOnly = ({
     }
     
     // Get user's saved visible columns
-    const savedVisibleColumns = preferences.visible_columns.filter(id => 
+    let savedVisibleColumns = preferences.visible_columns.filter(id => 
       !id.startsWith('year_') && allColumns.some(col => col.id === id)
     );
     
@@ -641,9 +641,14 @@ const CompaniesTableOnly = ({
     const allNonYearColumns = allColumns.filter(col => !col.id.startsWith('year_')).map(col => col.id);
     const missingColumns = allNonYearColumns.filter(col => !preferences.visible_columns.includes(col));
     
+    // Force last_training_order_date to be visible if it was missing
+    if (missingColumns.includes('last_training_order_date') || !savedVisibleColumns.includes('last_training_order_date')) {
+      savedVisibleColumns = [...savedVisibleColumns.filter(id => id !== 'last_training_order_date'), 'last_training_order_date'];
+    }
+    
     // Combine saved columns with missing ones, then add year columns
     const yearColumns = allColumns.filter(col => col.id.startsWith('year_')).map(col => col.id);
-    return [...savedVisibleColumns, ...missingColumns, ...yearColumns];
+    return [...savedVisibleColumns, ...missingColumns.filter(col => col !== 'last_training_order_date'), ...yearColumns];
   }, [preferences, allColumns]);
 
   // Get column order based on preferences

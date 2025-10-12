@@ -87,16 +87,15 @@ export const ProjectsOverview: React.FC = () => {
               })
               .filter(task => task.userStatus !== 'done'); // Exclure les tâches terminées par l'utilisateur
 
-            // Tâches en cours = tâches où aujourd'hui est entre start_date et end_date
+            // Tâches en cours = tâches commencées (même si deadline passée) tant qu'elles ne sont pas terminées
             const currentTasks = userTasks.filter(task => {
-              if (!task.start_date || !task.end_date) return false;
+              if (!task.start_date) return false;
               
               const startDate = new Date(task.start_date);
-              const endDate = new Date(task.end_date);
               startDate.setHours(0, 0, 0, 0);
-              endDate.setHours(23, 59, 59, 999);
               
-              return today >= startDate && today <= endDate;
+              // Inclure les tâches qui ont commencé (même si la deadline est passée)
+              return today >= startDate;
             });
 
             // Prochaine tâche = tâche à venir (start_date > aujourd'hui) avec le status todo

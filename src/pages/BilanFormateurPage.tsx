@@ -37,6 +37,8 @@ export default function BilanFormateurPage() {
   const [paidCompanies, setPaidCompanies] = useState<TrainingCompany[]>([]);
   const [allCompanies, setAllCompanies] = useState<TrainingCompany[]>([]);
   const [freeCompanies, setFreeCompanies] = useState<TrainingCompany[]>([]);
+  const [totalFsiteOrders, setTotalFsiteOrders] = useState<number>(0);
+  const [totalFsiteAmount, setTotalFsiteAmount] = useState<number>(0);
 
   // Generate list of years from 2020 to current year
   const years = Array.from(
@@ -151,10 +153,18 @@ export default function BilanFormateurPage() {
         setAllCompanies(allCompaniesData);
         setFreeCompanies(freeTrainings);
 
+        // Calculate total FSITE and FSITEJ orders
+        const totalOrders = paidTrainings.reduce((sum, company) => sum + (company.total_orders || 0), 0);
+        const totalAmount = paidTrainings.reduce((sum, company) => sum + (company.total_amount || 0), 0);
+        setTotalFsiteOrders(totalOrders);
+        setTotalFsiteAmount(totalAmount);
+
         console.log('Stats set:', {
           paid: paidTrainings.length,
           free: freeTrainings.length,
-          total: allCompaniesData.length
+          total: allCompaniesData.length,
+          totalFsiteOrders: totalOrders,
+          totalFsiteAmount: totalAmount
         });
 
       } catch (error) {
@@ -275,6 +285,43 @@ export default function BilanFormateurPage() {
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Somme des montants moyens par entreprise formée
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Total Commandes FSITE + FSITEJ
+                </CardTitle>
+                <GraduationCap className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{totalFsiteOrders}</div>
+                <p className="text-xs text-muted-foreground">
+                  Nombre total de commandes formations sur l'année
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Montant Total FSITE + FSITEJ
+                </CardTitle>
+                <DollarSign className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {new Intl.NumberFormat('fr-FR', {
+                    style: 'currency',
+                    currency: 'EUR'
+                  }).format(totalFsiteAmount)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Chiffre d'affaires total des formations sur l'année
                 </p>
               </CardContent>
             </Card>

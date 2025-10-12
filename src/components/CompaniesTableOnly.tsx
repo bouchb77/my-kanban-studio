@@ -1232,8 +1232,8 @@ const CompaniesTableOnly = ({
       <div className="border rounded-lg overflow-hidden">
         <div className="max-h-[600px] overflow-auto">
           <Table>
-            <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
-              <TableRow>
+            <TableHeader className="sticky top-0 bg-background z-10 shadow-sm border-b">
+              <TableRow className="hover:bg-background">
                 {orderedColumns.map((column) => {
                   if (!column) return null;
                   
@@ -1244,56 +1244,62 @@ const CompaniesTableOnly = ({
                     return <ArrowUpDown className="ml-2 h-4 w-4" />;
                   };
 
-                  // Year columns - not sortable
-                  if (column.id.startsWith('year_')) {
-                    return (
-                      <TableHead key={column.id} className="text-center min-w-[100px] bg-background">
-                        {column.label}
-                      </TableHead>
-                    );
-                  }
+                   // Year columns - not sortable
+                   if (column.id.startsWith('year_')) {
+                     return (
+                       <TableHead key={column.id} className="text-center min-w-[100px] bg-background sticky top-0">
+                         <div className="max-w-[100px] break-words">
+                           {column.label}
+                         </div>
+                       </TableHead>
+                     );
+                   }
 
-                  // Period column - special styling
-                  if (column.id === 'periodAmount') {
-                    return (
-                      <TableHead key={column.id} className="text-center min-w-[120px] bg-primary/5">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 p-0 font-semibold"
-                          onClick={() => handleSort(column.id)}
-                        >
-                          {column.label}
-                          {getSortIcon(column.id)}
-                        </Button>
-                      </TableHead>
-                    );
-                  }
+                   // Period column - special styling
+                   if (column.id === 'periodAmount') {
+                     return (
+                       <TableHead key={column.id} className="text-center min-w-[120px] bg-primary/5 sticky top-0">
+                         <Button
+                           variant="ghost"
+                           size="sm"
+                           className="h-auto min-h-8 p-1 font-semibold whitespace-normal"
+                           onClick={() => handleSort(column.id)}
+                         >
+                           <div className="flex items-center justify-center flex-wrap">
+                             <span className="break-words max-w-[100px]">{column.label}</span>
+                             {getSortIcon(column.id)}
+                           </div>
+                         </Button>
+                       </TableHead>
+                     );
+                   }
 
-                  // Regular columns
-                  return (
-                    <TableHead 
-                      key={column.id} 
-                      className={cn(
-                        'bg-background',
-                        column.id === 'sipi_number' && 'w-[120px]',
-                        ['quality', 'formation', 'last_training_order_date', 'report_creation_date', 'averageAmountPerYear'].includes(column.id) && 'text-center'
-                      )}
-                    >
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 p-0 font-semibold"
-                        onClick={() => handleSort(column.id)}
-                      >
-                        {column.label}
-                        {getSortIcon(column.id)}
-                      </Button>
-                    </TableHead>
-                  );
-                })}
-              </TableRow>
-            </TableHeader>
+                   // Regular columns
+                   return (
+                     <TableHead 
+                       key={column.id} 
+                       className={cn(
+                         'bg-background sticky top-0',
+                         column.id === 'sipi_number' && 'w-[120px]',
+                         ['quality', 'formation', 'last_training_order_date', 'report_creation_date', 'averageAmountPerYear'].includes(column.id) && 'text-center'
+                       )}
+                     >
+                       <Button
+                         variant="ghost"
+                         size="sm"
+                         className="h-auto min-h-8 p-1 font-semibold whitespace-normal"
+                         onClick={() => handleSort(column.id)}
+                       >
+                         <div className="flex items-center justify-center flex-wrap gap-1">
+                           <span className="break-words max-w-[150px]">{column.label}</span>
+                           {getSortIcon(column.id)}
+                         </div>
+                       </Button>
+                     </TableHead>
+                   );
+                 })}
+               </TableRow>
+             </TableHeader>
             <TableBody>
               {sortedCompanies.map((company) => {
                 const yearDataMap = new Map<number, CompanyOrderStats>();

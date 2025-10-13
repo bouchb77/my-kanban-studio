@@ -154,26 +154,36 @@ export default function BilanFormateurPage() {
         setFreeCompanies(freeTrainings);
 
         // Calculate total FSITE and FSITEJ orders for the year
-        const { data: fsiteOrders, error: fsiteError } = await supabase
+        const { data: orderDetails, error: orderDetailsError } = await supabase
           .from('order_details')
-          .select('order_number, quantity, orders!inner(order_date, amount)')
-          .ilike('article_code', 'FSITE%')
-          .gte('orders.order_date', `${selectedYear}-01-01`)
-          .lte('orders.order_date', `${selectedYear}-12-31`);
+          .select('order_number, quantity, article_code')
+          .or('article_code.ilike.FSITE%,article_code.ilike.FSITEJ%');
 
-        const { data: fsitejOrders, error: fsitejError } = await supabase
-          .from('order_details')
-          .select('order_number, quantity, orders!inner(order_date, amount)')
-          .ilike('article_code', 'FSITEJ%')
-          .gte('orders.order_date', `${selectedYear}-01-01`)
-          .lte('orders.order_date', `${selectedYear}-12-31`);
+        if (orderDetailsError) {
+          console.error('Error loading order details:', orderDetailsError);
+        }
 
-        if (fsiteError) console.error('Error loading FSITE orders:', fsiteError);
-        if (fsitejError) console.error('Error loading FSITEJ orders:', fsitejError);
+        const { data: orders, error: ordersError } = await supabase
+          .from('orders')
+          .select('order_number, order_date, amount')
+          .gte('order_date', `${selectedYear}-01-01`)
+          .lte('order_date', `${selectedYear}-12-31`);
 
-        const allFsiteOrders = [...(fsiteOrders || []), ...(fsitejOrders || [])];
-        const totalOrders = allFsiteOrders.reduce((sum, order: any) => sum + (order.quantity || 1), 0);
-        const totalAmount = allFsiteOrders.reduce((sum, order: any) => sum + (order.orders?.amount || 0), 0);
+        if (ordersError) {
+          console.error('Error loading orders:', ordersError);
+        }
+
+        // Match order details with orders
+        const orderMap = new Map((orders || []).map(o => [o.order_number, o]));
+        const matchedOrders = (orderDetails || [])
+          .filter(od => orderMap.has(od.order_number))
+          .map(od => ({
+            ...od,
+            order: orderMap.get(od.order_number)
+          }));
+
+        const totalOrders = matchedOrders.reduce((sum, item) => sum + (item.quantity || 1), 0);
+        const totalAmount = matchedOrders.reduce((sum, item) => sum + (item.order?.amount || 0), 0);
         
         setTotalFsiteOrders(totalOrders);
         setTotalFsiteAmount(totalAmount);

@@ -107,14 +107,17 @@ export const OrderImportSection: React.FC = () => {
       const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
 
       // Skip header row and parse data
-      const parsedOrders: Order[] = jsonData.slice(1).map((row, index) => ({
-        id: `temp-${index}`,
-        order_number: String(row[0] || ''),
-        sipi_number: String(row[1] || ''),
-        amount: parseFloat(row[2]) || 0,
-        order_date: parseExcelDate(row[3]),
-        status: String(row[4] || 'pending')
-      })).filter(order => order.order_number); // Filter out empty rows
+      const parsedOrders: Order[] = jsonData.slice(1).map((row, index) => {
+        const amount = parseFloat(row[2]) || 0;
+        return {
+          id: `temp-${index}`,
+          order_number: String(row[0] || ''),
+          sipi_number: String(row[1] || ''),
+          amount: Math.abs(amount), // Convertir en valeur absolue si négatif
+          order_date: parseExcelDate(row[3]),
+          status: String(row[4] || 'pending')
+        };
+      }).filter(order => order.order_number); // Filter out empty rows
 
       setOrders(parsedOrders);
       toast({

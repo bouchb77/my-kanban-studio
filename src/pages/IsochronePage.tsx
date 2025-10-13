@@ -135,10 +135,10 @@ const IsochronePage = () => {
       if (!company.latitude || !company.longitude || isochronePolygon.length === 0) {
         return false;
       }
-      // Vérifier que l'entreprise est dans la zone ET que son montant max est <= au seuil
+      // Vérifier que l'entreprise est dans la zone ET que son montant est entre 1€ et le seuil défini
       const inZone = isPointInPolygon({ lat: company.latitude, lng: company.longitude }, isochronePolygon);
-      const belowThreshold = company.maxAmount <= maxThreshold;
-      return inZone && belowThreshold;
+      const inThresholdRange = company.maxAmount > 1 && company.maxAmount <= maxThreshold;
+      return inZone && inThresholdRange;
     });
 
     exportToExcel(companiesInZone, centerLocation, maxThreshold);

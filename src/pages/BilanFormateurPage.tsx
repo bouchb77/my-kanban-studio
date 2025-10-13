@@ -153,9 +153,28 @@ export default function BilanFormateurPage() {
         setAllCompanies(allCompaniesData);
         setFreeCompanies(freeTrainings);
 
-        // Calculate total FSITE and FSITEJ orders
-        const totalOrders = paidTrainings.reduce((sum, company) => sum + (company.total_orders || 0), 0);
-        const totalAmount = paidTrainings.reduce((sum, company) => sum + (company.total_amount || 0), 0);
+        // Calculate total FSITE and FSITEJ orders for the year
+        const { data: fsiteOrders, error: fsiteError } = await supabase
+          .from('order_details')
+          .select('order_number, quantity, orders!inner(order_date, amount)')
+          .ilike('article_code', 'FSITE%')
+          .gte('orders.order_date', `${selectedYear}-01-01`)
+          .lte('orders.order_date', `${selectedYear}-12-31`);
+
+        const { data: fsitejOrders, error: fsitejError } = await supabase
+          .from('order_details')
+          .select('order_number, quantity, orders!inner(order_date, amount)')
+          .ilike('article_code', 'FSITEJ%')
+          .gte('orders.order_date', `${selectedYear}-01-01`)
+          .lte('orders.order_date', `${selectedYear}-12-31`);
+
+        if (fsiteError) console.error('Error loading FSITE orders:', fsiteError);
+        if (fsitejError) console.error('Error loading FSITEJ orders:', fsitejError);
+
+        const allFsiteOrders = [...(fsiteOrders || []), ...(fsitejOrders || [])];
+        const totalOrders = allFsiteOrders.length;
+        const totalAmount = allFsiteOrders.reduce((sum, order: any) => sum + (order.orders?.amount || 0), 0);
+        
         setTotalFsiteOrders(totalOrders);
         setTotalFsiteAmount(totalAmount);
 

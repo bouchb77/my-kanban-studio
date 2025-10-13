@@ -172,7 +172,7 @@ export default function BilanFormateurPage() {
         if (fsitejError) console.error('Error loading FSITEJ orders:', fsitejError);
 
         const allFsiteOrders = [...(fsiteOrders || []), ...(fsitejOrders || [])];
-        const totalOrders = allFsiteOrders.length;
+        const totalOrders = allFsiteOrders.reduce((sum, order: any) => sum + (order.quantity || 1), 0);
         const totalAmount = allFsiteOrders.reduce((sum, order: any) => sum + (order.orders?.amount || 0), 0);
         
         setTotalFsiteOrders(totalOrders);

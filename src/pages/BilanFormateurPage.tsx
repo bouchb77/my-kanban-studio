@@ -3,11 +3,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import { encryptedCompaniesService } from '@/services/encryptedCompaniesService';
+import { useTrainingDevelopment } from '@/hooks/useTrainingDevelopment';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, GraduationCap, DollarSign, BarChart3 } from 'lucide-react';
+import { Loader2, GraduationCap, DollarSign, BarChart3, TrendingUp } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 
 interface TrainingStats {
@@ -39,6 +40,12 @@ export default function BilanFormateurPage() {
   const [freeCompanies, setFreeCompanies] = useState<TrainingCompany[]>([]);
   const [totalFsiteOrders, setTotalFsiteOrders] = useState<number>(0);
   const [totalFsiteAmount, setTotalFsiteAmount] = useState<number>(0);
+
+  // Hook pour le calcul du développement
+  const { metrics: developmentMetrics, loading: devLoading } = useTrainingDevelopment(
+    formateur || '', 
+    selectedYear
+  );
 
   // Generate list of years from 2020 to current year
   const years = Array.from(
@@ -355,6 +362,102 @@ export default function BilanFormateurPage() {
               </CardContent>
             </Card>
           </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Développement Généré par les Formations
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Comparaison des quantités commandées 2 ans avant vs 2 ans après la formation
+              </p>
+            </CardHeader>
+            <CardContent>
+              {devLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                </div>
+              ) : developmentMetrics.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  Aucune donnée de développement disponible pour {selectedYear}
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-3 mb-6">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium">Entreprises avec Développement</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold text-green-600">
+                          {developmentMetrics.filter(m => m.development_generated).length}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          sur {developmentMetrics.length} formées
+                        </p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium">Augmentation Moyenne</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold">
+                          {(developmentMetrics.reduce((sum, m) => sum + m.growth_percentage, 0) / developmentMetrics.length).toFixed(1)}%
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Croissance moyenne des quantités
+                        </p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium">Total Augmentation</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold">
+                          {developmentMetrics.reduce((sum, m) => sum + m.quantity_increase, 0).toFixed(0)}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Unités supplémentaires commandées
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>SIPI</TableHead>
+                        <TableHead>Entreprise</TableHead>
+                        <TableHead className="text-right">Qté Avant</TableHead>
+                        <TableHead className="text-right">Qté Après</TableHead>
+                        <TableHead className="text-right">Augmentation</TableHead>
+                        <TableHead className="text-right">Croissance %</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {developmentMetrics.map((metric) => (
+                        <TableRow key={metric.sipi_number}>
+                          <TableCell className="font-mono">{metric.sipi_number}</TableCell>
+                          <TableCell>{metric.company_name}</TableCell>
+                          <TableCell className="text-right">{metric.pre_training_quantity}</TableCell>
+                          <TableCell className="text-right">{metric.post_training_quantity}</TableCell>
+                          <TableCell className={`text-right font-medium ${metric.quantity_increase > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {metric.quantity_increase > 0 ? '+' : ''}{metric.quantity_increase}
+                          </TableCell>
+                          <TableCell className={`text-right font-medium ${metric.growth_percentage > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {metric.growth_percentage > 0 ? '+' : ''}{metric.growth_percentage}%
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           <Tabs defaultValue="paid" className="space-y-4">
             <TabsList>

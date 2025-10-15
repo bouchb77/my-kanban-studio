@@ -5,11 +5,17 @@ export interface TrainingDevelopmentMetrics {
   sipi_number: string;
   company_name: string;
   training_year: number;
-  pre_training_quantity: number;  // Quantité moyenne avant formation (2 ans avant)
-  post_training_quantity: number; // Quantité moyenne après formation (2 ans après)
-  quantity_increase: number;      // Augmentation absolue
-  growth_percentage: number;      // Pourcentage de croissance
-  development_generated: boolean; // Vrai si augmentation > 0
+  training_year_quantity: number;  // Quantité année de formation
+  year_minus_2_quantity: number;   // Quantité 2 ans avant
+  year_minus_3_quantity: number;   // Quantité 3 ans avant
+  year_minus_4_quantity: number;   // Quantité 4 ans avant
+  increase_vs_minus_2: number;     // Augmentation vs 2 ans avant
+  increase_vs_minus_3: number;     // Augmentation vs 3 ans avant
+  increase_vs_minus_4: number;     // Augmentation vs 4 ans avant
+  growth_vs_minus_2: number;       // Croissance % vs 2 ans avant
+  growth_vs_minus_3: number;       // Croissance % vs 3 ans avant
+  growth_vs_minus_4: number;       // Croissance % vs 4 ans avant
+  development_generated: boolean;  // Vrai si augmentation > 0 (vs moyenne)
 }
 
 export const useTrainingDevelopment = (formateur: string, trainingYear: number) => {
@@ -76,78 +82,70 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
         return;
       }
 
-      // 4. Pour chaque entreprise, calculer les quantités avant/après formation
+      // 4. Pour chaque entreprise, calculer les quantités pour l'année de formation et les années précédentes
       const developmentMetrics: TrainingDevelopmentMetrics[] = [];
 
       for (const company of companies) {
-        // Période AVANT formation: 2 ans avant l'année de formation
-        const preStartYear = trainingYear - 2;
-        const preEndYear = trainingYear - 1;
+        // Fonction helper pour récupérer la quantité d'une année
+        const getYearQuantity = async (year: number): Promise<number> => {
+          const { data: orders } = await supabase
+            .from('orders')
+            .select('order_number')
+            .eq('sipi_number', company.sipi_number)
+            .gte('order_date', `${year}-01-01`)
+            .lte('order_date', `${year}-12-31`);
 
-        // Période APRÈS formation: année de formation + 2 ans après
-        const postStartYear = trainingYear;
-        const postEndYear = trainingYear + 2;
+          const orderNumbers = orders?.map(o => o.order_number) || [];
+          
+          if (orderNumbers.length === 0) return 0;
 
-        // Quantités avant formation
-        const { data: preOrders } = await supabase
-          .from('orders')
-          .select('order_number')
-          .eq('sipi_number', company.sipi_number)
-          .gte('order_date', `${preStartYear}-01-01`)
-          .lte('order_date', `${preEndYear}-12-31`);
-
-        const preOrderNumbers = preOrders?.map(o => o.order_number) || [];
-        let preQuantity = 0;
-
-        if (preOrderNumbers.length > 0) {
-          const { data: preDetails } = await supabase
+          const { data: details } = await supabase
             .from('order_details')
             .select('quantity')
-            .in('order_number', preOrderNumbers);
+            .in('order_number', orderNumbers);
 
-          preQuantity = preDetails?.reduce((sum, d) => sum + d.quantity, 0) || 0;
-        }
+          return details?.reduce((sum, d) => sum + d.quantity, 0) || 0;
+        };
 
-        // Quantités après formation
-        const { data: postOrders } = await supabase
-          .from('orders')
-          .select('order_number')
-          .eq('sipi_number', company.sipi_number)
-          .gte('order_date', `${postStartYear}-01-01`)
-          .lte('order_date', `${postEndYear}-12-31`);
+        // Récupérer les quantités pour chaque année
+        const trainingYearQty = await getYearQuantity(trainingYear);
+        const minus2Qty = await getYearQuantity(trainingYear - 2);
+        const minus3Qty = await getYearQuantity(trainingYear - 3);
+        const minus4Qty = await getYearQuantity(trainingYear - 4);
 
-        const postOrderNumbers = postOrders?.map(o => o.order_number) || [];
-        let postQuantity = 0;
+        // Calculer les augmentations
+        const increaseVsMinus2 = trainingYearQty - minus2Qty;
+        const increaseVsMinus3 = trainingYearQty - minus3Qty;
+        const increaseVsMinus4 = trainingYearQty - minus4Qty;
 
-        if (postOrderNumbers.length > 0) {
-          const { data: postDetails } = await supabase
-            .from('order_details')
-            .select('quantity')
-            .in('order_number', postOrderNumbers);
+        // Calculer les pourcentages de croissance
+        const growthVsMinus2 = minus2Qty > 0 ? (increaseVsMinus2 / minus2Qty) * 100 : 0;
+        const growthVsMinus3 = minus3Qty > 0 ? (increaseVsMinus3 / minus3Qty) * 100 : 0;
+        const growthVsMinus4 = minus4Qty > 0 ? (increaseVsMinus4 / minus4Qty) * 100 : 0;
 
-          postQuantity = postDetails?.reduce((sum, d) => sum + d.quantity, 0) || 0;
-        }
-
-        // Calculer la moyenne sur 2 ans
-        const preAverage = preQuantity / 2;
-        const postAverage = postQuantity / 3; // 3 ans (année formation + 2 après)
-
-        const increase = postAverage - preAverage;
-        const growthPercentage = preAverage > 0 ? (increase / preAverage) * 100 : 0;
+        // Calculer la moyenne des 3 années précédentes
+        const avgPrevious = (minus2Qty + minus3Qty + minus4Qty) / 3;
+        const avgIncrease = trainingYearQty - avgPrevious;
 
         developmentMetrics.push({
           sipi_number: company.sipi_number,
           company_name: company.company_name,
           training_year: trainingYear,
-          pre_training_quantity: Math.round(preAverage * 100) / 100,
-          post_training_quantity: Math.round(postAverage * 100) / 100,
-          quantity_increase: Math.round(increase * 100) / 100,
-          growth_percentage: Math.round(growthPercentage * 100) / 100,
-          development_generated: increase > 0
+          training_year_quantity: trainingYearQty,
+          year_minus_2_quantity: minus2Qty,
+          year_minus_3_quantity: minus3Qty,
+          year_minus_4_quantity: minus4Qty,
+          increase_vs_minus_2: Math.round(increaseVsMinus2 * 100) / 100,
+          increase_vs_minus_3: Math.round(increaseVsMinus3 * 100) / 100,
+          increase_vs_minus_4: Math.round(increaseVsMinus4 * 100) / 100,
+          growth_vs_minus_2: Math.round(growthVsMinus2 * 100) / 100,
+          growth_vs_minus_3: Math.round(growthVsMinus3 * 100) / 100,
+          growth_vs_minus_4: Math.round(growthVsMinus4 * 100) / 100,
+          development_generated: avgIncrease > 0
         });
       }
 
-      setMetrics(developmentMetrics.sort((a, b) => b.quantity_increase - a.quantity_increase));
+      setMetrics(developmentMetrics.sort((a, b) => b.increase_vs_minus_2 - a.increase_vs_minus_2));
     } catch (err) {
       console.error('Erreur lors du calcul du développement:', err);
       setError(err instanceof Error ? err.message : 'Une erreur est survenue');

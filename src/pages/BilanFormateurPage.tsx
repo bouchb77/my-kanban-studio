@@ -384,7 +384,7 @@ export default function BilanFormateurPage() {
                 </p>
               ) : (
                 <div className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-3 mb-6">
+                  <div className="grid gap-4 md:grid-cols-4 mb-6">
                     <Card>
                       <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium">Entreprises avec Développement</CardTitle>
@@ -400,27 +400,40 @@ export default function BilanFormateurPage() {
                     </Card>
                     <Card>
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium">Augmentation Moyenne</CardTitle>
+                        <CardTitle className="text-sm font-medium">Croissance vs -2 ans</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="text-2xl font-bold">
-                          {(developmentMetrics.reduce((sum, m) => sum + m.growth_percentage, 0) / developmentMetrics.length).toFixed(1)}%
+                          {(developmentMetrics.reduce((sum, m) => sum + m.growth_vs_minus_2, 0) / developmentMetrics.length).toFixed(1)}%
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          Croissance moyenne des quantités
+                          Moyenne par entreprise
                         </p>
                       </CardContent>
                     </Card>
                     <Card>
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium">Total Augmentation</CardTitle>
+                        <CardTitle className="text-sm font-medium">Croissance vs -3 ans</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="text-2xl font-bold">
-                          {developmentMetrics.reduce((sum, m) => sum + m.quantity_increase, 0).toFixed(0)}
+                          {(developmentMetrics.reduce((sum, m) => sum + m.growth_vs_minus_3, 0) / developmentMetrics.length).toFixed(1)}%
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          Unités supplémentaires commandées
+                          Moyenne par entreprise
+                        </p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium">Croissance vs -4 ans</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold">
+                          {(developmentMetrics.reduce((sum, m) => sum + m.growth_vs_minus_4, 0) / developmentMetrics.length).toFixed(1)}%
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Moyenne par entreprise
                         </p>
                       </CardContent>
                     </Card>
@@ -431,10 +444,13 @@ export default function BilanFormateurPage() {
                       <TableRow>
                         <TableHead>SIPI</TableHead>
                         <TableHead>Entreprise</TableHead>
-                        <TableHead className="text-right">Qté Avant</TableHead>
-                        <TableHead className="text-right">Qté Après</TableHead>
-                        <TableHead className="text-right">Augmentation</TableHead>
-                        <TableHead className="text-right">Croissance %</TableHead>
+                        <TableHead className="text-right">Année Formation</TableHead>
+                        <TableHead className="text-right">-2 ans</TableHead>
+                        <TableHead className="text-right">-3 ans</TableHead>
+                        <TableHead className="text-right">-4 ans</TableHead>
+                        <TableHead className="text-right">vs -2 ans</TableHead>
+                        <TableHead className="text-right">vs -3 ans</TableHead>
+                        <TableHead className="text-right">vs -4 ans</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -442,13 +458,18 @@ export default function BilanFormateurPage() {
                         <TableRow key={metric.sipi_number}>
                           <TableCell className="font-mono">{metric.sipi_number}</TableCell>
                           <TableCell>{metric.company_name}</TableCell>
-                          <TableCell className="text-right">{metric.pre_training_quantity}</TableCell>
-                          <TableCell className="text-right">{metric.post_training_quantity}</TableCell>
-                          <TableCell className={`text-right font-medium ${metric.quantity_increase > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {metric.quantity_increase > 0 ? '+' : ''}{metric.quantity_increase}
+                          <TableCell className="text-right font-semibold">{metric.training_year_quantity}</TableCell>
+                          <TableCell className="text-right">{metric.year_minus_2_quantity}</TableCell>
+                          <TableCell className="text-right">{metric.year_minus_3_quantity}</TableCell>
+                          <TableCell className="text-right">{metric.year_minus_4_quantity}</TableCell>
+                          <TableCell className={`text-right font-medium ${metric.growth_vs_minus_2 > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {metric.growth_vs_minus_2 > 0 ? '+' : ''}{metric.growth_vs_minus_2}%
                           </TableCell>
-                          <TableCell className={`text-right font-medium ${metric.growth_percentage > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {metric.growth_percentage > 0 ? '+' : ''}{metric.growth_percentage}%
+                          <TableCell className={`text-right font-medium ${metric.growth_vs_minus_3 > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {metric.growth_vs_minus_3 > 0 ? '+' : ''}{metric.growth_vs_minus_3}%
+                          </TableCell>
+                          <TableCell className={`text-right font-medium ${metric.growth_vs_minus_4 > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {metric.growth_vs_minus_4 > 0 ? '+' : ''}{metric.growth_vs_minus_4}%
                           </TableCell>
                         </TableRow>
                       ))}

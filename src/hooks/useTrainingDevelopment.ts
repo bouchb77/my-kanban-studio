@@ -5,17 +5,25 @@ export interface TrainingDevelopmentMetrics {
   sipi_number: string;
   company_name: string;
   training_year: number;
-  training_year_quantity: number;  // Quantité année de formation
-  year_minus_2_quantity: number;   // Quantité 2 ans avant
-  year_minus_3_quantity: number;   // Quantité 3 ans avant
-  year_minus_4_quantity: number;   // Quantité 4 ans avant
-  increase_vs_minus_2: number;     // Augmentation vs 2 ans avant
-  increase_vs_minus_3: number;     // Augmentation vs 3 ans avant
-  increase_vs_minus_4: number;     // Augmentation vs 4 ans avant
-  growth_vs_minus_2: number;       // Croissance % vs 2 ans avant
-  growth_vs_minus_3: number;       // Croissance % vs 3 ans avant
-  growth_vs_minus_4: number;       // Croissance % vs 4 ans avant
-  development_generated: boolean;  // Vrai si augmentation > 0 (vs moyenne)
+  training_year_quantity: number;
+  training_year_references: number;
+  year_minus_2_quantity: number;
+  year_minus_2_references: number;
+  year_minus_3_quantity: number;
+  year_minus_3_references: number;
+  year_minus_4_quantity: number;
+  year_minus_4_references: number;
+  increase_vs_minus_2: number;
+  increase_vs_minus_3: number;
+  increase_vs_minus_4: number;
+  growth_vs_minus_2: number;
+  growth_vs_minus_3: number;
+  growth_vs_minus_4: number;
+  new_references_vs_minus_2: number;
+  new_references_vs_minus_3: number;
+  new_references_vs_minus_4: number;
+  renewal_rate_vs_minus_2: number;  // Taux de renouvellement (24 mois)
+  development_generated: boolean;
 }
 
 export const useTrainingDevelopment = (formateur: string, trainingYear: number) => {
@@ -86,8 +94,8 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
       const developmentMetrics: TrainingDevelopmentMetrics[] = [];
 
       for (const company of companies) {
-        // Fonction helper pour récupérer la quantité d'une année
-        const getYearQuantity = async (year: number): Promise<number> => {
+        // Fonction helper pour récupérer les données d'une année
+        const getYearData = async (year: number): Promise<{ quantity: number; references: Set<string> }> => {
           const { data: orders } = await supabase
             .from('orders')
             .select('order_number')
@@ -97,50 +105,71 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
 
           const orderNumbers = orders?.map(o => o.order_number) || [];
           
-          if (orderNumbers.length === 0) return 0;
+          if (orderNumbers.length === 0) return { quantity: 0, references: new Set() };
 
           const { data: details } = await supabase
             .from('order_details')
-            .select('quantity')
+            .select('quantity, article_code')
             .in('order_number', orderNumbers);
 
-          return details?.reduce((sum, d) => sum + d.quantity, 0) || 0;
+          const quantity = details?.reduce((sum, d) => sum + d.quantity, 0) || 0;
+          const references = new Set(details?.map(d => d.article_code) || []);
+          
+          return { quantity, references };
         };
 
-        // Récupérer les quantités pour chaque année
-        const trainingYearQty = await getYearQuantity(trainingYear);
-        const minus2Qty = await getYearQuantity(trainingYear - 2);
-        const minus3Qty = await getYearQuantity(trainingYear - 3);
-        const minus4Qty = await getYearQuantity(trainingYear - 4);
+        // Récupérer les données pour chaque année
+        const trainingYearData = await getYearData(trainingYear);
+        const minus2Data = await getYearData(trainingYear - 2);
+        const minus3Data = await getYearData(trainingYear - 3);
+        const minus4Data = await getYearData(trainingYear - 4);
 
-        // Calculer les augmentations
-        const increaseVsMinus2 = trainingYearQty - minus2Qty;
-        const increaseVsMinus3 = trainingYearQty - minus3Qty;
-        const increaseVsMinus4 = trainingYearQty - minus4Qty;
+        // Calculer les augmentations de quantités
+        const increaseVsMinus2 = trainingYearData.quantity - minus2Data.quantity;
+        const increaseVsMinus3 = trainingYearData.quantity - minus3Data.quantity;
+        const increaseVsMinus4 = trainingYearData.quantity - minus4Data.quantity;
 
         // Calculer les pourcentages de croissance
-        const growthVsMinus2 = minus2Qty > 0 ? (increaseVsMinus2 / minus2Qty) * 100 : 0;
-        const growthVsMinus3 = minus3Qty > 0 ? (increaseVsMinus3 / minus3Qty) * 100 : 0;
-        const growthVsMinus4 = minus4Qty > 0 ? (increaseVsMinus4 / minus4Qty) * 100 : 0;
+        const growthVsMinus2 = minus2Data.quantity > 0 ? (increaseVsMinus2 / minus2Data.quantity) * 100 : 0;
+        const growthVsMinus3 = minus3Data.quantity > 0 ? (increaseVsMinus3 / minus3Data.quantity) * 100 : 0;
+        const growthVsMinus4 = minus4Data.quantity > 0 ? (increaseVsMinus4 / minus4Data.quantity) * 100 : 0;
+
+        // Calculer les nouvelles références apparues
+        const newRefsMinus2 = [...trainingYearData.references].filter(ref => !minus2Data.references.has(ref)).length;
+        const newRefsMinus3 = [...trainingYearData.references].filter(ref => !minus3Data.references.has(ref)).length;
+        const newRefsMinus4 = [...trainingYearData.references].filter(ref => !minus4Data.references.has(ref)).length;
+
+        // Taux de renouvellement vs -2 ans (cycle de 24 mois)
+        // Références qui étaient présentes il y a 2 ans et qui sont toujours commandées
+        const renewedRefs = [...trainingYearData.references].filter(ref => minus2Data.references.has(ref)).length;
+        const renewalRate = minus2Data.references.size > 0 ? (renewedRefs / minus2Data.references.size) * 100 : 0;
 
         // Calculer la moyenne des 3 années précédentes
-        const avgPrevious = (minus2Qty + minus3Qty + minus4Qty) / 3;
-        const avgIncrease = trainingYearQty - avgPrevious;
+        const avgPrevious = (minus2Data.quantity + minus3Data.quantity + minus4Data.quantity) / 3;
+        const avgIncrease = trainingYearData.quantity - avgPrevious;
 
         developmentMetrics.push({
           sipi_number: company.sipi_number,
           company_name: company.company_name,
           training_year: trainingYear,
-          training_year_quantity: trainingYearQty,
-          year_minus_2_quantity: minus2Qty,
-          year_minus_3_quantity: minus3Qty,
-          year_minus_4_quantity: minus4Qty,
+          training_year_quantity: trainingYearData.quantity,
+          training_year_references: trainingYearData.references.size,
+          year_minus_2_quantity: minus2Data.quantity,
+          year_minus_2_references: minus2Data.references.size,
+          year_minus_3_quantity: minus3Data.quantity,
+          year_minus_3_references: minus3Data.references.size,
+          year_minus_4_quantity: minus4Data.quantity,
+          year_minus_4_references: minus4Data.references.size,
           increase_vs_minus_2: Math.round(increaseVsMinus2 * 100) / 100,
           increase_vs_minus_3: Math.round(increaseVsMinus3 * 100) / 100,
           increase_vs_minus_4: Math.round(increaseVsMinus4 * 100) / 100,
           growth_vs_minus_2: Math.round(growthVsMinus2 * 100) / 100,
           growth_vs_minus_3: Math.round(growthVsMinus3 * 100) / 100,
           growth_vs_minus_4: Math.round(growthVsMinus4 * 100) / 100,
+          new_references_vs_minus_2: newRefsMinus2,
+          new_references_vs_minus_3: newRefsMinus3,
+          new_references_vs_minus_4: newRefsMinus4,
+          renewal_rate_vs_minus_2: Math.round(renewalRate * 100) / 100,
           development_generated: avgIncrease > 0
         });
       }

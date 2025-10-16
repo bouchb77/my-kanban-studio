@@ -444,13 +444,17 @@ export default function BilanFormateurPage() {
                       <TableRow>
                         <TableHead>SIPI</TableHead>
                         <TableHead>Entreprise</TableHead>
-                        <TableHead className="text-right">Année Formation</TableHead>
+                        <TableHead className="text-right">Année Form.</TableHead>
+                        <TableHead className="text-right">Réf. Form.</TableHead>
                         <TableHead className="text-right">-2 ans</TableHead>
+                        <TableHead className="text-right">Réf. -2</TableHead>
                         <TableHead className="text-right">-3 ans</TableHead>
+                        <TableHead className="text-right">Réf. -3</TableHead>
                         <TableHead className="text-right">-4 ans</TableHead>
+                        <TableHead className="text-right">Réf. -4</TableHead>
                         <TableHead className="text-right">vs -2 ans</TableHead>
-                        <TableHead className="text-right">vs -3 ans</TableHead>
-                        <TableHead className="text-right">vs -4 ans</TableHead>
+                        <TableHead className="text-right">Nouv. Réf.</TableHead>
+                        <TableHead className="text-right">Taux Renouv.</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -459,17 +463,21 @@ export default function BilanFormateurPage() {
                           <TableCell className="font-mono">{metric.sipi_number}</TableCell>
                           <TableCell>{metric.company_name}</TableCell>
                           <TableCell className="text-right font-semibold">{metric.training_year_quantity}</TableCell>
+                          <TableCell className="text-right">{metric.training_year_references}</TableCell>
                           <TableCell className="text-right">{metric.year_minus_2_quantity}</TableCell>
+                          <TableCell className="text-right">{metric.year_minus_2_references}</TableCell>
                           <TableCell className="text-right">{metric.year_minus_3_quantity}</TableCell>
+                          <TableCell className="text-right">{metric.year_minus_3_references}</TableCell>
                           <TableCell className="text-right">{metric.year_minus_4_quantity}</TableCell>
+                          <TableCell className="text-right">{metric.year_minus_4_references}</TableCell>
                           <TableCell className={`text-right font-medium ${metric.growth_vs_minus_2 > 0 ? 'text-green-600' : 'text-red-600'}`}>
                             {metric.growth_vs_minus_2 > 0 ? '+' : ''}{metric.growth_vs_minus_2}%
                           </TableCell>
-                          <TableCell className={`text-right font-medium ${metric.growth_vs_minus_3 > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {metric.growth_vs_minus_3 > 0 ? '+' : ''}{metric.growth_vs_minus_3}%
+                          <TableCell className="text-right font-medium text-blue-600">
+                            {metric.new_references_vs_minus_2}
                           </TableCell>
-                          <TableCell className={`text-right font-medium ${metric.growth_vs_minus_4 > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {metric.growth_vs_minus_4 > 0 ? '+' : ''}{metric.growth_vs_minus_4}%
+                          <TableCell className="text-right font-medium">
+                            {metric.renewal_rate_vs_minus_2}%
                           </TableCell>
                         </TableRow>
                       ))}

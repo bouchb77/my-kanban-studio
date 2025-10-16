@@ -36,13 +36,18 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
       setLoading(true);
       setError(null);
 
+      console.log('[TrainingDevelopment] Début du calcul pour', formateur, trainingYear);
+
       // 1. Récupérer les entreprises formées (formations payantes FSITE/FSITEJ)
       const { data: departments } = await supabase
         .from('department_management')
         .select('department_name')
         .eq('formateur', formateur);
 
+      console.log('[TrainingDevelopment] Départements trouvés:', departments?.length);
+
       if (!departments || departments.length === 0) {
+        console.log('[TrainingDevelopment] Aucun département trouvé');
         setMetrics([]);
         return;
       }
@@ -60,7 +65,10 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
         .gte('order_date', `${trainingYear}-01-01`)
         .lte('order_date', `${trainingYear}-12-31`);
 
+      console.log('[TrainingDevelopment] Commandes trouvées pour année', trainingYear, ':', trainedCompanies?.length);
+
       if (!trainedCompanies || trainedCompanies.length === 0) {
+        console.log('[TrainingDevelopment] Aucune commande trouvée pour l\'année');
         setMetrics([]);
         return;
       }
@@ -80,6 +88,8 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
         .filter(o => trainedOrderNumbers.has(o.order_number))
         .map(o => o.sipi_number);
 
+      console.log('[TrainingDevelopment] Entreprises avec FSITE/FSITEJ:', trainedSipiNumbers.length);
+
       // 3. Récupérer les infos des entreprises
       const { data: companies } = await supabase
         .from('companies')
@@ -87,7 +97,10 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
         .in('sipi_number', trainedSipiNumbers)
         .in('general_department', departmentNames);
 
+      console.log('[TrainingDevelopment] Entreprises dans départements formateur:', companies?.length);
+
       if (!companies || companies.length === 0) {
+        console.log('[TrainingDevelopment] Aucune entreprise trouvée après filtrage département');
         setMetrics([]);
         return;
       }
@@ -179,6 +192,7 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
         });
       }
 
+      console.log('[TrainingDevelopment] Métriques calculées:', developmentMetrics.length);
       setMetrics(developmentMetrics.sort((a, b) => b.increase_vs_minus_2 - a.increase_vs_minus_2));
     } catch (err) {
       console.error('Erreur lors du calcul du développement:', err);

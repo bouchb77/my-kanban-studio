@@ -66,6 +66,8 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
       }
 
       // Filtrer les commandes avec FSITE ou FSITEJ
+      // Ce filtre sert uniquement à identifier les entreprises formées
+      // L'analyse des quantités/références se fera ensuite sur TOUTES les commandes
       const orderNumbers = trainedCompanies.map(o => o.order_number);
       const { data: orderDetails } = await supabase
         .from('order_details')
@@ -95,6 +97,7 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
 
       for (const company of companies) {
         // Fonction helper pour récupérer les données d'une année
+        // IMPORTANT: On récupère TOUTES les références (pas seulement FSITE/FSITEJ)
         const getYearData = async (year: number): Promise<{ quantity: number; references: Set<string> }> => {
           const { data: orders } = await supabase
             .from('orders')
@@ -107,10 +110,12 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
           
           if (orderNumbers.length === 0) return { quantity: 0, references: new Set() };
 
+          // Récupération de TOUTES les références commandées (tous les article_code)
           const { data: details } = await supabase
             .from('order_details')
             .select('quantity, article_code')
             .in('order_number', orderNumbers);
+            // Pas de filtre sur article_code : on prend TOUT
 
           const quantity = details?.reduce((sum, d) => sum + d.quantity, 0) || 0;
           const references = new Set(details?.map(d => d.article_code) || []);

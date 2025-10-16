@@ -35,15 +35,18 @@ export default function BilanFormateurPage() {
   const [stats, setStats] = useState<TrainingStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [formateur, setFormateur] = useState<string | null>(null);
+  const [userSector, setUserSector] = useState<string | null>(null); // Secteur attribué à l'utilisateur
+  const [availableSectors, setAvailableSectors] = useState<string[]>([]);
+  const [selectedSector, setSelectedSector] = useState<string | null>(null); // Secteur sélectionné pour affichage
   const [paidCompanies, setPaidCompanies] = useState<TrainingCompany[]>([]);
   const [allCompanies, setAllCompanies] = useState<TrainingCompany[]>([]);
   const [freeCompanies, setFreeCompanies] = useState<TrainingCompany[]>([]);
   const [totalFsiteOrders, setTotalFsiteOrders] = useState<number>(0);
   const [totalFsiteAmount, setTotalFsiteAmount] = useState<number>(0);
 
-  // Hook pour le calcul du développement
+  // Hook pour le calcul du développement - utilise le secteur sélectionné
   const { metrics: developmentMetrics, loading: devLoading } = useTrainingDevelopment(
-    formateur || '', 
+    selectedSector || '', 
     selectedYear
   );
 
@@ -69,7 +72,28 @@ export default function BilanFormateurPage() {
       }
       
       console.log('Formateur data:', data);
-      setFormateur(data?.formateur || null);
+      const sector = data?.formateur || null;
+      setUserSector(sector);
+      
+      // Si le secteur est "tous", charger tous les secteurs disponibles
+      if (sector === 'tous') {
+        const { data: sectors } = await supabase
+          .from('department_management')
+          .select('formateur')
+          .order('formateur');
+        
+        const uniqueSectors = [...new Set(sectors?.map(s => s.formateur) || [])];
+        setAvailableSectors(uniqueSectors);
+        // Sélectionner le premier secteur par défaut
+        if (uniqueSectors.length > 0) {
+          setSelectedSector(uniqueSectors[0]);
+          setFormateur(uniqueSectors[0]);
+        }
+      } else {
+        // Secteur spécifique
+        setFormateur(sector);
+        setSelectedSector(sector);
+      }
     };
 
     loadFormateur();
@@ -77,18 +101,18 @@ export default function BilanFormateurPage() {
 
   useEffect(() => {
     const loadStats = async () => {
-      if (!user || !selectedYear || !formateur) {
-        console.log('Missing required data:', { user: !!user, selectedYear, formateur });
+      if (!user || !selectedYear || !selectedSector) {
+        console.log('Missing required data:', { user: !!user, selectedYear, selectedSector });
         return;
       }
 
       setLoading(true);
       try {
-        console.log('Loading stats for:', { formateur, selectedYear });
+        console.log('Loading stats for:', { formateur: selectedSector, selectedYear });
         
         // Load summary stats using optimized function
         const { data: summaryData, error: summaryError } = await supabase.rpc('get_fo_training_summary', {
-          _formateur: formateur,
+          _formateur: selectedSector,
           _year: selectedYear
         });
 
@@ -99,7 +123,7 @@ export default function BilanFormateurPage() {
 
         // Load detailed training data using optimized function
         const { data: trainingData, error: trainingError } = await supabase.rpc('get_fo_training_data', {
-          _formateur: formateur,
+          _formateur: selectedSector,
           _year: selectedYear
         });
 
@@ -211,7 +235,7 @@ export default function BilanFormateurPage() {
     };
 
     loadStats();
-  }, [user, selectedYear, formateur]);
+  }, [user, selectedYear, selectedSector]);
 
   if (roleLoading) {
     return (
@@ -230,22 +254,43 @@ export default function BilanFormateurPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Bilan Formateur</h1>
-          {formateur && (
-            <p className="text-muted-foreground mt-1">Secteur : {formateur}</p>
+          {userSector && (
+            <p className="text-muted-foreground mt-1">
+              {userSector === 'tous' ? 'Accès à tous les secteurs' : `Secteur : ${userSector}`}
+            </p>
           )}
         </div>
-        <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(Number(value))}>
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder="Année" />
-          </SelectTrigger>
-          <SelectContent>
-            {years.map((year) => (
-              <SelectItem key={year} value={year.toString()}>
-                {year}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-4">
+          {userSector === 'tous' && availableSectors.length > 0 && (
+            <Select value={selectedSector || ''} onValueChange={(value) => {
+              setSelectedSector(value);
+              setFormateur(value);
+            }}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Secteur" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableSectors.map((sector) => (
+                  <SelectItem key={sector} value={sector}>
+                    {sector}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(Number(value))}>
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="Année" />
+            </SelectTrigger>
+            <SelectContent>
+              {years.map((year) => (
+                <SelectItem key={year} value={year.toString()}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {loading ? (

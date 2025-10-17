@@ -73,24 +73,37 @@ export default function BilanFormateurPage() {
       
       console.log('Formateur data:', data);
       const sector = data?.formateur || null;
+      console.log('User sector value:', sector, 'Type:', typeof sector);
       setUserSector(sector);
       
       // Si le secteur est "tous", charger tous les secteurs disponibles
       if (sector === 'tous') {
-        const { data: sectors } = await supabase
+        console.log('Sector is "tous", loading all sectors...');
+        const { data: sectors, error: sectorsError } = await supabase
           .from('department_management')
           .select('formateur')
           .order('formateur');
         
-        const uniqueSectors = [...new Set(sectors?.map(s => s.formateur) || [])];
+        if (sectorsError) {
+          console.error('Error loading sectors:', sectorsError);
+        }
+        
+        console.log('Raw sectors data:', sectors);
+        const uniqueSectors = [...new Set(sectors?.map(s => s.formateur).filter(f => f) || [])];
+        console.log('Unique sectors:', uniqueSectors);
         setAvailableSectors(uniqueSectors);
+        
         // Sélectionner le premier secteur par défaut
         if (uniqueSectors.length > 0) {
+          console.log('Setting selected sector to:', uniqueSectors[0]);
           setSelectedSector(uniqueSectors[0]);
           setFormateur(uniqueSectors[0]);
+        } else {
+          console.warn('No sectors available!');
         }
       } else {
         // Secteur spécifique
+        console.log('Sector is specific:', sector);
         setFormateur(sector);
         setSelectedSector(sector);
       }
@@ -263,11 +276,12 @@ export default function BilanFormateurPage() {
         <div className="flex gap-4">
           {userSector === 'tous' && availableSectors.length > 0 && (
             <Select value={selectedSector || ''} onValueChange={(value) => {
+              console.log('Sector changed to:', value);
               setSelectedSector(value);
               setFormateur(value);
             }}>
               <SelectTrigger className="w-48">
-                <SelectValue placeholder="Secteur" />
+                <SelectValue placeholder="Choisir un secteur" />
               </SelectTrigger>
               <SelectContent>
                 {availableSectors.map((sector) => (

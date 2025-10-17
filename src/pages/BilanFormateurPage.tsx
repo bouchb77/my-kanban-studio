@@ -89,8 +89,12 @@ export default function BilanFormateurPage() {
         }
         
         console.log('Raw sectors data:', sectors);
-        const uniqueSectors = [...new Set(sectors?.map(s => s.formateur).filter(f => f) || [])];
-        console.log('Unique sectors:', uniqueSectors);
+        // Filtrer les valeurs invalides (-, vide, null) et ne garder que les vrais formateurs
+        const uniqueSectors = [...new Set(
+          sectors?.map(s => s.formateur)
+            .filter(f => f && f.trim() !== '' && f !== '-') || []
+        )];
+        console.log('Unique sectors (filtered):', uniqueSectors);
         setAvailableSectors(uniqueSectors);
         
         // Sélectionner le premier secteur par défaut

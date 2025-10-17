@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { encryptedCompaniesService } from '@/services/encryptedCompaniesService';
 
 export interface TrainingDevelopmentMetrics {
   sipi_number: string;
@@ -105,7 +106,13 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
         return;
       }
 
-      // 4. Pour chaque entreprise, calculer les quantités pour l'année de formation et les années précédentes
+      // 4. Décrypter les noms d'entreprises
+      const allDecryptedCompanies = await encryptedCompaniesService.getAllCompanies();
+      const companyNameMap = new Map(
+        allDecryptedCompanies.map(c => [c.sipiNumber, c.companyName])
+      );
+
+      // 5. Pour chaque entreprise, calculer les quantités pour l'année de formation et les années précédentes
       const developmentMetrics: TrainingDevelopmentMetrics[] = [];
 
       for (const company of companies) {
@@ -168,7 +175,7 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
 
         developmentMetrics.push({
           sipi_number: company.sipi_number,
-          company_name: company.company_name,
+          company_name: companyNameMap.get(company.sipi_number) || company.company_name,
           training_year: trainingYear,
           training_year_quantity: trainingYearData.quantity,
           training_year_references: trainingYearData.references.size,

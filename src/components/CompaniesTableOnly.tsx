@@ -509,15 +509,19 @@ const CompaniesTableOnly = ({
     'Structure Formée (Uniquement payant)'
   ];
 
-  // Get available years from order data
+  // Get available years from order data - only show current year, N-1, and N-2
   const availableYears = useMemo(() => {
+    const currentYear = new Date().getFullYear();
     const years = new Set<number>();
     companies.forEach(company => {
       company.orderStats?.forEach(stat => {
-        years.add(stat.year);
+        // Only include if year is within range (current year, N-1, N-2)
+        if (stat.year >= currentYear - 2 && stat.year <= currentYear) {
+          years.add(stat.year);
+        }
       });
     });
-    return Array.from(years).sort();
+    return Array.from(years).sort((a, b) => b - a); // Sort descending (most recent first)
   }, [companies]);
 
   // Notify parent of filtered data changes

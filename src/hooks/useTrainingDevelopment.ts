@@ -39,7 +39,7 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
 
       console.log('[TrainingDevelopment] Début du calcul pour', formateur, trainingYear);
 
-      // 1. Récupérer les entreprises formées (formations payantes FSITE/FSITEJ)
+      // 1. Récupérer les départements du formateur
       const { data: departments } = await supabase
         .from('department_management')
         .select('department_name')
@@ -55,7 +55,7 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
 
       const departmentNames = departments.map(d => d.department_name);
 
-      // 2. Récupérer les commandes avec formations payantes de l'année
+      // 2A. Récupérer les entreprises avec formations PAYANTES (FSITE/FSITEJ) de l'année
       const { data: trainedCompanies } = await supabase
         .from('orders')
         .select(`
@@ -68,16 +68,8 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
 
       console.log('[TrainingDevelopment] Commandes trouvées pour année', trainingYear, ':', trainedCompanies?.length);
 
-      if (!trainedCompanies || trainedCompanies.length === 0) {
-        console.log('[TrainingDevelopment] Aucune commande trouvée pour l\'année');
-        setMetrics([]);
-        return;
-      }
-
-      // Filtrer les commandes avec FSITE ou FSITEJ
-      // Ce filtre sert uniquement à identifier les entreprises formées
-      // L'analyse des quantités/références se fera ensuite sur TOUTES les commandes
-      const orderNumbers = trainedCompanies.map(o => o.order_number);
+      // Filtrer les commandes avec FSITE ou FSITEJ pour formations payantes
+      const orderNumbers = trainedCompanies?.map(o => o.order_number) || [];
       const { data: orderDetails } = await supabase
         .from('order_details')
         .select('order_number, article_code')
@@ -85,17 +77,40 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
         .in('article_code', ['FSITE', 'FSITEJ']);
 
       const trainedOrderNumbers = new Set(orderDetails?.map(od => od.order_number) || []);
-      const trainedSipiNumbers = trainedCompanies
-        .filter(o => trainedOrderNumbers.has(o.order_number))
-        .map(o => o.sipi_number);
+      const paidTrainedSipiNumbers = new Set(
+        trainedCompanies?.filter(o => trainedOrderNumbers.has(o.order_number)).map(o => o.sipi_number) || []
+      );
 
-      console.log('[TrainingDevelopment] Entreprises avec FSITE/FSITEJ:', trainedSipiNumbers.length);
+      console.log('[TrainingDevelopment] Entreprises avec formations payantes (FSITE/FSITEJ):', paidTrainedSipiNumbers.size);
 
-      // 3. Récupérer les infos des entreprises
+      // 2B. Récupérer les entreprises avec formations GRATUITES (report_creation_date) de l'année
+      const { data: freeTrainedCompanies } = await supabase
+        .from('companies')
+        .select('sipi_number')
+        .gte('report_creation_date', `${trainingYear}-01-01`)
+        .lte('report_creation_date', `${trainingYear}-12-31`)
+        .in('general_department', departmentNames);
+
+      const freeTrainedSipiNumbers = new Set(freeTrainedCompanies?.map(c => c.sipi_number) || []);
+      
+      console.log('[TrainingDevelopment] Entreprises avec formations gratuites (report_creation_date):', freeTrainedSipiNumbers.size);
+
+      // 2C. Combiner les deux types de formations (payantes + gratuites)
+      const allTrainedSipiNumbers = new Set([...paidTrainedSipiNumbers, ...freeTrainedSipiNumbers]);
+      
+      console.log('[TrainingDevelopment] Total entreprises formées (payantes + gratuites):', allTrainedSipiNumbers.size);
+
+      if (allTrainedSipiNumbers.size === 0) {
+        console.log('[TrainingDevelopment] Aucune entreprise formée trouvée');
+        setMetrics([]);
+        return;
+      }
+
+      // 3. Récupérer les infos des entreprises formées
       const { data: companies } = await supabase
         .from('companies')
         .select('sipi_number, company_name, general_department')
-        .in('sipi_number', trainedSipiNumbers)
+        .in('sipi_number', Array.from(allTrainedSipiNumbers))
         .in('general_department', departmentNames);
 
       console.log('[TrainingDevelopment] Entreprises dans départements formateur:', companies?.length);

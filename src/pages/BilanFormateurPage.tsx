@@ -433,7 +433,7 @@ export default function BilanFormateurPage() {
                 Développement Généré par les Formations
               </CardTitle>
               <p className="text-sm text-muted-foreground">
-                Comparaison des quantités commandées 2 ans avant vs 2 ans après la formation
+                Analyse du développement pour toutes les formations (payantes et gratuites) - Comparaison des quantités commandées 2 ans avant vs année de formation
               </p>
             </CardHeader>
             <CardContent>

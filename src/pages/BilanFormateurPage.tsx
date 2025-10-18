@@ -476,6 +476,37 @@ export default function BilanFormateurPage() {
                     </Card>
                   </div>
 
+                  {/* Explication des colonnes */}
+                  <div className="bg-muted/50 p-4 rounded-lg space-y-2">
+                    <h4 className="font-semibold text-sm mb-3">📊 Explication des colonnes du tableau :</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <span className="font-medium">SIPI :</span>
+                        <span className="text-muted-foreground ml-2">Numéro d'identification unique de l'entreprise</span>
+                      </div>
+                      <div>
+                        <span className="font-medium">Entreprise :</span>
+                        <span className="text-muted-foreground ml-2">Nom de l'entreprise formée</span>
+                      </div>
+                      <div>
+                        <span className="font-medium">Année Form. :</span>
+                        <span className="text-muted-foreground ml-2">Quantité totale de produits commandés pendant l'année de formation</span>
+                      </div>
+                      <div>
+                        <span className="font-medium">-2 ans :</span>
+                        <span className="text-muted-foreground ml-2">Quantité totale de produits commandés 2 ans avant la formation</span>
+                      </div>
+                      <div>
+                        <span className="font-medium">Croissance :</span>
+                        <span className="text-muted-foreground ml-2">Pourcentage d'évolution entre -2 ans et l'année de formation</span>
+                      </div>
+                      <div>
+                        <span className="font-medium">Taux Renouv. :</span>
+                        <span className="text-muted-foreground ml-2">Pourcentage de références commandées à -2 ans qui sont à nouveau commandées l'année de formation</span>
+                      </div>
+                    </div>
+                  </div>
+
                   <Table>
                     <TableHeader>
                       <TableRow>

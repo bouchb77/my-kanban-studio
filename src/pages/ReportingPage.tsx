@@ -24,6 +24,14 @@ const ReportingPage = () => {
   // State for filtered companies from table
   const [filteredCompanies, setFilteredCompanies] = useState<any[]>([]);
 
+  // Filtrer pour n'afficher que les 3 dernières années (année en cours, N-1, N-2)
+  const filteredOrderStats = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    return orderStats
+      .filter(stat => stat.year >= currentYear - 2 && stat.year <= currentYear)
+      .sort((a, b) => b.year - a.year);
+  }, [orderStats]);
+
   // Calculs des totaux
   const totalOrders = orderStats.reduce((sum, stat) => sum + stat.totalOrders, 0);
   const totalAmount = orderStats.reduce((sum, stat) => sum + stat.totalAmount, 0);
@@ -93,9 +101,9 @@ const ReportingPage = () => {
 
           {/* Détail par année - version compacte */}
           <div className="mt-6 space-y-3">
-            <h4 className="font-medium text-sm">Détail par Année</h4>
+            <h4 className="font-medium text-sm">Détail par Année (3 dernières années)</h4>
             <div className="space-y-2 max-h-48 overflow-y-auto">
-              {orderStats.map((stat) => (
+              {filteredOrderStats.map((stat) => (
                 <div key={stat.year} className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
                   <div className="flex items-center space-x-3">
                     <Badge variant="outline" className="text-xs">{stat.year}</Badge>
@@ -114,7 +122,7 @@ const ReportingPage = () => {
                   </div>
                 </div>
               ))}
-              {orderStats.length === 0 && (
+              {filteredOrderStats.length === 0 && (
                 <div className="text-center py-4 text-muted-foreground text-sm">
                   Aucune donnée disponible
                 </div>

@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, GraduationCap, DollarSign, BarChart3, TrendingUp } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
+import CompanyDetailDialog from '@/components/CompanyDetailDialog';
 
 interface TrainingStats {
   paid_trainings: number;
@@ -43,6 +44,9 @@ export default function BilanFormateurPage() {
   const [freeCompanies, setFreeCompanies] = useState<TrainingCompany[]>([]);
   const [totalFsiteOrders, setTotalFsiteOrders] = useState<number>(0);
   const [totalFsiteAmount, setTotalFsiteAmount] = useState<number>(0);
+  const [selectedCompany, setSelectedCompany] = useState<any>(null);
+  const [companyDetailOpen, setCompanyDetailOpen] = useState(false);
+  const [departmentManagement, setDepartmentManagement] = useState<Record<string, any>>({});
 
   // Hook pour le calcul du développement - utilise le secteur sélectionné
   const { metrics: developmentMetrics, loading: devLoading } = useTrainingDevelopment(
@@ -236,6 +240,19 @@ export default function BilanFormateurPage() {
         setTotalFsiteOrders(totalOrders);
         setTotalFsiteAmount(totalAmount);
 
+        // Load department management data
+        const { data: deptData, error: deptError } = await supabase
+          .from('department_management')
+          .select('*');
+
+        if (!deptError && deptData) {
+          const deptMap: Record<string, any> = {};
+          deptData.forEach(dept => {
+            deptMap[dept.department_name] = dept;
+          });
+          setDepartmentManagement(deptMap);
+        }
+
         console.log('Stats set:', {
           paid: paidTrainings.length,
           free: freeTrainings.length,
@@ -253,6 +270,23 @@ export default function BilanFormateurPage() {
 
     loadStats();
   }, [user, selectedYear, selectedSector]);
+
+  const handleCompanyClick = async (sipiNumber: string, companyName: string) => {
+    // Load full company data
+    const { data: companyData } = await supabase
+      .from('companies')
+      .select('*')
+      .eq('sipi_number', sipiNumber)
+      .maybeSingle();
+
+    if (companyData) {
+      setSelectedCompany({
+        ...companyData,
+        company_name: companyName // Use decrypted name
+      });
+      setCompanyDetailOpen(true);
+    }
+  };
 
   if (roleLoading) {
     return (
@@ -522,7 +556,12 @@ export default function BilanFormateurPage() {
                       {developmentMetrics.map((metric) => (
                         <TableRow key={metric.sipi_number}>
                           <TableCell className="font-mono">{metric.sipi_number}</TableCell>
-                          <TableCell>{metric.company_name}</TableCell>
+                          <TableCell 
+                            className="cursor-pointer hover:text-primary hover:underline"
+                            onClick={() => handleCompanyClick(metric.sipi_number, metric.company_name)}
+                          >
+                            {metric.company_name}
+                          </TableCell>
                           <TableCell className="text-right font-semibold">{metric.training_year_quantity}</TableCell>
                           <TableCell className="text-right">{metric.year_minus_2_quantity}</TableCell>
                           <TableCell className={`text-right font-medium ${metric.growth_vs_minus_2 > 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -572,7 +611,12 @@ export default function BilanFormateurPage() {
                         {paidCompanies.map((company) => (
                           <TableRow key={company.sipi_number}>
                             <TableCell className="font-mono">{company.sipi_number}</TableCell>
-                            <TableCell>{company.company_name}</TableCell>
+                            <TableCell 
+                              className="cursor-pointer hover:text-primary hover:underline"
+                              onClick={() => handleCompanyClick(company.sipi_number, company.company_name)}
+                            >
+                              {company.company_name}
+                            </TableCell>
                             <TableCell>
                               {new Date(company.training_date).toLocaleDateString('fr-FR')}
                             </TableCell>
@@ -617,7 +661,12 @@ export default function BilanFormateurPage() {
                         {freeCompanies.map((company) => (
                           <TableRow key={company.sipi_number}>
                             <TableCell className="font-mono">{company.sipi_number}</TableCell>
-                            <TableCell>{company.company_name}</TableCell>
+                            <TableCell 
+                              className="cursor-pointer hover:text-primary hover:underline"
+                              onClick={() => handleCompanyClick(company.sipi_number, company.company_name)}
+                            >
+                              {company.company_name}
+                            </TableCell>
                             <TableCell>
                               {new Date(company.training_date).toLocaleDateString('fr-FR')}
                             </TableCell>
@@ -664,7 +713,12 @@ export default function BilanFormateurPage() {
                         {allCompanies.map((company) => (
                           <TableRow key={company.sipi_number}>
                             <TableCell className="font-mono">{company.sipi_number}</TableCell>
-                            <TableCell>{company.company_name}</TableCell>
+                            <TableCell 
+                              className="cursor-pointer hover:text-primary hover:underline"
+                              onClick={() => handleCompanyClick(company.sipi_number, company.company_name)}
+                            >
+                              {company.company_name}
+                            </TableCell>
                             <TableCell>
                               {new Date(company.training_date).toLocaleDateString('fr-FR')}
                             </TableCell>
@@ -688,6 +742,14 @@ export default function BilanFormateurPage() {
           </Tabs>
         </>
       )}
+
+      {/* Company Detail Dialog */}
+      <CompanyDetailDialog
+        company={selectedCompany}
+        open={companyDetailOpen}
+        onOpenChange={setCompanyDetailOpen}
+        departmentManagement={departmentManagement}
+      />
     </div>
   );
 }

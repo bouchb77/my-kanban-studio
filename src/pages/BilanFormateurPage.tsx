@@ -127,9 +127,76 @@ export default function BilanFormateurPage() {
       try {
         console.log('Loading stats for:', { formateur: selectedSector, selectedYear });
         
-        // Si "tous les secteurs" est sélectionné, on agrège les données de tous les formateurs
+        // Si "tous les secteurs" est sélectionné, calculer directement sur toutes les données
         if (selectedSector === '_tous_') {
-          // Charger tous les formateurs disponibles
+          // 1. Récupérer TOUTES les commandes de l'année avec FSITE/FSITEJ
+          const { data: allOrders } = await supabase
+            .from('orders')
+            .select('sipi_number, order_number, order_date, amount')
+            .gte('order_date', `${selectedYear}-01-01`)
+            .lte('order_date', `${selectedYear}-12-31`);
+
+          const allOrderNumbers = allOrders?.map(o => o.order_number) || [];
+          
+          const { data: fsiteOrders } = await supabase
+            .from('order_details')
+            .select('order_number')
+            .in('order_number', allOrderNumbers)
+            .in('article_code', ['FSITE', 'FSITEJ']);
+
+          const fsiteOrderNumbers = new Set(fsiteOrders?.map(od => od.order_number) || []);
+          const paidTrainedSipiNumbers = new Set(
+            allOrders?.filter(o => fsiteOrderNumbers.has(o.order_number)).map(o => o.sipi_number) || []
+          );
+
+          // 2. Récupérer toutes les entreprises avec report_creation_date dans l'année
+          const { data: allCompaniesWithReport } = await supabase
+            .from('companies')
+            .select('sipi_number')
+            .gte('report_creation_date', `${selectedYear}-01-01`)
+            .lte('report_creation_date', `${selectedYear}-12-31`);
+
+          const reportSipiNumbers = new Set(allCompaniesWithReport?.map(c => c.sipi_number) || []);
+
+          // 3. Combiner les deux ensembles
+          const allTrainedSipiNumbers = new Set([...paidTrainedSipiNumbers, ...reportSipiNumbers]);
+
+          // 4. Calculer CA sécurisé pour toutes les entreprises formées
+          const { data: trainedCompaniesOrders } = await supabase
+            .from('orders')
+            .select('sipi_number, amount')
+            .in('sipi_number', Array.from(allTrainedSipiNumbers))
+            .gte('order_date', `${selectedYear}-01-01`)
+            .lte('order_date', `${selectedYear}-12-31`);
+
+          const securedRevenue = trainedCompaniesOrders?.reduce((sum, o) => sum + (o.amount || 0), 0) || 0;
+
+          // 5. Calculer CA moyen historique
+          const { data: historicalOrders } = await supabase
+            .from('orders')
+            .select('sipi_number, amount')
+            .in('sipi_number', Array.from(allTrainedSipiNumbers));
+
+          const sipiAvgMap = new Map<string, { sum: number; count: number }>();
+          historicalOrders?.forEach(o => {
+            const current = sipiAvgMap.get(o.sipi_number) || { sum: 0, count: 0 };
+            sipiAvgMap.set(o.sipi_number, { sum: current.sum + (o.amount || 0), count: current.count + 1 });
+          });
+
+          const securedRevenueAvg = Array.from(sipiAvgMap.values()).reduce(
+            (sum, val) => sum + (val.count > 0 ? val.sum / val.count : 0), 0
+          );
+
+          // Set summary stats avec les bonnes valeurs
+          setStats({
+            paid_trainings: paidTrainedSipiNumbers.size,
+            total_trainings: allTrainedSipiNumbers.size,
+            secured_revenue: securedRevenue,
+            secured_revenue_avg: securedRevenueAvg
+          });
+
+          // 6. Récupérer les données détaillées pour l'affichage
+          // Charger tous les formateurs pour agréger les données de formation
           const { data: sectors } = await supabase
             .from('department_management')
             .select('formateur')
@@ -140,43 +207,17 @@ export default function BilanFormateurPage() {
               .filter(f => f && f.trim() !== '' && f !== '-') || []
           )];
 
-          let totalPaidTrainings = 0;
-          let totalAllTrainings = 0;
-          let totalSecuredRevenue = 0;
-          let totalSecuredRevenueAvg = 0;
           const allTrainingData: any[] = [];
-
-          // Agréger les données de tous les formateurs
           for (const formateurName of allFormateurs) {
-            const { data: formateurSummary } = await supabase.rpc('get_fo_training_summary', {
-              _formateur: formateurName,
-              _year: selectedYear
-            });
-
             const { data: formateurTraining } = await supabase.rpc('get_fo_training_data', {
               _formateur: formateurName,
               _year: selectedYear
             });
 
-            if (formateurSummary && formateurSummary.length > 0) {
-              totalPaidTrainings += Number(formateurSummary[0].total_paid_trainings || 0);
-              totalAllTrainings += Number(formateurSummary[0].total_all_trainings || 0);
-              totalSecuredRevenue += Number(formateurSummary[0].secured_revenue || 0);
-              totalSecuredRevenueAvg += Number(formateurSummary[0].secured_revenue_avg || 0);
-            }
-
             if (formateurTraining) {
               allTrainingData.push(...formateurTraining);
             }
           }
-
-          // Set summary stats
-          setStats({
-            paid_trainings: totalPaidTrainings,
-            total_trainings: totalAllTrainings,
-            secured_revenue: totalSecuredRevenue,
-            secured_revenue_avg: totalSecuredRevenueAvg
-          });
 
           // Get all decrypted companies
           const allCompanies = await encryptedCompaniesService.getAllCompanies();

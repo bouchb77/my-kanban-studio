@@ -101,14 +101,10 @@ export default function BilanFormateurPage() {
         console.log('Unique sectors (filtered):', uniqueSectors);
         setAvailableSectors(uniqueSectors);
         
-        // Sélectionner le premier secteur par défaut
-        if (uniqueSectors.length > 0) {
-          console.log('Setting selected sector to:', uniqueSectors[0]);
-          setSelectedSector(uniqueSectors[0]);
-          setFormateur(uniqueSectors[0]);
-        } else {
-          console.warn('No sectors available!');
-        }
+        // Sélectionner "Tous les secteurs" par défaut
+        console.log('Setting selected sector to: _tous_');
+        setSelectedSector('_tous_');
+        setFormateur('_tous_');
       } else {
         // Secteur spécifique
         console.log('Sector is specific:', sector);
@@ -131,79 +127,182 @@ export default function BilanFormateurPage() {
       try {
         console.log('Loading stats for:', { formateur: selectedSector, selectedYear });
         
-        // Load summary stats using optimized function
-        const { data: summaryData, error: summaryError } = await supabase.rpc('get_fo_training_summary', {
-          _formateur: selectedSector,
-          _year: selectedYear
-        });
+        // Si "tous les secteurs" est sélectionné, on agrège les données de tous les formateurs
+        if (selectedSector === '_tous_') {
+          // Charger tous les formateurs disponibles
+          const { data: sectors } = await supabase
+            .from('department_management')
+            .select('formateur')
+            .order('formateur');
+          
+          const allFormateurs = [...new Set(
+            sectors?.map(s => s.formateur)
+              .filter(f => f && f.trim() !== '' && f !== '-') || []
+          )];
 
-        if (summaryError) {
-          console.error('Error loading summary:', summaryError);
-          return;
-        }
+          let totalPaidTrainings = 0;
+          let totalAllTrainings = 0;
+          let totalSecuredRevenue = 0;
+          let totalSecuredRevenueAvg = 0;
+          const allTrainingData: any[] = [];
 
-        // Load detailed training data using optimized function
-        const { data: trainingData, error: trainingError } = await supabase.rpc('get_fo_training_data', {
-          _formateur: selectedSector,
-          _year: selectedYear
-        });
+          // Agréger les données de tous les formateurs
+          for (const formateurName of allFormateurs) {
+            const { data: formateurSummary } = await supabase.rpc('get_fo_training_summary', {
+              _formateur: formateurName,
+              _year: selectedYear
+            });
 
-        if (trainingError) {
-          console.error('Error loading training data:', trainingError);
-          return;
-        }
+            const { data: formateurTraining } = await supabase.rpc('get_fo_training_data', {
+              _formateur: formateurName,
+              _year: selectedYear
+            });
 
-        console.log('Data loaded:', { 
-          summaryCount: summaryData?.length, 
-          trainingCount: trainingData?.length 
-        });
+            if (formateurSummary && formateurSummary.length > 0) {
+              totalPaidTrainings += Number(formateurSummary[0].total_paid_trainings || 0);
+              totalAllTrainings += Number(formateurSummary[0].total_all_trainings || 0);
+              totalSecuredRevenue += Number(formateurSummary[0].secured_revenue || 0);
+              totalSecuredRevenueAvg += Number(formateurSummary[0].secured_revenue_avg || 0);
+            }
 
-        // Set summary stats
-        if (summaryData && summaryData.length > 0) {
+            if (formateurTraining) {
+              allTrainingData.push(...formateurTraining);
+            }
+          }
+
+          // Set summary stats
           setStats({
-            paid_trainings: Number(summaryData[0].total_paid_trainings || 0),
-            total_trainings: Number(summaryData[0].total_all_trainings || 0),
-            secured_revenue: Number(summaryData[0].secured_revenue || 0),
-            secured_revenue_avg: Number(summaryData[0].secured_revenue_avg || 0)
+            paid_trainings: totalPaidTrainings,
+            total_trainings: totalAllTrainings,
+            secured_revenue: totalSecuredRevenue,
+            secured_revenue_avg: totalSecuredRevenueAvg
+          });
+
+          // Get all decrypted companies
+          const allCompanies = await encryptedCompaniesService.getAllCompanies();
+          
+          // Create a map for quick lookup of decrypted company names
+          const companyMap = new Map(
+            allCompanies.map(c => [c.sipiNumber, c.companyName])
+          );
+
+          // Dédupliquer les données par SIPI (on prend la dernière entrée pour chaque SIPI)
+          const sipiMap = new Map();
+          allTrainingData.forEach(row => {
+            const existing = sipiMap.get(row.sipi_number);
+            if (!existing || new Date(row.report_creation_date) > new Date(existing.report_creation_date)) {
+              sipiMap.set(row.sipi_number, row);
+            }
+          });
+
+          // Transform training data to match component structure with decrypted names
+          const allCompaniesData: TrainingCompany[] = Array.from(sipiMap.values()).map(row => ({
+            sipi_number: row.sipi_number,
+            company_name: companyMap.get(row.sipi_number) || row.company_name,
+            training_date: row.report_creation_date,
+            total_orders: Number(row.paid_orders_count || 0),
+            total_amount: Number(row.paid_orders_amount || 0),
+            total_orders_all: Number(row.all_orders_count_year || 0),
+            total_amount_all: Number(row.all_orders_amount_year || 0)
+          }));
+
+          // Paid trainings: companies with orders
+          const paidTrainings = allCompaniesData.filter(c => c.total_orders && c.total_orders > 0);
+
+          // Free trainings: companies without paid orders
+          const paidSipiNumbers = new Set(paidTrainings.map(c => c.sipi_number));
+          const freeTrainings = allCompaniesData.filter(c => !paidSipiNumbers.has(c.sipi_number));
+
+          setPaidCompanies(paidTrainings);
+          setAllCompanies(allCompaniesData);
+          setFreeCompanies(freeTrainings);
+          
+          console.log('Stats set (tous les secteurs):', {
+            paid: paidTrainings.length,
+            free: freeTrainings.length,
+            total: allCompaniesData.length
           });
         } else {
-          setStats({
-            paid_trainings: 0,
-            total_trainings: 0,
-            secured_revenue: 0,
-            secured_revenue_avg: 0
+          // Load summary stats using optimized function for a specific formateur
+          const { data: summaryData, error: summaryError } = await supabase.rpc('get_fo_training_summary', {
+            _formateur: selectedSector,
+            _year: selectedYear
+          });
+
+          if (summaryError) {
+            console.error('Error loading summary:', summaryError);
+            return;
+          }
+
+          // Load detailed training data using optimized function
+          const { data: trainingData, error: trainingError } = await supabase.rpc('get_fo_training_data', {
+            _formateur: selectedSector,
+            _year: selectedYear
+          });
+
+          if (trainingError) {
+            console.error('Error loading training data:', trainingError);
+            return;
+          }
+
+          console.log('Data loaded:', { 
+            summaryCount: summaryData?.length, 
+            trainingCount: trainingData?.length 
+          });
+
+          // Set summary stats
+          if (summaryData && summaryData.length > 0) {
+            setStats({
+              paid_trainings: Number(summaryData[0].total_paid_trainings || 0),
+              total_trainings: Number(summaryData[0].total_all_trainings || 0),
+              secured_revenue: Number(summaryData[0].secured_revenue || 0),
+              secured_revenue_avg: Number(summaryData[0].secured_revenue_avg || 0)
+            });
+          } else {
+            setStats({
+              paid_trainings: 0,
+              total_trainings: 0,
+              secured_revenue: 0,
+              secured_revenue_avg: 0
+            });
+          }
+
+          // Get all decrypted companies
+          const allCompanies = await encryptedCompaniesService.getAllCompanies();
+          
+          // Create a map for quick lookup of decrypted company names
+          const companyMap = new Map(
+            allCompanies.map(c => [c.sipiNumber, c.companyName])
+          );
+
+          // Transform training data to match component structure with decrypted names
+          const allCompaniesData: TrainingCompany[] = (trainingData || []).map(row => ({
+            sipi_number: row.sipi_number,
+            company_name: companyMap.get(row.sipi_number) || row.company_name,
+            training_date: row.report_creation_date,
+            total_orders: Number(row.paid_orders_count || 0),
+            total_amount: Number(row.paid_orders_amount || 0),
+            total_orders_all: Number(row.all_orders_count_year || 0),
+            total_amount_all: Number(row.all_orders_amount_year || 0)
+          }));
+
+          // Paid trainings: companies with orders
+          const paidTrainings = allCompaniesData.filter(c => c.total_orders && c.total_orders > 0);
+
+          // Free trainings: companies without paid orders
+          const paidSipiNumbers = new Set(paidTrainings.map(c => c.sipi_number));
+          const freeTrainings = allCompaniesData.filter(c => !paidSipiNumbers.has(c.sipi_number));
+
+          setPaidCompanies(paidTrainings);
+          setAllCompanies(allCompaniesData);
+          setFreeCompanies(freeTrainings);
+          
+          console.log('Stats set (specific formateur):', {
+            paid: paidTrainings.length,
+            free: freeTrainings.length,
+            total: allCompaniesData.length
           });
         }
-
-        // Get all decrypted companies
-        const allCompanies = await encryptedCompaniesService.getAllCompanies();
-        
-        // Create a map for quick lookup of decrypted company names
-        const companyMap = new Map(
-          allCompanies.map(c => [c.sipiNumber, c.companyName])
-        );
-
-        // Transform training data to match component structure with decrypted names
-        const allCompaniesData: TrainingCompany[] = (trainingData || []).map(row => ({
-          sipi_number: row.sipi_number,
-          company_name: companyMap.get(row.sipi_number) || row.company_name,
-          training_date: row.report_creation_date,
-          total_orders: Number(row.paid_orders_count || 0),
-          total_amount: Number(row.paid_orders_amount || 0),
-          total_orders_all: Number(row.all_orders_count_year || 0),
-          total_amount_all: Number(row.all_orders_amount_year || 0)
-        }));
-
-        // Paid trainings: companies with orders
-        const paidTrainings = allCompaniesData.filter(c => c.total_orders && c.total_orders > 0);
-
-        // Free trainings: companies without paid orders
-        const paidSipiNumbers = new Set(paidTrainings.map(c => c.sipi_number));
-        const freeTrainings = allCompaniesData.filter(c => !paidSipiNumbers.has(c.sipi_number));
-
-        setPaidCompanies(paidTrainings);
-        setAllCompanies(allCompaniesData);
-        setFreeCompanies(freeTrainings);
 
         // Calculate total FSITE and FSITEJ orders for the year
         const { data: orderDetails, error: orderDetailsError } = await supabase
@@ -253,10 +352,7 @@ export default function BilanFormateurPage() {
           setDepartmentManagement(deptMap);
         }
 
-        console.log('Stats set:', {
-          paid: paidTrainings.length,
-          free: freeTrainings.length,
-          total: allCompaniesData.length,
+        console.log('FSITE stats:', {
           totalFsiteOrders: totalOrders,
           totalFsiteAmount: totalAmount
         });
@@ -322,6 +418,9 @@ export default function BilanFormateurPage() {
                 <SelectValue placeholder="Choisir un secteur" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="_tous_">
+                  Tous les secteurs
+                </SelectItem>
                 {availableSectors.map((sector) => (
                   <SelectItem key={sector} value={sector}>
                     {sector}

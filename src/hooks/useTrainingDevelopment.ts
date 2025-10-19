@@ -39,21 +39,34 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
 
       console.log('[TrainingDevelopment] Début du calcul pour', formateur, trainingYear);
 
-      // 1. Récupérer les départements du formateur
-      const { data: departments } = await supabase
-        .from('department_management')
-        .select('department_name')
-        .eq('formateur', formateur);
+      // 1. Récupérer les départements du formateur (ou tous si formateur === '_tous_')
+      let departmentNames: string[];
+      
+      if (formateur === '_tous_') {
+        // Récupérer tous les départements
+        const { data: allDepartments } = await supabase
+          .from('department_management')
+          .select('department_name');
+        
+        departmentNames = allDepartments?.map(d => d.department_name) || [];
+        console.log('[TrainingDevelopment] Tous les départements:', departmentNames.length);
+      } else {
+        // Récupérer les départements d'un formateur spécifique
+        const { data: departments } = await supabase
+          .from('department_management')
+          .select('department_name')
+          .eq('formateur', formateur);
 
-      console.log('[TrainingDevelopment] Départements trouvés:', departments?.length);
+        console.log('[TrainingDevelopment] Départements trouvés:', departments?.length);
 
-      if (!departments || departments.length === 0) {
-        console.log('[TrainingDevelopment] Aucun département trouvé');
-        setMetrics([]);
-        return;
+        if (!departments || departments.length === 0) {
+          console.log('[TrainingDevelopment] Aucun département trouvé');
+          setMetrics([]);
+          return;
+        }
+
+        departmentNames = departments.map(d => d.department_name);
       }
-
-      const departmentNames = departments.map(d => d.department_name);
 
       // 2A. Récupérer les entreprises avec formations PAYANTES (FSITE/FSITEJ) de l'année
       const { data: trainedCompanies } = await supabase

@@ -305,70 +305,104 @@ export default function BilanFormateurPage() {
         }
 
         // Calculate total FSITE and FSITEJ orders for the year - filtered by sector
-        // 1. Get departments for the selected sector
-        let sectorDepartmentNames: string[];
         if (selectedSector === '_tous_') {
-          // Get all departments
-          const { data: allDepts } = await supabase
-            .from('department_management')
-            .select('department_name');
-          sectorDepartmentNames = allDepts?.map(d => d.department_name) || [];
+          // Pour "tous les secteurs", prendre TOUTES les commandes FSITE/FSITEJ de l'année
+          // 1. Get all orders for the year
+          const { data: orders, error: ordersError } = await supabase
+            .from('orders')
+            .select('order_number, order_date, amount')
+            .gte('order_date', `${selectedYear}-01-01`)
+            .lte('order_date', `${selectedYear}-12-31`);
+
+          if (ordersError) {
+            console.error('Error loading orders:', ordersError);
+          }
+
+          const orderNumbers = orders?.map(o => o.order_number) || [];
+
+          // 2. Get FSITE/FSITEJ order details for these orders
+          const { data: orderDetails, error: orderDetailsError } = await supabase
+            .from('order_details')
+            .select('order_number, quantity, article_code')
+            .in('order_number', orderNumbers)
+            .or('article_code.ilike.FSITE%,article_code.ilike.FSITEJ%');
+
+          if (orderDetailsError) {
+            console.error('Error loading order details:', orderDetailsError);
+          }
+
+          // 3. Calculate totals
+          const orderMap = new Map((orders || []).map(o => [o.order_number, o]));
+          const matchedOrders = (orderDetails || [])
+            .filter(od => orderMap.has(od.order_number))
+            .map(od => ({
+              ...od,
+              order: orderMap.get(od.order_number)
+            }));
+
+          const totalOrders = matchedOrders.reduce((sum, item) => sum + (item.quantity || 1), 0);
+          const totalAmount = matchedOrders.reduce((sum, item) => sum + (item.order?.amount || 0), 0);
+          
+          setTotalFsiteOrders(totalOrders);
+          setTotalFsiteAmount(totalAmount);
         } else {
-          // Get departments for specific formateur
+          // Pour un secteur spécifique, filtrer par département
+          // 1. Get departments for specific formateur
           const { data: depts } = await supabase
             .from('department_management')
             .select('department_name')
             .eq('formateur', selectedSector);
-          sectorDepartmentNames = depts?.map(d => d.department_name) || [];
+          
+          const sectorDepartmentNames = depts?.map(d => d.department_name) || [];
+
+          // 2. Get companies (SIPI numbers) in these departments
+          const { data: sectorCompanies } = await supabase
+            .from('companies')
+            .select('sipi_number')
+            .in('general_department', sectorDepartmentNames);
+
+          const sectorSipiNumbers = sectorCompanies?.map(c => c.sipi_number) || [];
+
+          // 3. Get orders for these companies in the selected year
+          const { data: orders, error: ordersError } = await supabase
+            .from('orders')
+            .select('order_number, order_date, amount, sipi_number')
+            .in('sipi_number', sectorSipiNumbers)
+            .gte('order_date', `${selectedYear}-01-01`)
+            .lte('order_date', `${selectedYear}-12-31`);
+
+          if (ordersError) {
+            console.error('Error loading orders:', ordersError);
+          }
+
+          const orderNumbers = orders?.map(o => o.order_number) || [];
+
+          // 4. Get FSITE/FSITEJ order details for these orders
+          const { data: orderDetails, error: orderDetailsError } = await supabase
+            .from('order_details')
+            .select('order_number, quantity, article_code')
+            .in('order_number', orderNumbers)
+            .or('article_code.ilike.FSITE%,article_code.ilike.FSITEJ%');
+
+          if (orderDetailsError) {
+            console.error('Error loading order details:', orderDetailsError);
+          }
+
+          // 5. Calculate totals
+          const orderMap = new Map((orders || []).map(o => [o.order_number, o]));
+          const matchedOrders = (orderDetails || [])
+            .filter(od => orderMap.has(od.order_number))
+            .map(od => ({
+              ...od,
+              order: orderMap.get(od.order_number)
+            }));
+
+          const totalOrders = matchedOrders.reduce((sum, item) => sum + (item.quantity || 1), 0);
+          const totalAmount = matchedOrders.reduce((sum, item) => sum + (item.order?.amount || 0), 0);
+          
+          setTotalFsiteOrders(totalOrders);
+          setTotalFsiteAmount(totalAmount);
         }
-
-        // 2. Get companies (SIPI numbers) in these departments
-        const { data: sectorCompanies } = await supabase
-          .from('companies')
-          .select('sipi_number')
-          .in('general_department', sectorDepartmentNames);
-
-        const sectorSipiNumbers = sectorCompanies?.map(c => c.sipi_number) || [];
-
-        // 3. Get orders for these companies in the selected year
-        const { data: orders, error: ordersError } = await supabase
-          .from('orders')
-          .select('order_number, order_date, amount, sipi_number')
-          .in('sipi_number', sectorSipiNumbers)
-          .gte('order_date', `${selectedYear}-01-01`)
-          .lte('order_date', `${selectedYear}-12-31`);
-
-        if (ordersError) {
-          console.error('Error loading orders:', ordersError);
-        }
-
-        const orderNumbers = orders?.map(o => o.order_number) || [];
-
-        // 4. Get FSITE/FSITEJ order details for these orders
-        const { data: orderDetails, error: orderDetailsError } = await supabase
-          .from('order_details')
-          .select('order_number, quantity, article_code')
-          .in('order_number', orderNumbers)
-          .or('article_code.ilike.FSITE%,article_code.ilike.FSITEJ%');
-
-        if (orderDetailsError) {
-          console.error('Error loading order details:', orderDetailsError);
-        }
-
-        // 5. Calculate totals
-        const orderMap = new Map((orders || []).map(o => [o.order_number, o]));
-        const matchedOrders = (orderDetails || [])
-          .filter(od => orderMap.has(od.order_number))
-          .map(od => ({
-            ...od,
-            order: orderMap.get(od.order_number)
-          }));
-
-        const totalOrders = matchedOrders.reduce((sum, item) => sum + (item.quantity || 1), 0);
-        const totalAmount = matchedOrders.reduce((sum, item) => sum + (item.order?.amount || 0), 0);
-        
-        setTotalFsiteOrders(totalOrders);
-        setTotalFsiteAmount(totalAmount);
 
         // Load department management data
         const { data: deptData, error: deptError } = await supabase
@@ -382,11 +416,6 @@ export default function BilanFormateurPage() {
           });
           setDepartmentManagement(deptMap);
         }
-
-        console.log('FSITE stats:', {
-          totalFsiteOrders: totalOrders,
-          totalFsiteAmount: totalAmount
-        });
 
       } catch (error) {
         console.error('Error loading training data:', error);

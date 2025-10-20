@@ -347,11 +347,27 @@ export default function BilanFormateurPage() {
 
         // Calculate total FSITE and FSITEJ orders for the year - filtered by sector
         if (selectedSector === '_tous_') {
-          // Pour "tous les secteurs", prendre TOUTES les commandes FSITE/FSITEJ de l'année
-          // 1. Get all orders for the year
+          // Pour "tous les secteurs", agréger les données de tous les formateurs
+          // 1. Get all departments from all formateurs
+          const { data: allDepts } = await supabase
+            .from('department_management')
+            .select('department_name');
+          
+          const allDepartmentNames = allDepts?.map(d => d.department_name) || [];
+
+          // 2. Get companies (SIPI numbers) in these departments
+          const { data: allCompanies } = await supabase
+            .from('companies')
+            .select('sipi_number')
+            .in('general_department', allDepartmentNames);
+
+          const allSipiNumbers = allCompanies?.map(c => c.sipi_number) || [];
+
+          // 3. Get orders for these companies in the selected year
           const { data: orders, error: ordersError } = await supabase
             .from('orders')
-            .select('order_number, order_date, amount')
+            .select('order_number, order_date, amount, sipi_number')
+            .in('sipi_number', allSipiNumbers)
             .gte('order_date', `${selectedYear}-01-01`)
             .lte('order_date', `${selectedYear}-12-31`);
 
@@ -361,7 +377,7 @@ export default function BilanFormateurPage() {
 
           const orderNumbers = orders?.map(o => o.order_number) || [];
 
-          // 2. Get FSITE/FSITEJ order details for these orders
+          // 4. Get FSITE/FSITEJ order details for these orders
           const { data: orderDetails, error: orderDetailsError } = await supabase
             .from('order_details')
             .select('order_number, quantity, article_code')
@@ -372,7 +388,7 @@ export default function BilanFormateurPage() {
             console.error('Error loading order details:', orderDetailsError);
           }
 
-          // 3. Calculate totals - count unique orders, not quantities
+          // 5. Calculate totals - count unique orders, not quantities
           const orderMap = new Map((orders || []).map(o => [o.order_number, o]));
           const uniqueOrderNumbers = new Set(
             (orderDetails || [])

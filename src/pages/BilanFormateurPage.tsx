@@ -372,17 +372,20 @@ export default function BilanFormateurPage() {
             console.error('Error loading order details:', orderDetailsError);
           }
 
-          // 3. Calculate totals
+          // 3. Calculate totals - count unique orders, not quantities
           const orderMap = new Map((orders || []).map(o => [o.order_number, o]));
-          const matchedOrders = (orderDetails || [])
-            .filter(od => orderMap.has(od.order_number))
-            .map(od => ({
-              ...od,
-              order: orderMap.get(od.order_number)
-            }));
+          const uniqueOrderNumbers = new Set(
+            (orderDetails || [])
+              .filter(od => orderMap.has(od.order_number))
+              .map(od => od.order_number)
+          );
 
-          const totalOrders = matchedOrders.reduce((sum, item) => sum + (item.quantity || 1), 0);
-          const totalAmount = matchedOrders.reduce((sum, item) => sum + (item.order?.amount || 0), 0);
+          const totalOrders = uniqueOrderNumbers.size;
+          const totalAmount = Array.from(uniqueOrderNumbers)
+            .reduce((sum, orderNumber) => {
+              const order = orderMap.get(orderNumber);
+              return sum + (order?.amount || 0);
+            }, 0);
           
           setTotalFsiteOrders(totalOrders);
           setTotalFsiteAmount(totalAmount);
@@ -429,17 +432,20 @@ export default function BilanFormateurPage() {
             console.error('Error loading order details:', orderDetailsError);
           }
 
-          // 5. Calculate totals
+          // 5. Calculate totals - count unique orders, not quantities
           const orderMap = new Map((orders || []).map(o => [o.order_number, o]));
-          const matchedOrders = (orderDetails || [])
-            .filter(od => orderMap.has(od.order_number))
-            .map(od => ({
-              ...od,
-              order: orderMap.get(od.order_number)
-            }));
+          const uniqueOrderNumbers = new Set(
+            (orderDetails || [])
+              .filter(od => orderMap.has(od.order_number))
+              .map(od => od.order_number)
+          );
 
-          const totalOrders = matchedOrders.reduce((sum, item) => sum + (item.quantity || 1), 0);
-          const totalAmount = matchedOrders.reduce((sum, item) => sum + (item.order?.amount || 0), 0);
+          const totalOrders = uniqueOrderNumbers.size;
+          const totalAmount = Array.from(uniqueOrderNumbers)
+            .reduce((sum, orderNumber) => {
+              const order = orderMap.get(orderNumber);
+              return sum + (order?.amount || 0);
+            }, 0);
           
           setTotalFsiteOrders(totalOrders);
           setTotalFsiteAmount(totalAmount);

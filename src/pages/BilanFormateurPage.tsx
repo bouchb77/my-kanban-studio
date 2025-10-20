@@ -263,6 +263,19 @@ export default function BilanFormateurPage() {
             free: freeTrainings.length,
             total: allCompaniesData.length
           });
+
+          // Calculer le total des commandes FSITE/FSITEJ à partir des données de formation
+          // On utilise allTrainingData (avant déduplication) pour compter toutes les commandes
+          const totalFsiteOrdersCount = allTrainingData.reduce((sum, row) => {
+            return sum + (Number(row.paid_orders_count) || 0);
+          }, 0);
+          
+          const totalFsiteAmountSum = allTrainingData.reduce((sum, row) => {
+            return sum + (Number(row.paid_orders_amount) || 0);
+          }, 0);
+          
+          setTotalFsiteOrders(totalFsiteOrdersCount);
+          setTotalFsiteAmount(totalFsiteAmountSum);
         } else {
           // Load summary stats using optimized function for a specific formateur
           const { data: summaryData, error: summaryError } = await supabase.rpc('get_fo_training_summary', {
@@ -343,70 +356,8 @@ export default function BilanFormateurPage() {
             free: freeTrainings.length,
             total: allCompaniesData.length
           });
-        }
 
-        // Calculate total FSITE and FSITEJ orders for the year - filtered by sector
-        if (selectedSector === '_tous_') {
-          // Pour "tous les secteurs", agréger les données de tous les formateurs
-          // 1. Get all departments from all formateurs
-          const { data: allDepts } = await supabase
-            .from('department_management')
-            .select('department_name');
-          
-          const allDepartmentNames = allDepts?.map(d => d.department_name) || [];
-
-          // 2. Get companies (SIPI numbers) in these departments
-          const { data: allCompanies } = await supabase
-            .from('companies')
-            .select('sipi_number')
-            .in('general_department', allDepartmentNames);
-
-          const allSipiNumbers = allCompanies?.map(c => c.sipi_number) || [];
-
-          // 3. Get orders for these companies in the selected year
-          const { data: orders, error: ordersError } = await supabase
-            .from('orders')
-            .select('order_number, order_date, amount, sipi_number')
-            .in('sipi_number', allSipiNumbers)
-            .gte('order_date', `${selectedYear}-01-01`)
-            .lte('order_date', `${selectedYear}-12-31`);
-
-          if (ordersError) {
-            console.error('Error loading orders:', ordersError);
-          }
-
-          const orderNumbers = orders?.map(o => o.order_number) || [];
-
-          // 4. Get FSITE/FSITEJ order details for these orders
-          const { data: orderDetails, error: orderDetailsError } = await supabase
-            .from('order_details')
-            .select('order_number, quantity, article_code')
-            .in('order_number', orderNumbers)
-            .or('article_code.ilike.FSITE%,article_code.ilike.FSITEJ%');
-
-          if (orderDetailsError) {
-            console.error('Error loading order details:', orderDetailsError);
-          }
-
-          // 5. Calculate totals - count unique orders, not quantities
-          const orderMap = new Map((orders || []).map(o => [o.order_number, o]));
-          const uniqueOrderNumbers = new Set(
-            (orderDetails || [])
-              .filter(od => orderMap.has(od.order_number))
-              .map(od => od.order_number)
-          );
-
-          const totalOrders = uniqueOrderNumbers.size;
-          const totalAmount = Array.from(uniqueOrderNumbers)
-            .reduce((sum, orderNumber) => {
-              const order = orderMap.get(orderNumber);
-              return sum + (order?.amount || 0);
-            }, 0);
-          
-          setTotalFsiteOrders(totalOrders);
-          setTotalFsiteAmount(totalAmount);
-        } else {
-          // Pour un secteur spécifique, filtrer par département
+          // Calculate total FSITE and FSITEJ orders for the year - filtered by this formateur's departments
           // 1. Get departments for specific formateur
           const { data: depts } = await supabase
             .from('department_management')

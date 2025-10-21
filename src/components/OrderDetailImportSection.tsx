@@ -73,7 +73,7 @@ export const OrderDetailImportSection = () => {
 
     setImporting(true);
     try {
-      const BATCH_SIZE = 45000; // Limite de sécurité en dessous de 50,000
+      const BATCH_SIZE = 10000; // Lots plus petits pour éviter le timeout
       const batches = [];
       
       // Diviser en lots

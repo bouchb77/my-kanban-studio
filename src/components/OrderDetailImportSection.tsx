@@ -73,15 +73,38 @@ export const OrderDetailImportSection = () => {
 
     setImporting(true);
     try {
-      const { data, error } = await supabase.rpc('import_order_details', {
-        details_data: details as any
-      });
+      const BATCH_SIZE = 45000; // Limite de sécurité en dessous de 50,000
+      const batches = [];
+      
+      // Diviser en lots
+      for (let i = 0; i < details.length; i += BATCH_SIZE) {
+        batches.push(details.slice(i, i + BATCH_SIZE));
+      }
 
-      if (error) throw error;
+      toast.info(`Import de ${details.length} détails en ${batches.length} lot(s)...`);
 
-      const result = data as { inserted: number; updated: number; skipped: number };
+      let totalInserted = 0;
+      let totalUpdated = 0;
+      let totalSkipped = 0;
+
+      // Importer chaque lot
+      for (let i = 0; i < batches.length; i++) {
+        toast.info(`Import du lot ${i + 1}/${batches.length}...`);
+        
+        const { data, error } = await supabase.rpc('import_order_details', {
+          details_data: batches[i] as any
+        });
+
+        if (error) throw error;
+
+        const result = data as { inserted: number; updated: number; skipped: number };
+        totalInserted += result.inserted;
+        totalUpdated += result.updated;
+        totalSkipped += result.skipped;
+      }
+
       toast.success(
-        `Import terminé: ${result.inserted} insérés, ${result.updated} mis à jour, ${result.skipped} ignorés`
+        `Import terminé: ${totalInserted} insérés, ${totalUpdated} mis à jour, ${totalSkipped} ignorés`
       );
       setDetails([]);
     } catch (error) {

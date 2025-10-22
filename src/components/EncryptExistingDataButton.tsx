@@ -103,19 +103,21 @@ export const EncryptExistingDataButton = () => {
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Confirmer le chiffrement des entreprises</AlertDialogTitle>
-              <AlertDialogDescription>
-                Cette opération va chiffrer toutes les données sensibles des entreprises dans la base de données.
-                <br /><br />
-                <strong>Attention :</strong> Cette opération est irréversible et peut prendre plusieurs minutes.
-                <br /><br />
-                Les champs suivants seront chiffrés :
-                <ul className="list-disc list-inside mt-2">
-                  <li>Nom de l'entreprise</li>
-                  <li>Adresse 1</li>
-                  <li>Adresse 2</li>
-                  <li>Ville</li>
-                  <li>Code postal</li>
-                </ul>
+              <AlertDialogDescription asChild>
+                <div>
+                  Cette opération va chiffrer toutes les données sensibles des entreprises dans la base de données.
+                  <br /><br />
+                  <strong>Attention :</strong> Cette opération est irréversible et peut prendre plusieurs minutes.
+                  <br /><br />
+                  Les champs suivants seront chiffrés :
+                  <ul className="list-disc list-inside mt-2">
+                    <li>Nom de l'entreprise</li>
+                    <li>Adresse 1</li>
+                    <li>Adresse 2</li>
+                    <li>Ville</li>
+                    <li>Code postal</li>
+                  </ul>
+                </div>
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -168,17 +170,19 @@ export const EncryptExistingDataButton = () => {
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Confirmer le chiffrement des contacts</AlertDialogTitle>
-              <AlertDialogDescription>
-                Cette opération va chiffrer toutes les données sensibles des contacts dans la base de données.
-                <br /><br />
-                <strong>Attention :</strong> Cette opération est irréversible et peut prendre plusieurs minutes.
-                <br /><br />
-                Les champs suivants seront chiffrés :
-                <ul className="list-disc list-inside mt-2">
-                  <li>Nom du contact</li>
-                  <li>Email</li>
-                  <li>Téléphone</li>
-                </ul>
+              <AlertDialogDescription asChild>
+                <div>
+                  Cette opération va chiffrer toutes les données sensibles des contacts dans la base de données.
+                  <br /><br />
+                  <strong>Attention :</strong> Cette opération est irréversible et peut prendre plusieurs minutes.
+                  <br /><br />
+                  Les champs suivants seront chiffrés :
+                  <ul className="list-disc list-inside mt-2">
+                    <li>Nom du contact</li>
+                    <li>Email</li>
+                    <li>Téléphone</li>
+                  </ul>
+                </div>
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

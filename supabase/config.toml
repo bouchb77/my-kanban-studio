@@ -9,6 +9,9 @@ verify_jwt = true
 [functions.encrypted-contacts]
 verify_jwt = true
 
+[functions.encrypt-existing-contacts]
+verify_jwt = true
+
 # Temporarily disable import map for problematic functions to bypass TypeScript errors
 [functions.geocode-address]
 import_map = false

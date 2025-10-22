@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import * as ExcelJS from 'exceljs';
 import { CompanyOrderPeriod } from '@/hooks/useCompanyOrderStats';
+import { encryptedContactsService } from '@/services/encryptedContactsService';
 
 interface IsochronePoint {
   lat: number;
@@ -37,8 +37,8 @@ export const useIsochroneExport = () => {
       console.log('=== DÉBUT EXPORT EXCEL COMPLET ===');
       console.log('Entreprises dans la zone:', companiesInZone.length);
       
-      // Récupérer les contacts correspondants aux entreprises dans la zone
-      console.log('🚀 Récupération des contacts pour les entreprises dans la zone...');
+      // Récupérer les contacts chiffrés correspondants aux entreprises dans la zone
+      console.log('🚀 Récupération des contacts chiffrés pour les entreprises dans la zone...');
       const inZoneCompanySipis = companiesInZone
         .map(c => c.sipi_number)
         .filter(Boolean); // Enlever les valeurs nulles/undefined
@@ -46,42 +46,39 @@ export const useIsochroneExport = () => {
       console.log('📊 Numéros SIPI à rechercher:', inZoneCompanySipis.length, 'entreprises');
       console.log('📊 Échantillon SIPI zone:', inZoneCompanySipis.slice(0, 10));
       
+      // Récupérer et déchiffrer les contacts par lots
       let allMatchingContacts: any[] = [];
-      const batchSize = 50; // Traiter par lots de 50 SIPI pour éviter les URLs trop longues
+      const batchSize = 100; // Lots plus grands car edge function gère la pagination
       
       for (let i = 0; i < inZoneCompanySipis.length; i += batchSize) {
         const sipiBatch = inZoneCompanySipis.slice(i, i + batchSize);
-        console.log(`📞 Récupération des contacts pour le lot ${Math.floor(i/batchSize) + 1}/${Math.ceil(inZoneCompanySipis.length/batchSize)} (${sipiBatch.length} SIPI)...`);
+        console.log(`📞 Récupération des contacts chiffrés pour le lot ${Math.floor(i/batchSize) + 1}/${Math.ceil(inZoneCompanySipis.length/batchSize)} (${sipiBatch.length} SIPI)...`);
         
         try {
-          const { data: contactsBatch, error: contactsError } = await supabase
-            .from('contacts')
-            .select('sipi_number, contact_name, email, phone')
-            .in('sipi_number', sipiBatch);
-
-          if (contactsError) {
-            console.error('🚨 ERREUR récupération contacts batch:', contactsError);
-            continue; 
-          }
-
+          const contactsBatch = await encryptedContactsService.getContactsBySipiNumbers(sipiBatch);
+          
           if (contactsBatch && contactsBatch.length > 0) {
             allMatchingContacts.push(...contactsBatch);
-            console.log(`✅ ${contactsBatch.length} contacts récupérés pour ce lot`);
+            console.log(`✅ ${contactsBatch.length} contacts déchiffrés pour ce lot`);
           }
         } catch (error) {
-          console.error('❌ Erreur inattendue lors de la récupération des contacts:', error);
+          console.error('❌ Erreur lors de la récupération des contacts chiffrés:', error);
           continue;
         }
       }
       
-      console.log(`🎯 TOTAL CONTACTS CORRESPONDANTS RÉCUPÉRÉS: ${allMatchingContacts.length}`);
+      console.log(`🎯 TOTAL CONTACTS DÉCHIFFRÉS RÉCUPÉRÉS: ${allMatchingContacts.length}`);
       
-      // Créer un index des contacts par SIPI
+      // Créer un index des contacts déchiffrés par SIPI
       const contactsByWsipi = new Map();
       allMatchingContacts.forEach(contact => {
         if (contact.sipi_number) {
           const sipiKey = String(contact.sipi_number).trim();
-          contactsByWsipi.set(sipiKey, contact);
+          contactsByWsipi.set(sipiKey, {
+            contact_name: contact.contact_name,
+            email: contact.email,
+            phone: contact.phone
+          });
         }
       });
       

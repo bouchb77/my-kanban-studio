@@ -6,8 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Upload, Download, FileSpreadsheet, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { encryptedContactsService } from '@/services/encryptedContactsService';
 
 interface Contact {
   sipi_number: string;
@@ -71,17 +71,10 @@ const ContactImportSection: React.FC = () => {
     setIsImporting(true);
     
     try {
-      const { error } = await supabase
-        .from('contacts')
-        .upsert(contacts, { onConflict: 'sipi_number' });
+      // Utiliser le service de chiffrement pour l'import
+      await encryptedContactsService.bulkUpsertContacts(contacts);
 
-      if (error) {
-        console.error('Erreur lors de l\'import:', error);
-        toast.error('Erreur lors de l\'import des contacts');
-        return;
-      }
-
-      toast.success(`${contacts.length} contacts importés avec succès`);
+      toast.success(`${contacts.length} contacts importés avec succès (chiffrés)`);
       setContacts([]);
       setSelectedFile(null);
       // Reset file input

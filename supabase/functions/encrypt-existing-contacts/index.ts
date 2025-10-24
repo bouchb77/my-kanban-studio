@@ -91,8 +91,14 @@ serve(async (req) => {
       });
     }
 
-    // Check if user is admin
-    const { data: isAdmin, error: adminCheckError } = await supabase
+    // Check if user is admin using a user-context client
+    const userSupabase = createClient(
+      supabaseUrl,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    
+    const { data: isAdmin, error: adminCheckError } = await userSupabase
       .rpc('is_current_user_admin');
 
     if (adminCheckError || !isAdmin) {

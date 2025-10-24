@@ -53,26 +53,76 @@ export const EncryptExistingDataButton = () => {
     try {
       toast({
         title: "Chiffrement des contacts démarré",
-        description: "Le processus de chiffrement des contacts a démarré...",
+        description: "Traitement par lots de 500 contacts...",
       });
 
-      const { data, error } = await supabase.functions.invoke('encrypt-existing-contacts');
+      let offset = 0;
+      let hasMore = true;
+      let totalEncrypted = 0;
+      let totalAlreadyEncrypted = 0;
+      let totalErrors = 0;
+      let totalCount = 0;
+      let batchNumber = 1;
 
-      if (error) {
-        throw error;
+      // Traiter par lots jusqu'à ce qu'il n'y ait plus de contacts
+      while (hasMore) {
+        console.log(`🚀 Processing batch ${batchNumber} (offset: ${offset})...`);
+        
+        const { data, error } = await supabase.functions.invoke('encrypt-existing-contacts', {
+          body: { offset, batchSize: 500 }
+        });
+
+        if (error) {
+          console.error('Batch error:', error);
+          throw error;
+        }
+
+        if (!data) {
+          throw new Error('No data returned from function');
+        }
+
+        // Accumuler les résultats
+        totalEncrypted += data.encrypted || 0;
+        totalAlreadyEncrypted += data.alreadyEncrypted || 0;
+        totalErrors += data.errors || 0;
+        totalCount = data.total || 0;
+        hasMore = data.hasMore || false;
+        offset = data.nextOffset || 0;
+
+        // Mettre à jour l'affichage avec la progression
+        setContactsResult({
+          total: totalCount,
+          encrypted: totalEncrypted,
+          alreadyEncrypted: totalAlreadyEncrypted,
+          errors: totalErrors,
+          currentBatch: batchNumber,
+          processed: offset
+        });
+
+        // Toast de progression
+        toast({
+          title: `Lot ${batchNumber} traité`,
+          description: `${totalEncrypted} contacts chiffrés sur ${totalCount} au total`,
+        });
+
+        batchNumber++;
+
+        // Petite pause entre les lots pour éviter de surcharger
+        if (hasMore) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
       }
-
-      setContactsResult(data);
       
+      // Toast final
       toast({
         title: "✅ Chiffrement des contacts terminé",
-        description: `${data.encrypted} contacts chiffrés, ${data.alreadyEncrypted} déjà chiffrés`,
+        description: `${totalEncrypted} contacts chiffrés, ${totalAlreadyEncrypted} déjà chiffrés sur ${totalCount} contacts`,
       });
     } catch (error) {
       console.error('Error encrypting contacts:', error);
       toast({
         title: "❌ Erreur",
-        description: "Impossible de chiffrer les contacts",
+        description: error instanceof Error ? error.message : "Impossible de chiffrer les contacts",
         variant: "destructive",
       });
     } finally {
@@ -196,10 +246,19 @@ export const EncryptExistingDataButton = () => {
 
         {contactsResult && (
           <div className="p-4 border rounded-lg space-y-2 text-sm">
-            <h3 className="font-semibold">Résultat du chiffrement des contacts :</h3>
+            <h3 className="font-semibold">
+              {isEncryptingContacts ? `🔄 Traitement en cours (Lot ${contactsResult.currentBatch || 1})...` : 'Résultat du chiffrement des contacts :'}
+            </h3>
             <div className="grid grid-cols-2 gap-2">
               <div>Total de contacts :</div>
               <div className="font-medium">{contactsResult.total}</div>
+              
+              {isEncryptingContacts && (
+                <>
+                  <div>Traités :</div>
+                  <div className="font-medium">{contactsResult.processed || 0} / {contactsResult.total}</div>
+                </>
+              )}
               
               <div>Chiffrés :</div>
               <div className="font-medium text-green-600">{contactsResult.encrypted}</div>

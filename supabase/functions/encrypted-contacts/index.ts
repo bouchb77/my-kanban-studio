@@ -49,7 +49,7 @@ class ContactEncryption {
   }
 
   isEncrypted(data: string): boolean {
-    if (!data || data.length < 20) return false;
+    if (!data || data.trim() === '' || data.length < 20) return true; // Consider empty/null as already "encrypted"
     
     const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
     if (!base64Regex.test(data)) return false;

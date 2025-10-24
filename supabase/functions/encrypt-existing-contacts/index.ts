@@ -109,45 +109,55 @@ serve(async (req) => {
       });
     }
 
+    // Parse request body for batch parameters
+    const body = await req.json().catch(() => ({}));
+    const batchSize = body.batchSize || 500; // Traiter 500 contacts par appel
+    const offset = body.offset || 0;
+
     const encryption = new ContactEncryption();
     await encryption.init();
 
-    console.log('Starting contact encryption process...');
+    console.log(`Starting contact encryption batch (offset: ${offset}, size: ${batchSize})...`);
 
-    // Fetch all contacts in batches
-    let allContacts: any[] = [];
-    let from = 0;
-    const batchSize = 1000;
-    let hasMore = true;
+    // Count total contacts needing processing
+    const { count: totalCount } = await supabase
+      .from('contacts')
+      .select('*', { count: 'exact', head: true });
 
-    while (hasMore) {
-      const { data, error } = await supabase
-        .from('contacts')
-        .select('*')
-        .range(from, from + batchSize - 1);
+    console.log(`Total contacts in database: ${totalCount}`);
 
-      if (error) {
-        throw new Error(`Error fetching contacts: ${error.message}`);
-      }
+    // Fetch batch of contacts
+    const { data: contacts, error: fetchError } = await supabase
+      .from('contacts')
+      .select('*')
+      .range(offset, offset + batchSize - 1);
 
-      if (data && data.length > 0) {
-        allContacts = [...allContacts, ...data];
-        from += batchSize;
-        hasMore = data.length === batchSize;
-        console.log(`Fetched ${data.length} contacts (total: ${allContacts.length})`);
-      } else {
-        hasMore = false;
-      }
+    if (fetchError) {
+      throw new Error(`Error fetching contacts: ${fetchError.message}`);
     }
 
-    console.log(`Total contacts to process: ${allContacts.length}`);
+    if (!contacts || contacts.length === 0) {
+      return new Response(JSON.stringify({
+        total: totalCount || 0,
+        processed: 0,
+        encrypted: 0,
+        alreadyEncrypted: 0,
+        errors: 0,
+        hasMore: false,
+        nextOffset: offset
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log(`Processing ${contacts.length} contacts from offset ${offset}`);
 
     let processedCount = 0;
     let encryptedCount = 0;
     let alreadyEncryptedCount = 0;
     let errorCount = 0;
 
-    for (const contact of allContacts) {
+    for (const contact of contacts) {
       try {
         let needsUpdate = false;
         const updates: any = {};
@@ -181,32 +191,40 @@ serve(async (req) => {
             errorCount++;
           } else {
             encryptedCount++;
-            console.log(`Encrypted contact ${contact.id} (SIPI: ${contact.sipi_number})`);
+            if (encryptedCount % 50 === 0) {
+              console.log(`Encrypted ${encryptedCount} contacts so far...`);
+            }
           }
         } else {
           alreadyEncryptedCount++;
         }
 
         processedCount++;
-
-        if (processedCount % 100 === 0) {
-          console.log(`Progress: ${processedCount}/${allContacts.length} contacts processed`);
-        }
       } catch (error) {
         console.error(`Error processing contact ${contact.id}:`, error);
         errorCount++;
       }
     }
 
+    const nextOffset = offset + batchSize;
+    const hasMore = nextOffset < (totalCount || 0);
+
     const summary = {
-      total: allContacts.length,
+      total: totalCount || 0,
       processed: processedCount,
       encrypted: encryptedCount,
       alreadyEncrypted: alreadyEncryptedCount,
-      errors: errorCount
+      errors: errorCount,
+      hasMore,
+      nextOffset,
+      currentBatch: {
+        start: offset,
+        end: offset + contacts.length - 1,
+        size: contacts.length
+      }
     };
 
-    console.log('Encryption process completed:', summary);
+    console.log('Batch encryption completed:', summary);
 
     return new Response(JSON.stringify(summary), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

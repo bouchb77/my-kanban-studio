@@ -28,7 +28,7 @@ class ContactEncryption {
   }
 
   async encrypt(text: string): Promise<string> {
-    if (!text) return text;
+    if (!text || text.trim() === '') return text;
     if (!this.key) await this.init();
     
     const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -49,7 +49,7 @@ class ContactEncryption {
   }
 
   isEncrypted(data: string): boolean {
-    if (!data || data.length < 20) return false;
+    if (!data || data.trim() === '' || data.length < 20) return true; // Consider empty/null as already "encrypted"
     
     const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
     if (!base64Regex.test(data)) return false;
@@ -148,20 +148,20 @@ serve(async (req) => {
         let needsUpdate = false;
         const updates: any = {};
 
-        // Check and encrypt contact_name
-        if (contact.contact_name && !encryption.isEncrypted(contact.contact_name)) {
+        // Check and encrypt contact_name (only if not null/empty and not already encrypted)
+        if (contact.contact_name && contact.contact_name.trim() !== '' && !encryption.isEncrypted(contact.contact_name)) {
           updates.contact_name = await encryption.encrypt(contact.contact_name);
           needsUpdate = true;
         }
 
-        // Check and encrypt email
-        if (contact.email && !encryption.isEncrypted(contact.email)) {
+        // Check and encrypt email (only if not null/empty and not already encrypted)
+        if (contact.email && contact.email.trim() !== '' && !encryption.isEncrypted(contact.email)) {
           updates.email = await encryption.encrypt(contact.email);
           needsUpdate = true;
         }
 
-        // Check and encrypt phone
-        if (contact.phone && !encryption.isEncrypted(contact.phone)) {
+        // Check and encrypt phone (only if not null/empty and not already encrypted)
+        if (contact.phone && contact.phone.trim() !== '' && !encryption.isEncrypted(contact.phone)) {
           updates.phone = await encryption.encrypt(contact.phone);
           needsUpdate = true;
         }

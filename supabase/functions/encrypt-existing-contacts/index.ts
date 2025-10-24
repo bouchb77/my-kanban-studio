@@ -92,13 +92,11 @@ serve(async (req) => {
     }
 
     // Check if user is admin
-    const { data: userRoles, error: rolesError } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .single();
+    const { data: isAdmin, error: adminCheckError } = await supabase
+      .rpc('is_current_user_admin');
 
-    if (rolesError || !userRoles || userRoles.role !== 'admin') {
+    if (adminCheckError || !isAdmin) {
+      console.error('Admin check failed:', adminCheckError);
       return new Response(JSON.stringify({ error: 'Forbidden: Admin access required' }), { 
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

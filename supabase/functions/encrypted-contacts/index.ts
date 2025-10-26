@@ -49,17 +49,20 @@ class ContactEncryption {
   }
 
   isEncrypted(data: string): boolean {
-    if (!data || data.trim() === '' || data.length < 20) return true; // Consider empty/null as already "encrypted"
+    if (!data || data.trim() === '') return false; // Empty/null is not encrypted
     
+    // Check if it looks like base64
     const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
     if (!base64Regex.test(data)) return false;
     
-    return data.length >= 32;
+    // If it's base64 and longer than a reasonable plain text, consider it encrypted
+    return data.length >= 20;
   }
 
   async decrypt(encryptedData: string): Promise<string> {
-    if (!encryptedData) return encryptedData;
+    if (!encryptedData || encryptedData.trim() === '') return encryptedData;
     
+    // If it doesn't look encrypted, return as-is
     if (!this.isEncrypted(encryptedData)) {
       return encryptedData;
     }
@@ -80,9 +83,11 @@ class ContactEncryption {
         encrypted
       );
 
-      return new TextDecoder().decode(decrypted);
+      const result = new TextDecoder().decode(decrypted);
+      console.log('✅ Successfully decrypted:', encryptedData.substring(0, 10) + '... => ' + result.substring(0, 20));
+      return result;
     } catch (error) {
-      console.error('Decryption failed for data:', encryptedData.substring(0, 20) + '...');
+      console.error('❌ Decryption failed for:', encryptedData.substring(0, 30) + '...', error);
       return encryptedData;
     }
   }

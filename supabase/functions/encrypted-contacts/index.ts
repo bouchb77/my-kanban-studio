@@ -49,23 +49,32 @@ class ContactEncryption {
   }
 
   isEncrypted(data: string): boolean {
-    if (!data || data.trim() === '') return false; // Empty/null is not encrypted
+    // Empty or null strings are not encrypted
+    if (!data || data.trim() === '') return false;
     
-    // Check if it looks like base64
+    // Check if it looks like base64 (encrypted data)
     const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
-    if (!base64Regex.test(data)) return false;
+    if (!base64Regex.test(data)) {
+      // Not base64, so it's plain text (not encrypted)
+      return false;
+    }
     
-    // If it's base64 and longer than a reasonable plain text, consider it encrypted
-    return data.length >= 20;
+    // AES-GCM encrypted data with 12-byte IV is at least 28 bytes (IV + data + tag)
+    // In base64, that's at least ~37 characters
+    return data.length >= 37;
   }
 
   async decrypt(encryptedData: string): Promise<string> {
+    // Return empty strings as-is
     if (!encryptedData || encryptedData.trim() === '') return encryptedData;
     
     // If it doesn't look encrypted, return as-is
     if (!this.isEncrypted(encryptedData)) {
+      console.log('🔓 Données non cryptées (length: ' + encryptedData.length + '), retour direct:', encryptedData.substring(0, 30));
       return encryptedData;
     }
+
+    console.log('🔐 Tentative de décryptage (length: ' + encryptedData.length + ')...');
 
     if (!this.key) await this.init();
 
@@ -84,10 +93,10 @@ class ContactEncryption {
       );
 
       const result = new TextDecoder().decode(decrypted);
-      console.log('✅ Successfully decrypted:', encryptedData.substring(0, 10) + '... => ' + result.substring(0, 20));
+      console.log('✅ Décryptage réussi:', result.substring(0, 30));
       return result;
     } catch (error) {
-      console.error('❌ Decryption failed for:', encryptedData.substring(0, 30) + '...', error);
+      console.error('❌ Erreur décryptage:', error);
       return encryptedData;
     }
   }
@@ -154,11 +163,21 @@ serve(async (req) => {
 });
 
 async function decryptContact(contact: any) {
+  console.log('🔍 Décryptage contact SIPI:', contact.sipi_number);
+  
+  const decryptedName = contact.contact_name ? await encryption.decrypt(contact.contact_name) : contact.contact_name;
+  const decryptedEmail = contact.email ? await encryption.decrypt(contact.email) : contact.email;
+  const decryptedPhone = contact.phone ? await encryption.decrypt(contact.phone) : contact.phone;
+  
+  console.log('  ✓ Nom:', contact.contact_name?.substring(0, 20), '=>', decryptedName?.substring(0, 20));
+  console.log('  ✓ Email:', contact.email?.substring(0, 20), '=>', decryptedEmail?.substring(0, 20));
+  console.log('  ✓ Tél:', contact.phone?.substring(0, 20), '=>', decryptedPhone?.substring(0, 20));
+  
   return {
     ...contact,
-    contact_name: contact.contact_name ? await encryption.decrypt(contact.contact_name) : contact.contact_name,
-    email: contact.email ? await encryption.decrypt(contact.email) : contact.email,
-    phone: contact.phone ? await encryption.decrypt(contact.phone) : contact.phone,
+    contact_name: decryptedName,
+    email: decryptedEmail,
+    phone: decryptedPhone,
   };
 }
 

@@ -49,12 +49,19 @@ class ContactEncryption {
   }
 
   isEncrypted(data: string): boolean {
-    if (!data || data.trim() === '' || data.length < 20) return true; // Consider empty/null as already "encrypted"
+    // Empty strings don't need encryption
+    if (!data || data.trim() === '') return true;
     
+    // Check if it looks like base64 (encrypted data)
     const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
-    if (!base64Regex.test(data)) return false;
+    if (!base64Regex.test(data)) {
+      // Not base64, so it's plain text that needs encryption
+      return false;
+    }
     
-    return data.length >= 32;
+    // If it's base64 and reasonably long, it's likely encrypted
+    // AES-GCM encrypted data with IV is at least 28 characters in base64
+    return data.length >= 28;
   }
 }
 

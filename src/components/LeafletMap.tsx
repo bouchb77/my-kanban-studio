@@ -30,53 +30,8 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
-  const [contactsData, setContactsData] = useState<Map<string, Contact>>(new Map());
 
-  // Charger les données de contact
-  useEffect(() => {
-    const loadContacts = async () => {
-      if (companies.length === 0) return;
-
-      const sipiNumbers = companies.map(c => c.sipi_number).filter(Boolean);
-      console.log(`📞 Chargement des contacts pour ${sipiNumbers.length} entreprises...`);
-      
-      let allContacts: Contact[] = [];
-      const batchSize = 50; // Traiter par lots de 50 SIPI pour éviter les URLs trop longues
-      
-      for (let i = 0; i < sipiNumbers.length; i += batchSize) {
-        const sipiBatch = sipiNumbers.slice(i, i + batchSize);
-        console.log(`📞 Lot ${Math.floor(i/batchSize) + 1}/${Math.ceil(sipiNumbers.length/batchSize)} (${sipiBatch.length} SIPI)...`);
-        
-        try {
-          const { data: contactsBatch, error: contactsError } = await supabase
-            .from('contacts')
-            .select('sipi_number, contact_name, email, phone')
-            .in('sipi_number', sipiBatch);
-
-          if (contactsError) {
-            console.error('🚨 Erreur récupération contacts:', contactsError);
-            continue; // Continue avec le prochain lot
-          }
-
-          if (contactsBatch && contactsBatch.length > 0) {
-            allContacts.push(...contactsBatch);
-            console.log(`✅ ${contactsBatch.length} contacts récupérés`);
-          }
-        } catch (error) {
-          console.error('❌ Erreur inattendue lors de la récupération des contacts:', error);
-          continue;
-        }
-      }
-
-      const contactsMap = new Map(
-        allContacts.map(contact => [contact.sipi_number, contact])
-      );
-      setContactsData(contactsMap);
-      console.log(`✅ Total contacts chargés: ${contactsMap.size}`);
-    };
-
-    loadContacts();
-  }, [companies]);
+  // Plus besoin de charger les contacts séparément car ils sont déjà dans companies (décryptés)
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -213,17 +168,15 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
       // Ajouter les marqueurs des entreprises dans la zone
       companiesInZone.forEach((company) => {
         if (company.latitude && company.longitude) {
-          const contact = contactsData.get(company.sipi_number);
-          
           window.L.marker([company.latitude, company.longitude], { icon: inZoneIcon })
             .addTo(map)
             .bindPopup(`
               <div style="max-width: 250px;">
                 <h3 style="margin: 0 0 8px 0; font-weight: bold;">${company.company_name}</h3>
                 <p style="margin: 0; font-size: 12px; color: #666;">SIPI: ${company.sipi_number}</p>
-                ${contact?.contact_name ? `<p style="margin: 4px 0; font-size: 12px; color: #666;">Contact: ${contact.contact_name}</p>` : ''}
-                ${contact?.email ? `<p style="margin: 4px 0; font-size: 12px; color: #666;">E-mail: ${contact.email}</p>` : ''}
-                ${contact?.phone ? `<p style="margin: 4px 0; font-size: 12px; color: #666;">Téléphone: ${contact.phone}</p>` : ''}
+                ${company.contact_name ? `<p style="margin: 4px 0; font-size: 12px; color: #666;">Contact: ${company.contact_name}</p>` : ''}
+                ${company.email ? `<p style="margin: 4px 0; font-size: 12px; color: #666;">E-mail: ${company.email}</p>` : ''}
+                ${company.phone ? `<p style="margin: 4px 0; font-size: 12px; color: #666;">Téléphone: ${company.phone}</p>` : ''}
                 <p style="margin: 4px 0; font-size: 12px; color: #666;">Ville: ${company.city || 'N/A'}</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #666;">
                   Coordonnées: ${company.latitude.toFixed(6)}, ${company.longitude.toFixed(6)}
@@ -245,17 +198,15 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
       // Ajouter les marqueurs des entreprises hors zone
       companiesOutZone.forEach((company) => {
         if (company.latitude && company.longitude) {
-          const contact = contactsData.get(company.sipi_number);
-          
           window.L.marker([company.latitude, company.longitude], { icon: outZoneIcon })
             .addTo(map)
             .bindPopup(`
               <div style="max-width: 250px;">
                 <h3 style="margin: 0 0 8px 0; font-weight: bold;">${company.company_name}</h3>
                 <p style="margin: 0; font-size: 12px; color: #666;">SIPI: ${company.sipi_number}</p>
-                ${contact?.contact_name ? `<p style="margin: 4px 0; font-size: 12px; color: #666;">Contact: ${contact.contact_name}</p>` : ''}
-                ${contact?.email ? `<p style="margin: 4px 0; font-size: 12px; color: #666;">E-mail: ${contact.email}</p>` : ''}
-                ${contact?.phone ? `<p style="margin: 4px 0; font-size: 12px; color: #666;">Téléphone: ${contact.phone}</p>` : ''}
+                ${company.contact_name ? `<p style="margin: 4px 0; font-size: 12px; color: #666;">Contact: ${company.contact_name}</p>` : ''}
+                ${company.email ? `<p style="margin: 4px 0; font-size: 12px; color: #666;">E-mail: ${company.email}</p>` : ''}
+                ${company.phone ? `<p style="margin: 4px 0; font-size: 12px; color: #666;">Téléphone: ${company.phone}</p>` : ''}
                 <p style="margin: 4px 0; font-size: 12px; color: #666;">Ville: ${company.city || 'N/A'}</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #666;">
                   Coordonnées: ${company.latitude.toFixed(6)}, ${company.longitude.toFixed(6)}
@@ -285,7 +236,7 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
         mapInstanceRef.current = null;
       }
     };
-  }, [companies, centerLocation, isochronePolygon, contactsData]);
+  }, [companies, centerLocation, isochronePolygon]);
 
   // Fonction point-in-polygon utilisant l'algorithme ray casting
   const isPointInPolygon = (point: { lat: number; lng: number }, polygon: { lat: number; lng: number }[]): boolean => {

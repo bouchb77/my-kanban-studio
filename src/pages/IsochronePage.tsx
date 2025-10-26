@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { MapPin, Download, Calculator, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useCompanyOrderStats, CompanyOrderPeriod } from "@/hooks/useCompanyOrderStats";
 import { useIsochroneExport } from "@/hooks/useIsochroneExport";
+import { useEnrichedCompanyData } from "@/hooks/useEnrichedCompanyData";
 import { supabase } from '@/integrations/supabase/client';
 import LeafletMap from '@/components/LeafletMap';
 
@@ -26,10 +27,25 @@ const IsochronePage = () => {
   const [isCalculating, setIsCalculating] = useState(false);
   const [isochronePolygon, setIsochronePolygon] = useState<IsochronePoint[]>([]);
   const [centerCoords, setCenterCoords] = useState<{lat: number, lng: number} | null>(null);
+  const [enrichedCompanies, setEnrichedCompanies] = useState<CompanyOrderPeriod[]>([]);
   
   const { companyStats, loading, error, fetchCompanyOrderStats } = useCompanyOrderStats();
   const { exportToExcel, isExporting } = useIsochroneExport();
+  const { enrichWithContacts, isEnriching } = useEnrichedCompanyData();
   const { toast } = useToast();
+
+  // Enrichir automatiquement les données avec les contacts décryptés
+  useEffect(() => {
+    const enrichData = async () => {
+      if (companyStats.length > 0) {
+        console.log('🔐 Enrichissement automatique avec les contacts...');
+        const enriched = await enrichWithContacts(companyStats);
+        setEnrichedCompanies(enriched);
+        console.log('✅ Entreprises enrichies:', enriched.length);
+      }
+    };
+    enrichData();
+  }, [companyStats]);
 
   const handleCalculateIsochrone = async () => {
     if (!centerLocation.trim()) {
@@ -46,6 +62,8 @@ const IsochronePage = () => {
     try {
       // D'abord récupérer les entreprises avec le seuil
       await fetchCompanyOrderStats(maxThreshold);
+      
+      // L'enrichissement se fait automatiquement via le useEffect
       
       // Géocoder l'adresse avec OpenRouteService
       const geocodeResponse = await supabase.functions.invoke('geocode-address', {
@@ -259,7 +277,7 @@ const IsochronePage = () => {
           </CardHeader>
           <CardContent>
             <LeafletMap 
-              companies={companyStats}
+              companies={enrichedCompanies.length > 0 ? enrichedCompanies : companyStats}
               centerLocation={centerCoords}
               isochronePolygon={isochronePolygon}
               maxThreshold={maxThreshold}

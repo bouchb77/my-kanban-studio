@@ -17,6 +17,9 @@ export interface CompanyOrderPeriod {
   city?: string;
   general_department?: string;
   quality?: string;
+  contact_name?: string;
+  email?: string;
+  phone?: string;
 }
 
 export const useCompanyOrderStats = () => {

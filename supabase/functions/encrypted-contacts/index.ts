@@ -306,17 +306,36 @@ async function handleDelete(supabase: any, body: any) {
 async function handleBulkUpsert(supabase: any, body: any) {
   const { contacts } = body;
 
-  const encryptedContacts = await Promise.all(
-    contacts.map(async (contact: any) => await encryptContactData(contact))
-  );
+  console.log(`Début de l'upsert de ${contacts.length} contacts...`);
 
-  const { error } = await supabase
-    .from('contacts')
-    .upsert(encryptedContacts, { onConflict: 'sipi_number' });
+  // Traiter les contacts par lots de 50 pour éviter le dépassement CPU
+  const batchSize = 50;
+  let processedCount = 0;
 
-  if (error) {
-    throw new Error(`Database error: ${error.message}`);
+  for (let i = 0; i < contacts.length; i += batchSize) {
+    const batch = contacts.slice(i, i + batchSize);
+    
+    console.log(`Traitement du lot ${Math.floor(i / batchSize) + 1}/${Math.ceil(contacts.length / batchSize)} (${batch.length} contacts)...`);
+    
+    // Crypter le lot
+    const encryptedBatch = await Promise.all(
+      batch.map(async (contact: any) => await encryptContactData(contact))
+    );
+
+    // Insérer le lot
+    const { error } = await supabase
+      .from('contacts')
+      .upsert(encryptedBatch, { onConflict: 'sipi_number' });
+
+    if (error) {
+      throw new Error(`Database error on batch ${Math.floor(i / batchSize) + 1}: ${error.message}`);
+    }
+
+    processedCount += batch.length;
+    console.log(`✅ ${processedCount}/${contacts.length} contacts traités`);
   }
+
+  console.log(`✅ Upsert terminé: ${processedCount} contacts`);
 
   return new Response(JSON.stringify({ data: null, error: null }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },

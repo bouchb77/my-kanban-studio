@@ -726,9 +726,18 @@ const CompaniesTableOnly = ({
   const handleReorderColumns = async (reorderedItems: typeof allColumns) => {
     const newVisibleOrder = reorderedItems.map(item => item.id);
     
-    // Keep non-visible columns in their original order
-    const nonVisible = localColumnOrder.filter(id => !localVisibleColumns.includes(id));
-    const finalOrder = [...newVisibleOrder, ...nonVisible];
+    // Keep non-visible and non-year columns in their original order
+    const nonYearColumns = allColumns.filter(col => !col.id.startsWith('year_')).map(col => col.id);
+    const nonVisible = localColumnOrder.filter(id => 
+      !localVisibleColumns.includes(id) && nonYearColumns.includes(id)
+    );
+    
+    // Add any columns that are in allColumns but not in the new order
+    const allNonYearIds = nonYearColumns.filter(id => 
+      !newVisibleOrder.includes(id) && !nonVisible.includes(id)
+    );
+    
+    const finalOrder = [...newVisibleOrder, ...nonVisible, ...allNonYearIds];
     
     // Update local state immediately for responsive UI
     setLocalColumnOrder(finalOrder);
@@ -1424,6 +1433,98 @@ const CompaniesTableOnly = ({
                   </TableRow>
                 );
               })}
+              
+              {/* Totals Row */}
+              {sortedCompanies.length > 0 && (
+                <TableRow className="bg-muted/50 font-semibold hover:bg-muted/50">
+                  {orderedColumns.map((column) => {
+                    if (!column) return null;
+                    
+                    if (column.id === 'sipi_number') {
+                      return (
+                        <TableCell key={column.id} className="font-bold">
+                          TOTAL
+                        </TableCell>
+                      );
+                    }
+                    
+                    if (column.id === 'company_name') {
+                      return (
+                        <TableCell key={column.id}>
+                          {sortedCompanies.length} entreprises
+                        </TableCell>
+                      );
+                    }
+                    
+                    if (column.id === 'averageAmountPerYear') {
+                      const totalAvgOrders = sortedCompanies.reduce((sum, c) => sum + (c.averageOrderPerYear || 0), 0);
+                      const totalAvgAmount = sortedCompanies.reduce((sum, c) => sum + (c.averageAmountPerYear || 0), 0);
+                      return (
+                        <TableCell key={column.id} className="text-center">
+                          <div className="space-y-1">
+                            <div className="font-bold text-primary">
+                              {Math.round(totalAvgOrders)} cmd
+                            </div>
+                            <div className="text-sm font-semibold">
+                              {Math.round(totalAvgAmount).toLocaleString()} €
+                            </div>
+                          </div>
+                        </TableCell>
+                      );
+                    }
+                    
+                    if (column.id === 'periodAmount') {
+                      const totalPeriodOrders = sortedCompanies.reduce((sum, c) => sum + (c.periodOrders || 0), 0);
+                      const totalPeriodAmount = sortedCompanies.reduce((sum, c) => sum + (c.periodAmount || 0), 0);
+                      return (
+                        <TableCell key={column.id} className="text-center bg-primary/5">
+                          <div className="space-y-1">
+                            <div className="font-bold text-primary">
+                              {totalPeriodOrders} cmd
+                            </div>
+                            <div className="text-sm font-semibold">
+                              {Math.round(totalPeriodAmount).toLocaleString()} €
+                            </div>
+                          </div>
+                        </TableCell>
+                      );
+                    }
+                    
+                    if (column.id.startsWith('year_')) {
+                      const year = parseInt(column.id.replace('year_', ''));
+                      let totalYearOrders = 0;
+                      let totalYearAmount = 0;
+                      
+                      sortedCompanies.forEach(company => {
+                        const yearData = company.orderStats?.find(stat => stat.year === year);
+                        if (yearData) {
+                          totalYearOrders += yearData.totalOrders;
+                          totalYearAmount += yearData.totalAmount;
+                        }
+                      });
+                      
+                      return (
+                        <TableCell key={column.id} className="text-center">
+                          {totalYearOrders > 0 ? (
+                            <div className="space-y-1">
+                              <div className="font-bold text-primary">
+                                {totalYearOrders}
+                              </div>
+                              <div className="text-sm font-semibold">
+                                {Math.round(totalYearAmount).toLocaleString()} €
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                      );
+                    }
+                    
+                    return <TableCell key={column.id} />;
+                  })}
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </div>

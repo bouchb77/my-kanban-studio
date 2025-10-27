@@ -642,12 +642,23 @@ const CompaniesTableOnly = ({
       ? preferences.visible_columns.filter(id => allColumns.some(col => col.id === id))
       : defaultVisible;
     
+    // Add any new columns that aren't in preferences yet (like periodAmount when dates are set)
+    const newColumns = allColumns
+      .filter(col => !col.id.startsWith('year_'))
+      .map(col => col.id)
+      .filter(id => !visible.includes(id) && !preferences.visible_columns?.includes(id));
+    
+    const finalVisible = [...visible, ...newColumns];
+    
     const order = preferences.column_order?.length > 0
       ? preferences.column_order.filter(id => allColumns.some(col => col.id === id))
       : allColumns.map(col => col.id);
     
-    setLocalVisibleColumns(visible);
-    setLocalColumnOrder(order);
+    // Add new columns to order as well
+    const finalOrder = [...order, ...newColumns];
+    
+    setLocalVisibleColumns(finalVisible);
+    setLocalColumnOrder(finalOrder);
   }, [preferences?.visible_columns, preferences?.column_order, allColumns.length, preferencesLoading]);
 
   // Get visible columns - always include year columns
@@ -682,10 +693,10 @@ const CompaniesTableOnly = ({
     return [...ordered, ...yearCols];
   }, [localColumnOrder, allColumns, visibleColumns]);
 
-  // Get visible column objects for DragDropList - use local order
+  // Get visible column objects for DragDropList - use local order and local visible
   const visibleColumnObjects = useMemo(() => {
     const nonYearColumns = allColumns.filter(col => !col.id.startsWith('year_'));
-    const visibleNonYear = nonYearColumns.filter(col => visibleColumns.includes(col.id));
+    const visibleNonYear = nonYearColumns.filter(col => localVisibleColumns.includes(col.id));
     
     if (localColumnOrder.length > 0) {
       const ordered: typeof allColumns = [];
@@ -703,7 +714,7 @@ const CompaniesTableOnly = ({
     }
     
     return visibleNonYear;
-  }, [allColumns, visibleColumns, localColumnOrder]);
+  }, [allColumns, localVisibleColumns, localColumnOrder]);
 
   const handleToggleColumn = async (columnId: string) => {
     // Update local state immediately for responsive UI
@@ -1198,7 +1209,7 @@ const CompaniesTableOnly = ({
                       <div key={column.id} className="flex items-center space-x-2">
                         <Checkbox
                           id={column.id}
-                          checked={visibleColumns.includes(column.id)}
+                          checked={localVisibleColumns.includes(column.id)}
                           onCheckedChange={() => handleToggleColumn(column.id)}
                         />
                         <label

@@ -75,6 +75,8 @@ const TasksPage = () => {
   const [isEditTaskOpen, setIsEditTaskOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [dueFilter, setDueFilter] = useState<'all' | 'overdue' | 'today' | 'this_week' | 'no_due'>('all');
+  const [sortBy, setSortBy] = useState<'none' | 'dueDate' | 'priority'>('none');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -293,33 +295,52 @@ const systemColumns = [
   // Set up real-time updates - now we don't need this since we're using encrypted functions
   // Real-time updates would need to be handled differently with encryption
 
-  const filteredTasks = tasks.filter(task => {
-    const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         task.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || 
-                      (statusFilter === "active" && task.status !== 'done') ||
-                      task.status === statusFilter;
-    const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter;
+  const filteredTasks = tasks
+    .filter(task => {
+      const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           task.description?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === "all" || 
+                        (statusFilter === "active" && task.status !== 'done') ||
+                        task.status === statusFilter;
+      const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter;
 
-    const now = new Date();
-    const startOfToday = new Date(now); startOfToday.setHours(0,0,0,0);
-    const endOfToday = new Date(now); endOfToday.setHours(23,59,59,999);
-    const endOfWeek = new Date(startOfToday); endOfWeek.setDate(endOfWeek.getDate() + 7);
+      const now = new Date();
+      const startOfToday = new Date(now); startOfToday.setHours(0,0,0,0);
+      const endOfToday = new Date(now); endOfToday.setHours(23,59,59,999);
+      const endOfWeek = new Date(startOfToday); endOfWeek.setDate(endOfWeek.getDate() + 7);
 
-    let matchesDue = true;
-    const due = task.dueDate ? new Date(task.dueDate) : null;
-    if (dueFilter === 'overdue') {
-      matchesDue = !!due && due < startOfToday && task.status !== 'done';
-    } else if (dueFilter === 'today') {
-      matchesDue = !!due && due >= startOfToday && due <= endOfToday;
-    } else if (dueFilter === 'this_week') {
-      matchesDue = !!due && due >= startOfToday && due <= endOfWeek;
-    } else if (dueFilter === 'no_due') {
-      matchesDue = !due;
-    }
-    
-    return matchesSearch && matchesStatus && matchesPriority && matchesDue;
-  });
+      let matchesDue = true;
+      const due = task.dueDate ? new Date(task.dueDate) : null;
+      if (dueFilter === 'overdue') {
+        matchesDue = !!due && due < startOfToday && task.status !== 'done';
+      } else if (dueFilter === 'today') {
+        matchesDue = !!due && due >= startOfToday && due <= endOfToday;
+      } else if (dueFilter === 'this_week') {
+        matchesDue = !!due && due >= startOfToday && due <= endOfWeek;
+      } else if (dueFilter === 'no_due') {
+        matchesDue = !due;
+      }
+      
+      return matchesSearch && matchesStatus && matchesPriority && matchesDue;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'none') return 0;
+      
+      if (sortBy === 'dueDate') {
+        const dateA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+        const dateB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+        return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
+      }
+      
+      if (sortBy === 'priority') {
+        const priorityOrder = { high: 3, medium: 2, low: 1 };
+        const priorityA = priorityOrder[a.priority] || 0;
+        const priorityB = priorityOrder[b.priority] || 0;
+        return sortDirection === 'asc' ? priorityA - priorityB : priorityB - priorityA;
+      }
+      
+      return 0;
+    });
 
   const toggleTaskSelection = (taskId: string) => {
     setSelectedTasks(prev =>
@@ -755,6 +776,27 @@ const systemColumns = [
                 <SelectItem value="high">Élevée</SelectItem>
               </SelectContent>
             </Select>
+
+            <Select value={sortBy} onValueChange={(value) => setSortBy(value as 'none' | 'dueDate' | 'priority')}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Trier par" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sans tri</SelectItem>
+                <SelectItem value="dueDate">Échéance</SelectItem>
+                <SelectItem value="priority">Priorité</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {sortBy !== 'none' && (
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+              >
+                <ArrowUpDown className="w-4 h-4" />
+              </Button>
+            )}
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

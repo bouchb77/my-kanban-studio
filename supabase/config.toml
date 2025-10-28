@@ -3,6 +3,9 @@ project_id = "grfnbxbxcbqiddbcrdru"
 [functions.ics-sync]
 verify_jwt = false
 
+[functions.export-bilan-formateur]
+verify_jwt = true
+
 [functions.encrypted-tasks]
 verify_jwt = true
 

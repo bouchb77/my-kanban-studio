@@ -777,27 +777,6 @@ const systemColumns = [
               </SelectContent>
             </Select>
 
-            <Select value={sortBy} onValueChange={(value) => setSortBy(value as 'none' | 'dueDate' | 'priority')}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Trier par" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Sans tri</SelectItem>
-                <SelectItem value="dueDate">Échéance</SelectItem>
-                <SelectItem value="priority">Priorité</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {sortBy !== 'none' && (
-              <Button 
-                variant="outline" 
-                size="icon"
-                onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
-              >
-                <ArrowUpDown className="w-4 h-4" />
-              </Button>
-            )}
-
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline">
@@ -838,16 +817,43 @@ const systemColumns = [
               <TableRow>
                 {orderedVisibleColumns.map((column) => (
                   <TableHead key={column.id} className={column.id === 'select' || column.id === 'actions' ? "w-12" : ""}>
-                    {column.id === 'title' ? (
-                      <Button variant="ghost" className="h-auto p-0 font-semibold">
-                        {column.label}
-                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                      </Button>
-                    ) : column.id === 'select' ? (
+                    {column.id === 'select' ? (
                       <Checkbox
                         checked={selectedTasks.length === filteredTasks.length && filteredTasks.length > 0}
                         onCheckedChange={toggleAllTasks}
                       />
+                    ) : column.id === 'dueDate' ? (
+                      <Button 
+                        variant="ghost" 
+                        className="h-auto p-0 font-semibold hover:text-primary"
+                        onClick={() => {
+                          if (sortBy === 'dueDate') {
+                            setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+                          } else {
+                            setSortBy('dueDate');
+                            setSortDirection('asc');
+                          }
+                        }}
+                      >
+                        {column.label}
+                        <ArrowUpDown className={`ml-2 h-4 w-4 ${sortBy === 'dueDate' ? 'text-primary' : ''}`} />
+                      </Button>
+                    ) : column.id === 'priority' ? (
+                      <Button 
+                        variant="ghost" 
+                        className="h-auto p-0 font-semibold hover:text-primary"
+                        onClick={() => {
+                          if (sortBy === 'priority') {
+                            setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+                          } else {
+                            setSortBy('priority');
+                            setSortDirection('asc');
+                          }
+                        }}
+                      >
+                        {column.label}
+                        <ArrowUpDown className={`ml-2 h-4 w-4 ${sortBy === 'priority' ? 'text-primary' : ''}`} />
+                      </Button>
                     ) : (
                       column.label
                     )}

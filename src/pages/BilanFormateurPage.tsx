@@ -10,10 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, GraduationCap, DollarSign, BarChart3, TrendingUp, Download, Search, Calendar as CalendarIcon, Filter } from 'lucide-react';
+import { Loader2, GraduationCap, DollarSign, BarChart3, TrendingUp, Download, Search, Calendar as CalendarIcon, Filter, HelpCircle } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Navigate } from 'react-router-dom';
 import CompanyDetailDialog from '@/components/CompanyDetailDialog';
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -594,132 +595,199 @@ export default function BilanFormateurPage() {
       ) : (
         <>
           {/* KPI Cards */}
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Formations Payantes
-                </CardTitle>
-                <GraduationCap className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{paidCompanies.length}</div>
-                <p className="text-xs text-muted-foreground">
-                  Basé sur date commande SIPI
-                </p>
-              </CardContent>
-            </Card>
+          <TooltipProvider>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    Formations Payantes
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p className="font-semibold mb-1">Méthode de calcul :</p>
+                        <p>Entreprises ayant passé au moins une commande avec les articles FSITE ou FSITEJ durant l'année sélectionnée. Le décompte est basé sur la date de commande SIPI.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </CardTitle>
+                  <GraduationCap className="h-4 w-4 text-primary" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{paidCompanies.length}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Basé sur date commande SIPI
+                  </p>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Formations Gratuites
-                </CardTitle>
-                <BarChart3 className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{freeCompanies.length}</div>
-                <p className="text-xs text-muted-foreground">
-                  Basé sur date formation (rapport SIPI)
-                </p>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    Formations Gratuites
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p className="font-semibold mb-1">Méthode de calcul :</p>
+                        <p>Entreprises ayant une date de formation (date de création du rapport SIPI) dans l'année sélectionnée, mais sans commande FSITE/FSITEJ associée. Ce sont des formations non facturées.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </CardTitle>
+                  <BarChart3 className="h-4 w-4 text-primary" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{freeCompanies.length}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Basé sur date formation (rapport SIPI)
+                  </p>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  CA Sécurisé
-                </CardTitle>
-                <DollarSign className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {new Intl.NumberFormat('fr-FR', {
-                    style: 'currency',
-                    currency: 'EUR'
-                  }).format(stats?.secured_revenue || 0)}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Total des commandes des entreprises formées
-                </p>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    CA Sécurisé
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p className="font-semibold mb-1">Méthode de calcul :</p>
+                        <p>Somme totale du chiffre d'affaires généré par toutes les commandes (tous articles confondus) des entreprises formées durant l'année. Inclut toutes les commandes de l'année, pas uniquement les formations.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </CardTitle>
+                  <DollarSign className="h-4 w-4 text-primary" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {new Intl.NumberFormat('fr-FR', {
+                      style: 'currency',
+                      currency: 'EUR'
+                    }).format(stats?.secured_revenue || 0)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Total des commandes des entreprises formées
+                  </p>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Panier Moyen
-                </CardTitle>
-                <DollarSign className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {new Intl.NumberFormat('fr-FR', {
-                    style: 'currency',
-                    currency: 'EUR'
-                  }).format(kpis.avgBasket)}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Par formation payante
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    Panier Moyen
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p className="font-semibold mb-1">Méthode de calcul :</p>
+                        <p>Montant moyen des commandes par formation payante. Calculé en divisant le montant total des commandes FSITE/FSITEJ par le nombre de formations payantes.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </CardTitle>
+                  <DollarSign className="h-4 w-4 text-primary" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {new Intl.NumberFormat('fr-FR', {
+                      style: 'currency',
+                      currency: 'EUR'
+                    }).format(kpis.avgBasket)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Par formation payante
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </TooltipProvider>
 
           {/* Additional KPIs */}
-          <div className="grid gap-6 md:grid-cols-3">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Taux de Fidélisation (2 ans)
-                </CardTitle>
-                <TrendingUp className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {kpis.fidélisationRate.toFixed(1)}%
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Taux de renouvellement moyen sur cycle 2 ans
-                </p>
-              </CardContent>
-            </Card>
+          <TooltipProvider>
+            <div className="grid gap-6 md:grid-cols-3">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    Taux de Fidélisation (2 ans)
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p className="font-semibold mb-1">Méthode de calcul :</p>
+                        <p>Pourcentage moyen de renouvellement des articles commandés sur un cycle de 2 ans. Compare les articles commandés il y a 2 ans avec ceux de l'année de formation pour mesurer la fidélité client.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </CardTitle>
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {kpis.fidélisationRate.toFixed(1)}%
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Taux de renouvellement moyen sur cycle 2 ans
+                  </p>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  ROI Moyen
-                </CardTitle>
-                <DollarSign className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {kpis.avgROI.toFixed(1)}x
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  CA sécurisé / coût formations
-                </p>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    ROI Moyen
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p className="font-semibold mb-1">Méthode de calcul :</p>
+                        <p>Retour sur investissement moyen des formations. Calculé en divisant le CA sécurisé total par le coût estimé des formations (1000€ par formation payante).</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </CardTitle>
+                  <DollarSign className="h-4 w-4 text-primary" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {kpis.avgROI.toFixed(1)}x
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    CA sécurisé / coût formations
+                  </p>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Total FSITE + FSITEJ
-                </CardTitle>
-                <GraduationCap className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{totalFsiteOrders}</div>
-                <p className="text-xs text-muted-foreground">
-                  {new Intl.NumberFormat('fr-FR', {
-                    style: 'currency',
-                    currency: 'EUR'
-                  }).format(totalFsiteAmount)}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    Total FSITE + FSITEJ
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p className="font-semibold mb-1">Méthode de calcul :</p>
+                        <p>Nombre total et montant cumulé des commandes contenant les articles FSITE ou FSITEJ pour le secteur sélectionné durant l'année. Toutes les commandes formation confondues.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </CardTitle>
+                  <GraduationCap className="h-4 w-4 text-primary" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{totalFsiteOrders}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {new Intl.NumberFormat('fr-FR', {
+                      style: 'currency',
+                      currency: 'EUR'
+                    }).format(totalFsiteAmount)}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </TooltipProvider>
 
           {/* Charts */}
           <div className="grid gap-6 md:grid-cols-2">
@@ -734,7 +802,7 @@ export default function BilanFormateurPage() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
                     <YAxis />
-                    <Tooltip />
+                    <RechartsTooltip />
                     <Legend />
                     <Line type="monotone" dataKey="payantes" stroke="hsl(var(--primary))" strokeWidth={2} name="Payantes" />
                     <Line type="monotone" dataKey="gratuites" stroke="hsl(var(--secondary))" strokeWidth={2} name="Gratuites" />
@@ -766,7 +834,7 @@ export default function BilanFormateurPage() {
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip />
+                    <RechartsTooltip />
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -783,7 +851,7 @@ export default function BilanFormateurPage() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
                     <YAxis />
-                    <Tooltip 
+                    <RechartsTooltip 
                       formatter={(value: number) => new Intl.NumberFormat('fr-FR', {
                         style: 'currency',
                         currency: 'EUR'

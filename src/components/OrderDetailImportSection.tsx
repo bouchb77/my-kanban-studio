@@ -11,6 +11,7 @@ interface OrderDetail {
   order_number: string;
   article_code: string;
   quantity: number;
+  expiration_date?: string;
 }
 
 export const OrderDetailImportSection = () => {
@@ -27,14 +28,21 @@ export const OrderDetailImportSection = () => {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, dateNF: 'yyyy-mm-dd' }) as any[][];
 
       // La première ligne contient les codes d'articles (colonnes)
       const articleCodes = jsonData[0].slice(1); // Skip la première colonne (numéro de commande)
       
+      // La deuxième ligne peut contenir les dates de péremption (optionnel)
+      const expirationDates = jsonData[1] && typeof jsonData[1][1] === 'string' && jsonData[1][1].match(/\d{2}\/\d{2}\/\d{4}/)
+        ? jsonData[1].slice(1)
+        : null;
+      
+      const startRow = expirationDates ? 2 : 1;
+      
       // Traiter chaque ligne (commande)
       const parsedDetails: OrderDetail[] = [];
-      for (let i = 1; i < jsonData.length; i++) {
+      for (let i = startRow; i < jsonData.length; i++) {
         const row = jsonData[i];
         const orderNumber = row[0]?.toString();
         
@@ -46,11 +54,23 @@ export const OrderDetailImportSection = () => {
           const articleCode = articleCodes[j - 1];
           
           if (quantity > 0 && articleCode) {
-            parsedDetails.push({
+            const detail: OrderDetail = {
               order_number: orderNumber,
               article_code: articleCode.toString(),
               quantity: quantity
-            });
+            };
+            
+            // Ajouter la date de péremption si elle existe
+            if (expirationDates && expirationDates[j - 1]) {
+              const dateStr = expirationDates[j - 1].toString();
+              // Convertir le format DD/MM/YYYY vers YYYY-MM-DD
+              const dateMatch = dateStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+              if (dateMatch) {
+                detail.expiration_date = `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`;
+              }
+            }
+            
+            parsedDetails.push(detail);
           }
         }
       }
@@ -119,6 +139,7 @@ export const OrderDetailImportSection = () => {
     const wb = XLSX.utils.book_new();
     const wsData = [
       ['order_number', 'CI.D', 'CI.FA', 'CI.VD', 'ETLIS', 'MICRO', 'MINI', 'LOA', 'LPD', 'LPF'],
+      ['', '31/12/2025', '31/12/2025', '31/12/2026', '31/12/2026', '31/12/2025', '31/12/2025', '31/12/2026', '31/12/2026', '31/12/2025'],
       ['505835', '0', '0', '0', '0', '0', '1', '0', '1', '0'],
       ['505836', '0', '0', '0', '0', '0', '0', '0', '0', '2']
     ];
@@ -142,7 +163,7 @@ export const OrderDetailImportSection = () => {
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             Importez un fichier Excel contenant les articles commandés par numéro de commande.
-            Format: première colonne = numéro de commande, autres colonnes = codes articles avec quantités.
+            Format: première colonne = numéro de commande, ligne 2 (optionnel) = dates de péremption au format DD/MM/YYYY, autres colonnes = codes articles avec quantités.
           </AlertDescription>
         </Alert>
 
@@ -212,6 +233,7 @@ export const OrderDetailImportSection = () => {
                     <th className="px-4 py-2 text-left">Numéro de commande</th>
                     <th className="px-4 py-2 text-left">Code article</th>
                     <th className="px-4 py-2 text-right">Quantité</th>
+                    <th className="px-4 py-2 text-left">Date péremption</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -220,6 +242,7 @@ export const OrderDetailImportSection = () => {
                       <td className="px-4 py-2">{detail.order_number}</td>
                       <td className="px-4 py-2">{detail.article_code}</td>
                       <td className="px-4 py-2 text-right">{detail.quantity}</td>
+                      <td className="px-4 py-2">{detail.expiration_date || '-'}</td>
                     </tr>
                   ))}
                 </tbody>

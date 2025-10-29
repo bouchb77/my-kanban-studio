@@ -674,34 +674,6 @@ export default function BilanFormateurPage() {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    Panier Moyen
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        <p className="font-semibold mb-1">Méthode de calcul :</p>
-                        <p>Montant moyen des commandes par formation payante. Calculé en divisant le montant total des commandes FSITE/FSITEJ par le nombre de formations payantes.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </CardTitle>
-                  <DollarSign className="h-4 w-4 text-primary" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {new Intl.NumberFormat('fr-FR', {
-                      style: 'currency',
-                      currency: 'EUR'
-                    }).format(kpis.avgBasket)}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Par formation payante
-                  </p>
-                </CardContent>
-              </Card>
             </div>
           </TooltipProvider>
 
@@ -805,8 +777,8 @@ export default function BilanFormateurPage() {
                     <RechartsTooltip />
                     <Legend />
                     <Line type="monotone" dataKey="payantes" stroke="hsl(var(--primary))" strokeWidth={2} name="Payantes" />
-                    <Line type="monotone" dataKey="gratuites" stroke="hsl(var(--secondary))" strokeWidth={2} name="Gratuites" />
-                    <Line type="monotone" dataKey="total" stroke="hsl(var(--accent))" strokeWidth={2} strokeDasharray="5 5" name="Total" />
+                    <Line type="monotone" dataKey="gratuites" stroke="hsl(var(--chart-3))" strokeWidth={2} name="Gratuites" />
+                    <Line type="monotone" dataKey="total" stroke="hsl(var(--chart-4))" strokeWidth={2} strokeDasharray="5 5" name="Total" />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>

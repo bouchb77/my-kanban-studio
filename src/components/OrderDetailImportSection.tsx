@@ -19,6 +19,25 @@ export const OrderDetailImportSection = () => {
   const [uploading, setUploading] = useState(false);
   const [importing, setImporting] = useState(false);
 
+  const parseExcelDate = (dateStr: string): string | null => {
+    // Format attendu: MM/DD/YY ou DD/MM/YYYY
+    const match = dateStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+    if (!match) return null;
+    
+    let [, part1, part2, year] = match;
+    
+    // Convertir l'année en 4 chiffres si nécessaire
+    if (year.length === 2) {
+      year = '20' + year;
+    }
+    
+    // Assume MM/DD/YY format (American format commonly in Excel)
+    const month = part1.padStart(2, '0');
+    const day = part2.padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -28,53 +47,65 @@ export const OrderDetailImportSection = () => {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, dateNF: 'yyyy-mm-dd' }) as any[][];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
 
-      // La première ligne contient les codes d'articles (colonnes)
-      const articleCodes = jsonData[0].slice(1); // Skip la première colonne (numéro de commande)
+      if (jsonData.length < 2) {
+        toast.error('Fichier vide ou invalide');
+        return;
+      }
+
+      // La première ligne contient les codes d'articles (headers)
+      const headers = jsonData[0].slice(1); // Skip première colonne (order_number)
       
-      // La deuxième ligne peut contenir les dates de péremption (optionnel)
-      const expirationDates = jsonData[1] && typeof jsonData[1][1] === 'string' && jsonData[1][1].match(/\d{2}\/\d{2}\/\d{4}/)
-        ? jsonData[1].slice(1)
-        : null;
-      
-      const startRow = expirationDates ? 2 : 1;
-      
-      // Traiter chaque ligne (commande)
       const parsedDetails: OrderDetail[] = [];
-      for (let i = startRow; i < jsonData.length; i++) {
+
+      // Parcourir chaque ligne de données (à partir de la ligne 1)
+      for (let i = 1; i < jsonData.length; i++) {
         const row = jsonData[i];
-        const orderNumber = row[0]?.toString();
-        
+        if (!row || row.length === 0) continue;
+
+        const orderNumber = String(row[0] || '').trim();
         if (!orderNumber) continue;
 
-        // Parcourir chaque colonne (article)
-        for (let j = 1; j < row.length; j++) {
-          const quantity = parseInt(row[j]);
-          const articleCode = articleCodes[j - 1];
+        // Parcourir chaque colonne pour trouver les quantités et dates
+        for (let j = 1; j < row.length && j - 1 < headers.length; j++) {
+          const cellValue = row[j];
+          if (!cellValue) continue;
+
+          const cellStr = String(cellValue).trim();
+          const articleCode = String(headers[j - 1] || '').trim();
           
-          if (quantity > 0 && articleCode) {
+          if (!articleCode) continue;
+
+          // Vérifier si c'est un nombre (quantité)
+          const quantity = parseInt(cellStr);
+          if (!isNaN(quantity) && quantity > 0) {
+            // Créer un nouveau détail
             const detail: OrderDetail = {
               order_number: orderNumber,
-              article_code: articleCode.toString(),
-              quantity: quantity
+              article_code: articleCode,
+              quantity: quantity,
             };
-            
-            // Ajouter la date de péremption si elle existe
-            if (expirationDates && expirationDates[j - 1]) {
-              const dateStr = expirationDates[j - 1].toString();
-              // Convertir le format DD/MM/YYYY vers YYYY-MM-DD
-              const dateMatch = dateStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-              if (dateMatch) {
-                detail.expiration_date = `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`;
+
+            // Chercher une date de péremption dans la cellule suivante
+            if (j + 1 < row.length && row[j + 1]) {
+              const nextCellStr = String(row[j + 1]).trim();
+              if (nextCellStr.includes('/')) {
+                const parsedDate = parseExcelDate(nextCellStr);
+                if (parsedDate) {
+                  detail.expiration_date = parsedDate;
+                  // Skip la prochaine colonne car c'était la date
+                  j++;
+                }
               }
             }
-            
+
             parsedDetails.push(detail);
           }
         }
       }
 
+      console.log('Parsed details:', parsedDetails.slice(0, 5));
       setDetails(parsedDetails);
       toast.success(`${parsedDetails.length} détails de commandes chargés depuis le fichier`);
     } catch (error) {
@@ -162,8 +193,9 @@ export const OrderDetailImportSection = () => {
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Importez un fichier Excel contenant les articles commandés par numéro de commande.
-            Format: première colonne = numéro de commande, ligne 2 (optionnel) = dates de péremption au format DD/MM/YYYY, autres colonnes = codes articles avec quantités.
+            Importez un fichier Excel avec les articles commandés.
+            Format matriciel: colonne 0 = numéro de commande, ligne 1 = codes articles en headers,
+            lignes suivantes = quantités suivies optionnellement de dates de péremption (MM/DD/YY ou DD/MM/YYYY).
           </AlertDescription>
         </Alert>
 

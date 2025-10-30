@@ -186,6 +186,7 @@ export type Database = {
         Row: {
           article_code: string
           created_at: string
+          expiration_date: string | null
           id: string
           order_number: string
           quantity: number
@@ -194,6 +195,7 @@ export type Database = {
         Insert: {
           article_code: string
           created_at?: string
+          expiration_date?: string | null
           id?: string
           order_number: string
           quantity?: number
@@ -202,6 +204,7 @@ export type Database = {
         Update: {
           article_code?: string
           created_at?: string
+          expiration_date?: string | null
           id?: string
           order_number?: string
           quantity?: number
@@ -874,14 +877,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      approve_user: {
-        Args: { user_id_to_approve: string }
-        Returns: boolean
-      }
-      delete_project_task: {
-        Args: { task_uuid: string }
-        Returns: boolean
-      }
+      approve_user: { Args: { user_id_to_approve: string }; Returns: boolean }
+      delete_project_task: { Args: { task_uuid: string }; Returns: boolean }
       get_companies_by_articles: {
         Args: { article_codes?: string[]; lis_only?: boolean }
         Returns: {
@@ -905,6 +902,12 @@ export type Database = {
           training_date: string | null
           updated_at: string
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "companies"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_fo_training_data: {
         Args: { _formateur: string; _year: number }
@@ -936,22 +939,10 @@ export type Database = {
         }
         Returns: boolean
       }
-      import_order_details: {
-        Args: { details_data: Json }
-        Returns: Json
-      }
-      import_orders: {
-        Args: { orders_data: Json }
-        Returns: Json
-      }
-      is_current_user_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_user_approved: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      import_order_details: { Args: { details_data: Json }; Returns: Json }
+      import_orders: { Args: { orders_data: Json }; Returns: Json }
+      is_current_user_admin: { Args: never; Returns: boolean }
+      is_user_approved: { Args: never; Returns: boolean }
       user_has_project_access: {
         Args: { project_uuid: string; user_uuid: string }
         Returns: boolean

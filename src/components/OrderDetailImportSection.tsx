@@ -55,7 +55,7 @@ export const OrderDetailImportSection = () => {
       }
 
       // La première ligne contient les codes d'articles (headers)
-      const headers = jsonData[0].slice(1); // Skip première colonne (order_number)
+      const headers = jsonData[0]; // Garde toutes les colonnes y compris la première
       
       const parsedDetails: OrderDetail[] = [];
 
@@ -67,35 +67,42 @@ export const OrderDetailImportSection = () => {
         const orderNumber = String(row[0] || '').trim();
         if (!orderNumber) continue;
 
-        // Parcourir chaque colonne pour trouver les quantités et dates
-        for (let j = 1; j < row.length && j - 1 < headers.length; j++) {
-          const cellValue = row[j];
+        // Parcourir toutes les colonnes de données (à partir de la colonne 1)
+        for (let colIndex = 1; colIndex < row.length; colIndex++) {
+          const cellValue = row[colIndex];
           if (!cellValue) continue;
 
           const cellStr = String(cellValue).trim();
-          const articleCode = String(headers[j - 1] || '').trim();
           
-          if (!articleCode) continue;
-
           // Vérifier si c'est un nombre (quantité)
           const quantity = parseInt(cellStr);
           if (!isNaN(quantity) && quantity > 0) {
-            // Créer un nouveau détail
+            // Trouver le code article correspondant dans les headers
+            // On cherche le dernier header non-vide avant ou à cette position
+            let articleCode = '';
+            for (let h = colIndex; h >= 0; h--) {
+              const headerValue = String(headers[h] || '').trim();
+              if (headerValue && headerValue !== 'order_number') {
+                articleCode = headerValue;
+                break;
+              }
+            }
+
+            if (!articleCode) continue;
+
             const detail: OrderDetail = {
               order_number: orderNumber,
               article_code: articleCode,
               quantity: quantity,
             };
 
-            // Chercher une date de péremption dans la cellule suivante
-            if (j + 1 < row.length && row[j + 1]) {
-              const nextCellStr = String(row[j + 1]).trim();
-              if (nextCellStr.includes('/')) {
+            // La date de péremption est dans la cellule suivante
+            if (colIndex + 1 < row.length && row[colIndex + 1]) {
+              const nextCellStr = String(row[colIndex + 1]).trim();
+              if (nextCellStr && nextCellStr.includes('/')) {
                 const parsedDate = parseExcelDate(nextCellStr);
                 if (parsedDate) {
                   detail.expiration_date = parsedDate;
-                  // Skip la prochaine colonne car c'était la date
-                  j++;
                 }
               }
             }

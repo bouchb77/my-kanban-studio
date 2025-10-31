@@ -19,8 +19,25 @@ export const OrderDetailImportSection = () => {
   const [uploading, setUploading] = useState(false);
   const [importing, setImporting] = useState(false);
 
-  const parseExcelDate = (dateStr: string): string | null => {
-    // Format attendu: MM/DD/YY ou DD/MM/YYYY
+  const parseExcelDate = (dateValue: any): string | null => {
+    // Si c'est un nombre (serial number Excel)
+    if (typeof dateValue === 'number') {
+      // Les serial numbers Excel commencent au 1er janvier 1900
+      // Mais Excel a un bug: il compte 1900 comme une année bissextile
+      const excelEpoch = new Date(1899, 11, 30); // 30 décembre 1899
+      const date = new Date(excelEpoch.getTime() + dateValue * 86400000);
+      
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      
+      return `${year}-${month}-${day}`;
+    }
+    
+    // Si c'est une chaîne de caractères
+    const dateStr = String(dateValue).trim();
+    
+    // Format texte: MM/DD/YY ou DD/MM/YYYY
     const match = dateStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
     if (!match) return null;
     
@@ -98,14 +115,12 @@ export const OrderDetailImportSection = () => {
           // La date de péremption est dans la colonne suivante (colIndex + 1)
           const dateColIndex = colIndex + 1;
           if (dateColIndex < row.length && row[dateColIndex]) {
-            const dateCell = String(row[dateColIndex]).trim();
+            const dateCell = row[dateColIndex];
             console.log(`Article ${articleCode}, colIndex=${colIndex}, dateColIndex=${dateColIndex}, dateCell="${dateCell}"`);
-            if (dateCell && dateCell.includes('/')) {
-              const parsedDate = parseExcelDate(dateCell);
-              console.log(`Parsed date for ${articleCode}: ${parsedDate}`);
-              if (parsedDate) {
-                detail.expiration_date = parsedDate;
-              }
+            const parsedDate = parseExcelDate(dateCell);
+            console.log(`Parsed date for ${articleCode}: ${parsedDate}`);
+            if (parsedDate) {
+              detail.expiration_date = parsedDate;
             }
           }
 

@@ -56,6 +56,7 @@ export const OrderDetailImportSection = () => {
 
       // La première ligne contient les codes d'articles (headers)
       // Chaque article occupe 2 colonnes: quantité puis date
+      // Les headers ont les codes articles avec des colonnes vides entre eux
       const headers = jsonData[0];
       
       const parsedDetails: OrderDetail[] = [];
@@ -68,46 +69,41 @@ export const OrderDetailImportSection = () => {
         const orderNumber = String(row[0] || '').trim();
         if (!orderNumber) continue;
 
-        // Parcourir les colonnes par paire (quantité + date)
-        // Colonne 0 = order_number
-        // Colonnes 1+ = articles (chaque article = 2 colonnes)
+        // Parcourir toutes les colonnes pour trouver les codes articles dans les headers
         for (let colIndex = 1; colIndex < headers.length; colIndex++) {
           const articleCode = String(headers[colIndex] || '').trim();
           
-          // Ignorer les colonnes vides dans les headers
-          if (!articleCode) continue;
+          // Si on a un code article dans le header
+          if (articleCode) {
+            // La quantité est dans cette colonne
+            const quantityCell = row[colIndex];
+            if (!quantityCell) continue;
 
-          // La quantité est dans la colonne courante
-          const quantityCell = row[colIndex];
-          if (!quantityCell) continue;
+            const quantityStr = String(quantityCell).trim();
+            const quantity = parseInt(quantityStr);
+            
+            // Vérifier que c'est bien un nombre valide
+            if (isNaN(quantity) || quantity <= 0) continue;
 
-          const quantityStr = String(quantityCell).trim();
-          const quantity = parseInt(quantityStr);
-          
-          // Vérifier que c'est bien un nombre valide
-          if (isNaN(quantity) || quantity <= 0) continue;
+            const detail: OrderDetail = {
+              order_number: orderNumber,
+              article_code: articleCode,
+              quantity: quantity,
+            };
 
-          const detail: OrderDetail = {
-            order_number: orderNumber,
-            article_code: articleCode,
-            quantity: quantity,
-          };
-
-          // La date de péremption est dans la colonne suivante
-          if (colIndex + 1 < row.length && row[colIndex + 1]) {
-            const dateCell = String(row[colIndex + 1]).trim();
-            if (dateCell && dateCell.includes('/')) {
-              const parsedDate = parseExcelDate(dateCell);
-              if (parsedDate) {
-                detail.expiration_date = parsedDate;
+            // La date de péremption est toujours dans la colonne suivante (colIndex + 1)
+            if (colIndex + 1 < row.length && row[colIndex + 1]) {
+              const dateCell = String(row[colIndex + 1]).trim();
+              if (dateCell && dateCell.includes('/')) {
+                const parsedDate = parseExcelDate(dateCell);
+                if (parsedDate) {
+                  detail.expiration_date = parsedDate;
+                }
               }
             }
-          }
 
-          parsedDetails.push(detail);
-          
-          // Sauter la colonne de date pour passer au prochain article
-          colIndex++;
+            parsedDetails.push(detail);
+          }
         }
       }
 

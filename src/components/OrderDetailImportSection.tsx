@@ -55,8 +55,11 @@ export const OrderDetailImportSection = () => {
       }
 
       // La première ligne contient les codes d'articles (headers)
-      // Structure: colonne 0 = vide, puis pour chaque article: 2 colonnes (quantité, date)
+      // Structure: colonne 0 = order_number, puis pour chaque article: 2 colonnes (quantité, date)
       const headers = jsonData[0];
+      
+      console.log('First row (headers):', headers.slice(0, 10));
+      console.log('Second row (data):', jsonData[1]);
       
       const parsedDetails: OrderDetail[] = [];
 
@@ -93,10 +96,13 @@ export const OrderDetailImportSection = () => {
           };
 
           // La date de péremption est dans la colonne suivante (colIndex + 1)
-          if (colIndex + 1 < row.length && row[colIndex + 1]) {
-            const dateCell = String(row[colIndex + 1]).trim();
+          const dateColIndex = colIndex + 1;
+          if (dateColIndex < row.length && row[dateColIndex]) {
+            const dateCell = String(row[dateColIndex]).trim();
+            console.log(`Article ${articleCode}, colIndex=${colIndex}, dateColIndex=${dateColIndex}, dateCell="${dateCell}"`);
             if (dateCell && dateCell.includes('/')) {
               const parsedDate = parseExcelDate(dateCell);
+              console.log(`Parsed date for ${articleCode}: ${parsedDate}`);
               if (parsedDate) {
                 detail.expiration_date = parsedDate;
               }

@@ -229,6 +229,9 @@ const CompaniesTableOnly = ({
           console.error('Error loading order details:', orderDetailsError);
         }
 
+        console.log('📅 Total order details loaded:', orderDetailsData?.length);
+        console.log('📅 Order details with expiration_date:', orderDetailsData?.filter(d => d.expiration_date).length);
+
         // Create a map of order_number to training articles
         const trainingOrderNumbers = new Set(
           orderDetailsData?.filter(d => ['FSITE', 'FSITEJ'].includes(d.article_code)).map(d => d.order_number) || []
@@ -245,6 +248,7 @@ const CompaniesTableOnly = ({
           });
 
           // Now group expiration dates by sipi
+          let datesAddedCount = 0;
           orderDetailsData.forEach(detail => {
             if (detail.expiration_date) {
               const sipiNumber = orderNumberToSipi.get(detail.order_number);
@@ -253,9 +257,16 @@ const CompaniesTableOnly = ({
                   expirationDatesBySipi.set(sipiNumber, []);
                 }
                 expirationDatesBySipi.get(sipiNumber)!.push(detail.expiration_date);
+                datesAddedCount++;
               }
             }
           });
+          console.log('📅 Companies with expiration dates:', expirationDatesBySipi.size);
+          console.log('📅 Total expiration dates added:', datesAddedCount);
+          if (expirationDatesBySipi.size > 0) {
+            const firstEntry = Array.from(expirationDatesBySipi.entries())[0];
+            console.log('📅 Example: SIPI', firstEntry[0], 'has', firstEntry[1].length, 'dates:', firstEntry[1].slice(0, 3));
+          }
         }
 
         // Find last training order date for each company
@@ -329,6 +340,11 @@ const CompaniesTableOnly = ({
             .sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
           
           const nextRenewalDate = futureExpirationDates[0] || undefined;
+
+          // Log for first few companies
+          if (formattedCompanies.indexOf(company) < 3) {
+            console.log(`📅 Company ${company.sipi_number}: ${companyExpirationDates.length} dates, next renewal: ${nextRenewalDate}`);
+          }
 
           return {
             ...company,

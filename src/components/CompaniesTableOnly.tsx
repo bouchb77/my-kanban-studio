@@ -37,6 +37,7 @@ interface Company {
   averageAmountPerYear?: number;
   periodOrders?: number;
   periodAmount?: number;
+  next_renewal_date?: string; // Prochaine date de péremption
 }
 
 interface CompanyOrderStats {
@@ -219,11 +220,10 @@ const CompaniesTableOnly = ({
 
         setAllOrders(loadedOrders);
 
-        // Load order details to find FSITE/FSITEJ orders
+        // Load order details to find FSITE/FSITEJ orders and expiration dates
         const { data: orderDetailsData, error: orderDetailsError } = await supabase
           .from('order_details')
-          .select('order_number, article_code')
-          .in('article_code', ['FSITE', 'FSITEJ']);
+          .select('order_number, article_code, expiration_date');
 
         if (orderDetailsError) {
           console.error('Error loading order details:', orderDetailsError);
@@ -231,8 +231,32 @@ const CompaniesTableOnly = ({
 
         // Create a map of order_number to training articles
         const trainingOrderNumbers = new Set(
-          orderDetailsData?.map(d => d.order_number) || []
+          orderDetailsData?.filter(d => ['FSITE', 'FSITEJ'].includes(d.article_code)).map(d => d.order_number) || []
         );
+
+        // Group expiration dates by SIPI number
+        const expirationDatesBySipi = new Map<string, string[]>();
+        
+        if (orderDetailsData) {
+          // First, map order_number to sipi_number
+          const orderNumberToSipi = new Map<string, string>();
+          loadedOrders.forEach(order => {
+            orderNumberToSipi.set(order.order_number, order.sipi_number);
+          });
+
+          // Now group expiration dates by sipi
+          orderDetailsData.forEach(detail => {
+            if (detail.expiration_date) {
+              const sipiNumber = orderNumberToSipi.get(detail.order_number);
+              if (sipiNumber) {
+                if (!expirationDatesBySipi.has(sipiNumber)) {
+                  expirationDatesBySipi.set(sipiNumber, []);
+                }
+                expirationDatesBySipi.get(sipiNumber)!.push(detail.expiration_date);
+              }
+            }
+          });
+        }
 
         // Find last training order date for each company
         const lastTrainingOrderByCompany = new Map<string, string>();
@@ -292,11 +316,26 @@ const CompaniesTableOnly = ({
           // Get last training order date for this company
           const lastTrainingOrderDate = lastTrainingOrderByCompany.get(company.sipi_number);
 
+          // Get next renewal date (first expiration date >= today)
+          const companyExpirationDates = expirationDatesBySipi.get(company.sipi_number) || [];
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          const futureExpirationDates = companyExpirationDates
+            .filter(dateStr => {
+              const expirationDate = new Date(dateStr);
+              return expirationDate >= today;
+            })
+            .sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+          
+          const nextRenewalDate = futureExpirationDates[0] || undefined;
+
           return {
             ...company,
             orderStats,
             averageOrderPerYear,
-            last_training_order_date: lastTrainingOrderDate
+            last_training_order_date: lastTrainingOrderDate,
+            next_renewal_date: nextRenewalDate
           };
         });
 
@@ -587,6 +626,10 @@ const CompaniesTableOnly = ({
           aValue = a.report_creation_date ? new Date(a.report_creation_date).getTime() : 0;
           bValue = b.report_creation_date ? new Date(b.report_creation_date).getTime() : 0;
           break;
+        case 'next_renewal_date':
+          aValue = a.next_renewal_date ? new Date(a.next_renewal_date).getTime() : 0;
+          bValue = b.next_renewal_date ? new Date(b.next_renewal_date).getTime() : 0;
+          break;
         default:
           return 0;
       }
@@ -621,10 +664,11 @@ const CompaniesTableOnly = ({
       { id: 'formation', label: 'Formation', type: 'system' as const, order: 5 },
       { id: 'last_training_order_date', label: 'Formation (Date cmd SIPI)', type: 'system' as const, order: 6 },
       { id: 'report_creation_date', label: 'Date approx Formation (Rapport SIPI)', type: 'system' as const, order: 7 },
-      { id: 'averageAmountPerYear', label: 'Moyenne/An', type: 'system' as const, order: 8 },
+      { id: 'next_renewal_date', label: 'Prochain Renou', type: 'system' as const, order: 8 },
+      { id: 'averageAmountPerYear', label: 'Moyenne/An', type: 'system' as const, order: 9 },
     ];
     
-    let nextOrder = 9;
+    let nextOrder = 10;
     if (startDate || endDate) {
       columns.push({ id: 'periodAmount', label: 'Période filtrée', type: 'system' as const, order: nextOrder++ });
     }
@@ -1340,14 +1384,14 @@ const CompaniesTableOnly = ({
 
                    // Regular columns
                    return (
-                     <TableHead 
-                       key={column.id} 
-                       className={cn(
-                         'bg-background sticky top-0',
-                         column.id === 'sipi_number' && 'w-[120px]',
-                         ['quality', 'formation', 'last_training_order_date', 'report_creation_date', 'averageAmountPerYear'].includes(column.id) && 'text-center'
-                       )}
-                     >
+                    <TableHead 
+                        key={column.id} 
+                        className={cn(
+                          'bg-background sticky top-0',
+                          column.id === 'sipi_number' && 'w-[120px]',
+                          ['quality', 'formation', 'last_training_order_date', 'report_creation_date', 'next_renewal_date', 'averageAmountPerYear'].includes(column.id) && 'text-center'
+                        )}
+                      >
                        <Button
                          variant="ghost"
                          size="sm"
@@ -1430,6 +1474,12 @@ const CompaniesTableOnly = ({
                       return (
                         <TableCell key={columnId} className="text-center text-sm">
                           {company.report_creation_date ? format(new Date(company.report_creation_date), 'dd/MM/yyyy') : '-'}
+                        </TableCell>
+                      );
+                    case 'next_renewal_date':
+                      return (
+                        <TableCell key={columnId} className="text-center text-sm">
+                          {company.next_renewal_date ? format(new Date(company.next_renewal_date), 'dd/MM/yyyy') : '-'}
                         </TableCell>
                       );
                     case 'averageAmountPerYear':

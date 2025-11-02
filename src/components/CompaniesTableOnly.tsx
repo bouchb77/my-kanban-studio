@@ -220,10 +220,15 @@ const CompaniesTableOnly = ({
 
         setAllOrders(loadedOrders);
 
-        // Load order details to find FSITE/FSITEJ orders and expiration dates
+        // Load order details with SIPI numbers via JOIN to get training articles and expiration dates
         const { data: orderDetailsData, error: orderDetailsError } = await supabase
           .from('order_details')
-          .select('order_number, article_code, expiration_date');
+          .select(`
+            order_number,
+            article_code,
+            expiration_date,
+            orders!inner(sipi_number)
+          `);
 
         if (orderDetailsError) {
           console.error('Error loading order details:', orderDetailsError);
@@ -241,17 +246,10 @@ const CompaniesTableOnly = ({
         const expirationDatesBySipi = new Map<string, string[]>();
         
         if (orderDetailsData) {
-          // First, map order_number to sipi_number
-          const orderNumberToSipi = new Map<string, string>();
-          loadedOrders.forEach(order => {
-            orderNumberToSipi.set(order.order_number, order.sipi_number);
-          });
-
-          // Now group expiration dates by sipi
           let datesAddedCount = 0;
           orderDetailsData.forEach(detail => {
-            if (detail.expiration_date) {
-              const sipiNumber = orderNumberToSipi.get(detail.order_number);
+            if (detail.expiration_date && detail.orders) {
+              const sipiNumber = (detail.orders as any).sipi_number;
               if (sipiNumber) {
                 if (!expirationDatesBySipi.has(sipiNumber)) {
                   expirationDatesBySipi.set(sipiNumber, []);

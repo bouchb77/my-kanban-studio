@@ -220,15 +220,18 @@ const CompaniesTableOnly = ({
 
         setAllOrders(loadedOrders);
 
-        // Load order details with SIPI numbers via JOIN to get training articles and expiration dates
+        // Build a complete map of order_number to sipi_number from all loaded orders
+        const orderNumberToSipi = new Map<string, string>();
+        loadedOrders.forEach(order => {
+          orderNumberToSipi.set(order.order_number, order.sipi_number);
+        });
+        
+        console.log('📅 Total orders mapped:', orderNumberToSipi.size);
+
+        // Load order details to find FSITE/FSITEJ orders and expiration dates
         const { data: orderDetailsData, error: orderDetailsError } = await supabase
           .from('order_details')
-          .select(`
-            order_number,
-            article_code,
-            expiration_date,
-            orders!inner(sipi_number)
-          `);
+          .select('order_number, article_code, expiration_date');
 
         if (orderDetailsError) {
           console.error('Error loading order details:', orderDetailsError);
@@ -247,20 +250,25 @@ const CompaniesTableOnly = ({
         
         if (orderDetailsData) {
           let datesAddedCount = 0;
+          let datesNotMappedCount = 0;
+          
           orderDetailsData.forEach(detail => {
-            if (detail.expiration_date && detail.orders) {
-              const sipiNumber = (detail.orders as any).sipi_number;
+            if (detail.expiration_date) {
+              const sipiNumber = orderNumberToSipi.get(detail.order_number);
               if (sipiNumber) {
                 if (!expirationDatesBySipi.has(sipiNumber)) {
                   expirationDatesBySipi.set(sipiNumber, []);
                 }
                 expirationDatesBySipi.get(sipiNumber)!.push(detail.expiration_date);
                 datesAddedCount++;
+              } else {
+                datesNotMappedCount++;
               }
             }
           });
           console.log('📅 Companies with expiration dates:', expirationDatesBySipi.size);
           console.log('📅 Total expiration dates added:', datesAddedCount);
+          console.log('📅 Dates not mapped (order not in loaded orders):', datesNotMappedCount);
           if (expirationDatesBySipi.size > 0) {
             const firstEntry = Array.from(expirationDatesBySipi.entries())[0];
             console.log('📅 Example: SIPI', firstEntry[0], 'has', firstEntry[1].length, 'dates:', firstEntry[1].slice(0, 3));

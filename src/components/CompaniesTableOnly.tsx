@@ -228,19 +228,37 @@ const CompaniesTableOnly = ({
         
         console.log('📅 Total orders mapped:', orderNumberToSipi.size);
 
-        // Load order details to find FSITE/FSITEJ orders and expiration dates
-        // Only load details with expiration dates to optimize performance
-        const { data: orderDetailsData, error: orderDetailsError } = await supabase
-          .from('order_details')
-          .select('order_number, article_code, expiration_date')
-          .not('expiration_date', 'is', null);
+        // Load ALL order details with expiration dates using pagination
+        let allOrderDetails: any[] = [];
+        let detailsPage = 0;
+        const detailsPageSize = 1000;
+        let hasMoreDetails = true;
 
-        if (orderDetailsError) {
-          console.error('Error loading order details:', orderDetailsError);
+        while (hasMoreDetails) {
+          const { data: pageData, error: pageError } = await supabase
+            .from('order_details')
+            .select('order_number, article_code, expiration_date')
+            .not('expiration_date', 'is', null)
+            .range(detailsPage * detailsPageSize, (detailsPage + 1) * detailsPageSize - 1);
+
+          if (pageError) {
+            console.error('Error loading order details page:', detailsPage, pageError);
+            break;
+          }
+
+          if (pageData && pageData.length > 0) {
+            allOrderDetails = [...allOrderDetails, ...pageData];
+            hasMoreDetails = pageData.length === detailsPageSize;
+            detailsPage++;
+          } else {
+            hasMoreDetails = false;
+          }
         }
 
-        console.log('📅 Total order details loaded:', orderDetailsData?.length);
-        console.log('📅 Order details with expiration_date:', orderDetailsData?.filter(d => d.expiration_date).length);
+        const orderDetailsData = allOrderDetails;
+
+        console.log('📅 Total order details loaded:', orderDetailsData.length);
+        console.log('📅 Order details with expiration_date:', orderDetailsData.filter(d => d.expiration_date).length);
 
         // Create a map of order_number to training articles
         const trainingOrderNumbers = new Set(

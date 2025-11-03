@@ -229,9 +229,11 @@ const CompaniesTableOnly = ({
         console.log('📅 Total orders mapped:', orderNumberToSipi.size);
 
         // Load order details to find FSITE/FSITEJ orders and expiration dates
+        // Only load details with expiration dates to optimize performance
         const { data: orderDetailsData, error: orderDetailsError } = await supabase
           .from('order_details')
-          .select('order_number, article_code, expiration_date');
+          .select('order_number, article_code, expiration_date')
+          .not('expiration_date', 'is', null);
 
         if (orderDetailsError) {
           console.error('Error loading order details:', orderDetailsError);

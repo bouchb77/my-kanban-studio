@@ -909,6 +909,27 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_company_stats_optimized: {
+        Args: { max_threshold?: number }
+        Returns: {
+          address1: string
+          amount1: number
+          amount2: number
+          city: string
+          company_id: string
+          company_name: string
+          general_department: string
+          has_training: boolean
+          latitude: number
+          longitude: number
+          max_amount: number
+          next_renewal: string
+          quality: string
+          sipi_number: string
+          year1: number
+          year2: number
+        }[]
+      }
       get_fo_training_data: {
         Args: { _formateur: string; _year: number }
         Returns: {

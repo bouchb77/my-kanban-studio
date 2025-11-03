@@ -153,20 +153,12 @@ const CompaniesTableOnly = ({
     applyFilters();
   }, [lisOnlyFilter, selectedArticles]);
 
-  // Process companies data when encrypted companies change
+  // Process companies data - Load from optimized edge function first, then filter by encrypted companies
   useEffect(() => {
     const loadData = async () => {
-      // Si les entreprises sont en cours de chargement, attendre
+      // Si les entreprises décryptées sont en cours de chargement, attendre
       if (encryptedLoading) {
         setLoading(true);
-        return;
-      }
-      
-      // Si pas d'entreprises, vider la liste et marquer comme non chargé
-      if (!encryptedCompanies || encryptedCompanies.length === 0) {
-        setCompanies([]);
-        setTotalCompanies(0);
-        setLoading(false);
         return;
       }
       
@@ -174,215 +166,79 @@ const CompaniesTableOnly = ({
       setError(null);
       
       try {
-        // Convert encrypted companies to match expected format
-        const formattedCompanies = encryptedCompanies.map((c: any) => ({
-          id: c.id,
-          sipi_number: c.sipiNumber || c.sipi_number,
-          company_name: c.companyName || c.company_name,
-          latitude: c.latitude,
-          longitude: c.longitude,
-          address1: c.address1,
-          city: c.city,
-          general_department: c.generalDepartment || c.general_department,
-          client_blocked_date: c.clientBlockedDate ? (c.clientBlockedDate instanceof Date ? c.clientBlockedDate.toISOString().split('T')[0] : c.clientBlockedDate) : c.client_blocked_date,
-          training_date: c.trainingDate ? (c.trainingDate instanceof Date ? c.trainingDate.toISOString().split('T')[0] : c.trainingDate) : c.training_date,
-          report_creation_date: c.reportCreationDate ? (c.reportCreationDate instanceof Date ? c.reportCreationDate.toISOString().split('T')[0] : c.reportCreationDate) : c.report_creation_date,
-          last_order_date: c.lastOrderDate ? (c.lastOrderDate instanceof Date ? c.lastOrderDate.toISOString().split('T')[0] : c.lastOrderDate) : c.last_order_date,
-          quality: c.quality,
-        }));
-
-        // Load orders with pagination
-        let loadedOrders: any[] = [];
-        let from = 0;
-        let hasMore = true;
-        const batchSize = 1000;
-
-        while (hasMore) {
-          const { data: ordersData, error: ordersError } = await supabase
-            .from('orders')
-            .select('order_number, sipi_number, amount, order_date')
-            .range(from, from + batchSize - 1);
-
-          if (ordersError) {
-            console.error('Error loading orders:', ordersError);
-            setError('Erreur lors du chargement des commandes');
-            return;
-          }
-
-          if (ordersData && ordersData.length > 0) {
-            loadedOrders = [...loadedOrders, ...ordersData];
-            from += batchSize;
-            hasMore = ordersData.length === batchSize;
-          } else {
-            hasMore = false;
-          }
-        }
-
-        setAllOrders(loadedOrders);
-
-        // Build a complete map of order_number to sipi_number from all loaded orders
-        const orderNumberToSipi = new Map<string, string>();
-        loadedOrders.forEach(order => {
-          orderNumberToSipi.set(order.order_number, order.sipi_number);
-        });
+        console.log('⚡ Loading company stats from edge function...');
+        const startTime = Date.now();
         
-        console.log('📅 Total orders mapped:', orderNumberToSipi.size);
-
-        // Load ALL order details with expiration dates using pagination
-        let allOrderDetails: any[] = [];
-        let detailsPage = 0;
-        const detailsPageSize = 1000;
-        let hasMoreDetails = true;
-
-        while (hasMoreDetails) {
-          const { data: pageData, error: pageError } = await supabase
-            .from('order_details')
-            .select('order_number, article_code, expiration_date')
-            .not('expiration_date', 'is', null)
-            .range(detailsPage * detailsPageSize, (detailsPage + 1) * detailsPageSize - 1);
-
-          if (pageError) {
-            console.error('Error loading order details page:', detailsPage, pageError);
-            break;
-          }
-
-          if (pageData && pageData.length > 0) {
-            allOrderDetails = [...allOrderDetails, ...pageData];
-            hasMoreDetails = pageData.length === detailsPageSize;
-            detailsPage++;
-          } else {
-            hasMoreDetails = false;
-          }
-        }
-
-        const orderDetailsData = allOrderDetails;
-
-        console.log('📅 Total order details loaded:', orderDetailsData.length);
-        console.log('📅 Order details with expiration_date:', orderDetailsData.filter(d => d.expiration_date).length);
-
-        // Create a map of order_number to training articles
-        const trainingOrderNumbers = new Set(
-          orderDetailsData?.filter(d => ['FSITE', 'FSITEJ'].includes(d.article_code)).map(d => d.order_number) || []
-        );
-
-        // Group expiration dates by SIPI number
-        const expirationDatesBySipi = new Map<string, string[]>();
-        
-        if (orderDetailsData) {
-          let datesAddedCount = 0;
-          let datesNotMappedCount = 0;
-          
-          orderDetailsData.forEach(detail => {
-            if (detail.expiration_date) {
-              const sipiNumber = orderNumberToSipi.get(detail.order_number);
-              if (sipiNumber) {
-                if (!expirationDatesBySipi.has(sipiNumber)) {
-                  expirationDatesBySipi.set(sipiNumber, []);
-                }
-                expirationDatesBySipi.get(sipiNumber)!.push(detail.expiration_date);
-                datesAddedCount++;
-              } else {
-                datesNotMappedCount++;
-              }
-            }
-          });
-          console.log('📅 Companies with expiration dates:', expirationDatesBySipi.size);
-          console.log('📅 Total expiration dates added:', datesAddedCount);
-          console.log('📅 Dates not mapped (order not in loaded orders):', datesNotMappedCount);
-          if (expirationDatesBySipi.size > 0) {
-            const firstEntry = Array.from(expirationDatesBySipi.entries())[0];
-            console.log('📅 Example: SIPI', firstEntry[0], 'has', firstEntry[1].length, 'dates:', firstEntry[1].slice(0, 3));
-          }
-        }
-
-        // Find last training order date for each company
-        const lastTrainingOrderByCompany = new Map<string, string>();
-        
-        loadedOrders.forEach(order => {
-          if (trainingOrderNumbers.has(order.order_number)) {
-            const currentLast = lastTrainingOrderByCompany.get(order.sipi_number);
-            if (!currentLast || new Date(order.order_date) > new Date(currentLast)) {
-              lastTrainingOrderByCompany.set(order.sipi_number, order.order_date);
-            }
-          }
+        // Call the optimized edge function to get all stats
+        const { data: statsData, error: statsError } = await supabase.functions.invoke('get-company-stats', {
+          body: { maxThreshold: 999999999 }
         });
 
-        // Group orders by SIPI number and year (for display)
-        const ordersByCompany = new Map<string, Map<number, { totalOrders: number; totalAmount: number }>>();
-        
-        loadedOrders.forEach(order => {
-          if (!order.sipi_number || !order.order_date) return;
-          
-          const year = new Date(order.order_date).getFullYear();
-          if (isNaN(year)) return;
-          
-          if (!ordersByCompany.has(order.sipi_number)) {
-            ordersByCompany.set(order.sipi_number, new Map());
-          }
-          
-          const yearMap = ordersByCompany.get(order.sipi_number)!;
-          if (!yearMap.has(year)) {
-            yearMap.set(year, { totalOrders: 0, totalAmount: 0 });
-          }
-          
-          const yearData = yearMap.get(year)!;
-          yearData.totalOrders += 1;
-          yearData.totalAmount += parseFloat(order.amount) || 0;
-        });
+        if (statsError) {
+          console.error('Error from edge function:', statsError);
+          throw statsError;
+        }
 
-        // Add order stats to companies
-        const companiesWithStats = formattedCompanies.map(company => {
+        const loadTime = Date.now() - startTime;
+        console.log(`✅ Company stats loaded in ${loadTime}ms (${statsData?.length || 0} companies)`);
+
+        // Build a set of encrypted company SIPI numbers for filtering
+        const encryptedSipiSet = new Set(encryptedCompanies.map((c: any) => c.sipiNumber || c.sipi_number));
+        
+        // Filter stats to only include encrypted companies (if encryption filter is active)
+        let filteredStats = statsData || [];
+        if (encryptedCompanies && encryptedCompanies.length > 0) {
+          filteredStats = filteredStats.filter((stat: any) => encryptedSipiSet.has(stat.sipi_number));
+        }
+        
+        console.log(`🔐 Filtered to ${filteredStats.length} companies (from ${statsData?.length || 0} total)`);
+
+        // Transform to expected Company format
+        const companiesWithStats: Company[] = filteredStats.map((stat: any) => {
+          // Build orderStats from the stats data
           const orderStats: CompanyOrderStats[] = [];
-          const companyOrders = ordersByCompany.get(company.sipi_number);
           
-          if (companyOrders) {
-            companyOrders.forEach((data, year) => {
-              orderStats.push({
-                year,
-                totalOrders: data.totalOrders,
-                totalAmount: data.totalAmount
-              });
+          // Add 2023 data if amount > 0
+          if (stat.amount1 > 0) {
+            orderStats.push({
+              year: 2023,
+              totalOrders: 0, // Not available from optimized query
+              totalAmount: parseFloat(stat.amount1)
             });
           }
           
-          orderStats.sort((a, b) => a.year - b.year);
+          // Add 2024 data if amount > 0
+          if (stat.amount2 > 0) {
+            orderStats.push({
+              year: 2024,
+              totalOrders: 0, // Not available from optimized query
+              totalAmount: parseFloat(stat.amount2)
+            });
+          }
           
-          const totalOrders = orderStats.reduce((sum, stat) => sum + stat.totalOrders, 0);
+          const totalOrders = orderStats.reduce((sum, s) => sum + s.totalOrders, 0);
           const averageOrderPerYear = orderStats.length > 0 ? totalOrders / orderStats.length : 0;
 
-          // Get last training order date for this company
-          const lastTrainingOrderDate = lastTrainingOrderByCompany.get(company.sipi_number);
-
-          // Get next renewal date (first expiration date >= today)
-          const companyExpirationDates = expirationDatesBySipi.get(company.sipi_number) || [];
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          
-          const futureExpirationDates = companyExpirationDates
-            .filter(dateStr => {
-              const expirationDate = new Date(dateStr);
-              return expirationDate >= today;
-            })
-            .sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
-          
-          const nextRenewalDate = futureExpirationDates[0] || undefined;
-
-          // Log for first few companies
-          if (formattedCompanies.indexOf(company) < 3) {
-            console.log(`📅 Company ${company.sipi_number}: ${companyExpirationDates.length} dates, next renewal: ${nextRenewalDate}`);
-          }
-
           return {
-            ...company,
+            id: stat.company_id,
+            sipi_number: stat.sipi_number,
+            company_name: stat.company_name,
+            latitude: parseFloat(stat.latitude),
+            longitude: parseFloat(stat.longitude),
+            address1: stat.address1,
+            city: stat.city,
+            general_department: stat.general_department,
+            quality: stat.quality,
             orderStats,
             averageOrderPerYear,
-            last_training_order_date: lastTrainingOrderDate,
-            next_renewal_date: nextRenewalDate
+            last_training_order_date: stat.has_training ? undefined : undefined, // Will need more info from edge function if needed
+            next_renewal_date: stat.next_renewal || undefined
           };
         });
 
         setCompanies(companiesWithStats);
         setTotalCompanies(companiesWithStats.length);
+        console.log(`📊 Companies with next renewal: ${companiesWithStats.filter(c => c.next_renewal_date).length}`);
 
         // Load department management data (admins only can see this now)
         const { data: deptData, error: deptError } = await supabase

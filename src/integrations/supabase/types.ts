@@ -913,8 +913,9 @@ export type Database = {
         Args: { max_threshold?: number }
         Returns: {
           address1: string
-          amount1: number
-          amount2: number
+          amount_2023: number
+          amount_2024: number
+          amount_2025: number
           city: string
           company_id: string
           company_name: string
@@ -926,8 +927,6 @@ export type Database = {
           next_renewal: string
           quality: string
           sipi_number: string
-          year1: number
-          year2: number
         }[]
       }
       get_fo_training_data: {

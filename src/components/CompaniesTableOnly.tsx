@@ -32,6 +32,9 @@ interface Company {
   last_order_date?: string;
   last_training_order_date?: string; // Dernière commande FSITE/FSITEJ
   quality?: string;
+  amount_2023?: number;
+  amount_2024?: number;
+  amount_2025?: number;
   orderStats?: CompanyOrderStats[];
   averageOrderPerYear?: number;
   averageAmountPerYear?: number;
@@ -195,24 +198,30 @@ const CompaniesTableOnly = ({
 
         // Transform to expected Company format
         const companiesWithStats: Company[] = filteredStats.map((stat: any) => {
-          // Build orderStats from the stats data
+          // Build orderStats from the stats data for backward compatibility
           const orderStats: CompanyOrderStats[] = [];
           
-          // Add 2023 data if amount > 0
-          if (stat.amount1 > 0) {
+          if (stat.amount_2023 > 0) {
             orderStats.push({
               year: 2023,
-              totalOrders: 0, // Not available from optimized query
-              totalAmount: parseFloat(stat.amount1)
+              totalOrders: 0,
+              totalAmount: parseFloat(stat.amount_2023)
             });
           }
           
-          // Add 2024 data if amount > 0
-          if (stat.amount2 > 0) {
+          if (stat.amount_2024 > 0) {
             orderStats.push({
               year: 2024,
-              totalOrders: 0, // Not available from optimized query
-              totalAmount: parseFloat(stat.amount2)
+              totalOrders: 0,
+              totalAmount: parseFloat(stat.amount_2024)
+            });
+          }
+
+          if (stat.amount_2025 > 0) {
+            orderStats.push({
+              year: 2025,
+              totalOrders: 0,
+              totalAmount: parseFloat(stat.amount_2025)
             });
           }
           
@@ -229,9 +238,12 @@ const CompaniesTableOnly = ({
             city: stat.city,
             general_department: stat.general_department,
             quality: stat.quality,
+            amount_2023: parseFloat(stat.amount_2023) || 0,
+            amount_2024: parseFloat(stat.amount_2024) || 0,
+            amount_2025: parseFloat(stat.amount_2025) || 0,
             orderStats,
             averageOrderPerYear,
-            last_training_order_date: stat.has_training ? undefined : undefined, // Will need more info from edge function if needed
+            last_training_order_date: stat.has_training ? undefined : undefined,
             next_renewal_date: stat.next_renewal || undefined
           };
         });
@@ -449,21 +461,6 @@ const CompaniesTableOnly = ({
     'Structure Formée (Uniquement payant)'
   ];
 
-  // Get available years from order data - only show current year, N-1, and N-2
-  const availableYears = useMemo(() => {
-    const currentYear = new Date().getFullYear();
-    const years = new Set<number>();
-    companies.forEach(company => {
-      company.orderStats?.forEach(stat => {
-        // Only include if year is within range (current year, N-1, N-2)
-        if (stat.year >= currentYear - 2 && stat.year <= currentYear) {
-          years.add(stat.year);
-        }
-      });
-    });
-    return Array.from(years).sort((a, b) => b - a); // Sort descending (most recent first)
-  }, [companies]);
-
   // Notify parent of filtered data changes
   useEffect(() => {
     if (onFilteredDataChange) {
@@ -528,6 +525,18 @@ const CompaniesTableOnly = ({
           aValue = a.next_renewal_date ? new Date(a.next_renewal_date).getTime() : 0;
           bValue = b.next_renewal_date ? new Date(b.next_renewal_date).getTime() : 0;
           break;
+        case 'amount_2023':
+          aValue = a.amount_2023 || 0;
+          bValue = b.amount_2023 || 0;
+          break;
+        case 'amount_2024':
+          aValue = a.amount_2024 || 0;
+          bValue = b.amount_2024 || 0;
+          break;
+        case 'amount_2025':
+          aValue = a.amount_2025 || 0;
+          bValue = b.amount_2025 || 0;
+          break;
         default:
           return 0;
       }
@@ -571,12 +580,13 @@ const CompaniesTableOnly = ({
       columns.push({ id: 'periodAmount', label: 'Période filtrée', type: 'system' as const, order: nextOrder++ });
     }
     
-    availableYears.forEach(year => {
-      columns.push({ id: `year_${year}`, label: String(year), type: 'system' as const, order: nextOrder++ });
-    });
+    // Ajouter les colonnes pour 2023, 2024, 2025
+    columns.push({ id: 'amount_2023', label: '2023', type: 'system' as const, order: nextOrder++ });
+    columns.push({ id: 'amount_2024', label: '2024', type: 'system' as const, order: nextOrder++ });
+    columns.push({ id: 'amount_2025', label: '2025', type: 'system' as const, order: nextOrder++ });
     
     return columns;
-  }, [startDate, endDate, availableYears]);
+  }, [startDate, endDate]);
 
   // Initialize local state from preferences - only once when preferences load or columns change
   useEffect(() => {
@@ -610,7 +620,7 @@ const CompaniesTableOnly = ({
     if (!preferences || preferencesLoading || localVisibleColumns.length === 0) return;
     
     const allNonYearColumnIds = allColumns
-      .filter(col => !col.id.startsWith('year_'))
+      .filter(col => !col.id.startsWith('amount_'))
       .map(col => col.id);
     
     // Find columns that are new (not in local state at all, and not in preferences)
@@ -628,14 +638,14 @@ const CompaniesTableOnly = ({
 
   // Get visible columns - always include year columns
   const visibleColumns = useMemo(() => {
-    const yearColumns = allColumns.filter(col => col.id.startsWith('year_')).map(col => col.id);
+    const yearColumns = allColumns.filter(col => col.id.startsWith('amount_')).map(col => col.id);
     
     if (localVisibleColumns.length === 0) {
       return allColumns.map(col => col.id);
     }
     
     // Merge non-year visible columns with all year columns
-    const nonYearVisible = localVisibleColumns.filter(id => !id.startsWith('year_'));
+    const nonYearVisible = localVisibleColumns.filter(id => !id.startsWith('amount_'));
     return [...nonYearVisible, ...yearColumns];
   }, [localVisibleColumns, allColumns]);
 
@@ -647,20 +657,20 @@ const CompaniesTableOnly = ({
     
     const ordered: typeof allColumns = [];
     localColumnOrder.forEach(id => {
-      if (visibleColumns.includes(id) && !id.startsWith('year_')) {
+      if (visibleColumns.includes(id) && !id.startsWith('amount_')) {
         const col = allColumns.find(col => col.id === id);
         if (col) ordered.push(col);
       }
     });
     
     // Add year columns at the end
-    const yearCols = allColumns.filter(col => col.id.startsWith('year_') && visibleColumns.includes(col.id));
+    const yearCols = allColumns.filter(col => col.id.startsWith('amount_') && visibleColumns.includes(col.id));
     return [...ordered, ...yearCols];
   }, [localColumnOrder, allColumns, visibleColumns]);
 
   // Get visible column objects for DragDropList - use local order and local visible
   const visibleColumnObjects = useMemo(() => {
-    const nonYearColumns = allColumns.filter(col => !col.id.startsWith('year_'));
+    const nonYearColumns = allColumns.filter(col => !col.id.startsWith('amount_'));
     const visibleNonYear = nonYearColumns.filter(col => localVisibleColumns.includes(col.id));
     
     if (localColumnOrder.length > 0) {
@@ -714,7 +724,7 @@ const CompaniesTableOnly = ({
     const newVisibleOrder = reorderedItems.map(item => item.id);
     
     // Keep non-visible and non-year columns in their original order
-    const nonYearColumns = allColumns.filter(col => !col.id.startsWith('year_')).map(col => col.id);
+    const nonYearColumns = allColumns.filter(col => !col.id.startsWith('amount_')).map(col => col.id);
     const nonVisible = localColumnOrder.filter(id => 
       !localVisibleColumns.includes(id) && nonYearColumns.includes(id)
     );
@@ -1314,20 +1324,18 @@ const CompaniesTableOnly = ({
                 });
 
                 const renderCell = (columnId: string) => {
-                  // Year columns
-                  if (columnId.startsWith('year_')) {
-                    const year = parseInt(columnId.replace('year_', ''));
-                    const yearData = yearDataMap.get(year);
+                  // Colonnes pour les années 2023, 2024, 2025
+                  if (columnId === 'amount_2023' || columnId === 'amount_2024' || columnId === 'amount_2025') {
+                    const year = columnId.replace('amount_', '');
+                    const amount = columnId === 'amount_2023' ? company.amount_2023 :
+                                   columnId === 'amount_2024' ? company.amount_2024 :
+                                   company.amount_2025;
+                    
                     return (
                       <TableCell key={columnId} className="text-center">
-                        {yearData ? (
-                          <div className="space-y-1">
-                            <div className="font-medium text-primary">
-                              {yearData.totalOrders}
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              {yearData.totalAmount.toLocaleString()} €
-                            </div>
+                        {amount && amount > 0 ? (
+                          <div className="font-medium text-primary">
+                            {Math.round(amount).toLocaleString()} €
                           </div>
                         ) : (
                           <span className="text-muted-foreground">-</span>
@@ -1489,29 +1497,19 @@ const CompaniesTableOnly = ({
                       );
                     }
                     
-                    if (column.id.startsWith('year_')) {
-                      const year = parseInt(column.id.replace('year_', ''));
-                      let totalYearOrders = 0;
-                      let totalYearAmount = 0;
-                      
-                      sortedCompanies.forEach(company => {
-                        const yearData = company.orderStats?.find(stat => stat.year === year);
-                        if (yearData) {
-                          totalYearOrders += yearData.totalOrders;
-                          totalYearAmount += yearData.totalAmount;
-                        }
-                      });
+                    if (column.id === 'amount_2023' || column.id === 'amount_2024' || column.id === 'amount_2025') {
+                      const totalAmount = sortedCompanies.reduce((sum, c) => {
+                        const amount = column.id === 'amount_2023' ? c.amount_2023 :
+                                      column.id === 'amount_2024' ? c.amount_2024 :
+                                      c.amount_2025;
+                        return sum + (amount || 0);
+                      }, 0);
                       
                       return (
                         <TableCell key={column.id} className="text-center">
-                          {totalYearOrders > 0 ? (
-                            <div className="space-y-1">
-                              <div className="font-bold text-primary">
-                                {totalYearOrders}
-                              </div>
-                              <div className="text-sm font-semibold">
-                                {Math.round(totalYearAmount).toLocaleString()} €
-                              </div>
+                          {totalAmount > 0 ? (
+                            <div className="font-bold text-primary">
+                              {Math.round(totalAmount).toLocaleString()} €
                             </div>
                           ) : (
                             <span className="text-muted-foreground">-</span>

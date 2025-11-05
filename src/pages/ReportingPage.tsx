@@ -32,9 +32,25 @@ const ReportingPage = () => {
       .sort((a, b) => b.year - a.year);
   }, [orderStats]);
 
-  // Calculs des totaux
+  // Calculs des totaux GÉNÉRAUX (toutes les commandes)
   const totalOrders = orderStats.reduce((sum, stat) => sum + stat.totalOrders, 0);
   const totalAmount = orderStats.reduce((sum, stat) => sum + stat.totalAmount, 0);
+
+  // Calculs des totaux du TABLEAU (uniquement entreprises géolocalisées affichées)
+  const tableStats = useMemo(() => {
+    const stats2023 = filteredCompanies.reduce((sum, c) => sum + (c.amount_2023 || 0), 0);
+    const stats2024 = filteredCompanies.reduce((sum, c) => sum + (c.amount_2024 || 0), 0);
+    const stats2025 = filteredCompanies.reduce((sum, c) => sum + (c.amount_2025 || 0), 0);
+    const totalTable = stats2023 + stats2024 + stats2025;
+    
+    return {
+      amount_2023: stats2023,
+      amount_2024: stats2024,
+      amount_2025: stats2025,
+      total: totalTable,
+      companies: filteredCompanies.length
+    };
+  }, [filteredCompanies]);
 
   if (ordersLoading) {
     return (
@@ -61,6 +77,9 @@ const ReportingPage = () => {
             <ShoppingCart className="h-5 w-5" />
             Statistiques des Commandes
           </CardTitle>
+          <CardDescription>
+            Toutes les commandes de la base de données (incluant entreprises non géolocalisées)
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -75,7 +94,7 @@ const ReportingPage = () => {
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Euro className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Chiffre d'Affaires</span>
+                <span className="text-sm text-muted-foreground">Chiffre d'Affaires Total</span>
               </div>
               <div className="text-2xl font-bold">{totalAmount.toLocaleString()} €</div>
             </div>
@@ -95,6 +114,35 @@ const ReportingPage = () => {
               </div>
               <div className="text-2xl font-bold">
                 {orderStats.length > 0 ? Math.round(totalOrders / orderStats.length).toLocaleString() : 0}
+              </div>
+            </div>
+          </div>
+
+          {/* Totaux du tableau (entreprises géolocalisées uniquement) */}
+          <div className="mt-6 p-4 bg-primary/5 rounded-lg border border-primary/20">
+            <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+              📍 Entreprises Géolocalisées (affichées dans le tableau ci-dessous)
+            </h4>
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Entreprises</p>
+                <p className="text-lg font-bold">{tableStats.companies}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">2023</p>
+                <p className="text-lg font-bold">{tableStats.amount_2023.toLocaleString()} €</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">2024</p>
+                <p className="text-lg font-bold">{tableStats.amount_2024.toLocaleString()} €</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">2025</p>
+                <p className="text-lg font-bold">{tableStats.amount_2025.toLocaleString()} €</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Total 2023-2025</p>
+                <p className="text-lg font-bold text-primary">{tableStats.total.toLocaleString()} €</p>
               </div>
             </div>
           </div>

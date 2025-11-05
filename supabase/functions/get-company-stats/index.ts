@@ -6,63 +6,64 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Classe de décryptage (identique à encrypted-companies)
+// Classe de décryptage (compatible avec encrypted-companies)
 class CompanyEncryption {
-  private encryptionKey: CryptoKey | null = null;
+  private key: CryptoKey | null = null;
 
   async init() {
     const keyString = Deno.env.get('ENCRYPTION_KEY');
     if (!keyString) {
-      throw new Error('ENCRYPTION_KEY not found in environment');
+      throw new Error('ENCRYPTION_KEY not found in environment variables');
     }
 
-    const keyData = new Uint8Array(
-      keyString.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16))
-    );
-
-    this.encryptionKey = await crypto.subtle.importKey(
+    // Convert the string key to a CryptoKey for AES-GCM (identique à encrypted-companies)
+    const keyData = new TextEncoder().encode(keyString.padEnd(32).slice(0, 32));
+    this.key = await crypto.subtle.importKey(
       'raw',
       keyData,
-      { name: 'AES-GCM', length: 256 },
+      { name: 'AES-GCM' },
       false,
       ['encrypt', 'decrypt']
     );
   }
 
-  async decrypt(encryptedData: string): Promise<string> {
-    if (!this.encryptionKey) {
-      throw new Error('Encryption key not initialized');
-    }
-
-    try {
-      const parts = encryptedData.split(':');
-      if (parts.length !== 2) {
-        return encryptedData;
-      }
-
-      const iv = new Uint8Array(
-        atob(parts[0]).split('').map(char => char.charCodeAt(0))
-      );
-      const data = new Uint8Array(
-        atob(parts[1]).split('').map(char => char.charCodeAt(0))
-      );
-
-      const decryptedData = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv },
-        this.encryptionKey,
-        data
-      );
-
-      return new TextDecoder().decode(decryptedData);
-    } catch (error) {
-      console.error('Decryption error:', error);
-      return encryptedData;
-    }
+  isEncrypted(data: string): boolean {
+    if (!data || data.length < 20) return false;
+    
+    const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+    if (!base64Regex.test(data)) return false;
+    
+    return data.length >= 32;
   }
 
-  isEncrypted(data: string): boolean {
-    if (!data) return false;
-    return data.includes(':') && data.split(':').length === 2;
+  async decrypt(encryptedData: string): Promise<string> {
+    if (!encryptedData) return encryptedData;
+    
+    if (!this.isEncrypted(encryptedData)) {
+      return encryptedData;
+    }
+
+    if (!this.key) await this.init();
+
+    try {
+      const combined = new Uint8Array(
+        atob(encryptedData).split('').map(c => c.charCodeAt(0))
+      );
+
+      const iv = combined.slice(0, 12);
+      const encrypted = combined.slice(12);
+
+      const decrypted = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv },
+        this.key!,
+        encrypted
+      );
+
+      return new TextDecoder().decode(decrypted);
+    } catch (error) {
+      console.error('Decryption failed for data:', encryptedData.substring(0, 20) + '...');
+      return encryptedData;
+    }
   }
 }
 

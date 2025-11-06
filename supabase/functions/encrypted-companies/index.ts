@@ -155,7 +155,7 @@ async function decryptCompany(company: any) {
   return {
     ...company,
     company_name: company.company_name ? await encryption.decrypt(company.company_name) : company.company_name,
-    sipi_number: company.sipi_number ? await encryption.decrypt(company.sipi_number) : company.sipi_number,
+    // sipi_number is NOT encrypted - it's used as a join key with orders table
     address1: company.address1 ? await encryption.decrypt(company.address1) : company.address1,
     address2: company.address2 ? await encryption.decrypt(company.address2) : company.address2,
     city: company.city ? await encryption.decrypt(company.city) : company.city,
@@ -167,6 +167,7 @@ async function encryptCompanyData(data: any) {
   return {
     ...data,
     company_name: await encryption.encrypt(data.company_name),
+    // sipi_number is NOT encrypted - it's used as a join key with orders table
     address1: data.address1 ? await encryption.encrypt(data.address1) : data.address1,
     address2: data.address2 ? await encryption.encrypt(data.address2) : data.address2,
     city: data.city ? await encryption.encrypt(data.city) : data.city,

@@ -9,6 +9,7 @@ import DepartmentImportSection from '@/components/DepartmentImportSection';
 import ContactImportSection from '@/components/ContactImportSection';
 import IncompleteGeocodingTable from '@/components/IncompleteGeocodingTable';
 import { EncryptExistingDataButton } from '@/components/EncryptExistingDataButton';
+import { DecryptSipiButton } from '@/components/DecryptSipiButton';
 
 const ImportReportingPage: React.FC = () => {
   const { isAdmin, loading } = useUserRole();
@@ -53,13 +54,24 @@ const ImportReportingPage: React.FC = () => {
       <div className="space-y-8">
         {/* Chiffrement des données */}
         <div>
-          <h2 className="text-2xl font-semibold mb-4">Chiffrement des Données</h2>
+          <h2 className="text-2xl font-semibold mb-4">Gestion du Chiffrement</h2>
           <Card>
             <CardContent className="pt-6">
-              <p className="text-sm text-muted-foreground mb-4">
-                Chiffrez les données sensibles des entreprises déjà présentes dans la base de données.
-              </p>
-              <EncryptExistingDataButton />
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Chiffrez les données sensibles des entreprises déjà présentes dans la base de données.
+                  </p>
+                  <EncryptExistingDataButton />
+                </div>
+                <div className="pt-4 border-t">
+                  <p className="text-sm text-muted-foreground mb-4">
+                    <strong>⚠️ Important :</strong> Décryptez les numéros SIPI pour permettre les jointures avec les commandes. 
+                    Les SIPI ne sont pas des données sensibles et doivent rester en clair pour le bon fonctionnement des statistiques.
+                  </p>
+                  <DecryptSipiButton />
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>

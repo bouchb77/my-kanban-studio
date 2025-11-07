@@ -96,6 +96,7 @@ serve(async (req) => {
     }
 
     console.log('Company stats calculated (encrypted):', companyStats?.length || 0);
+    console.log('Sample data:', companyStats?.slice(0, 2));
 
     // Décrypter les données des entreprises
     const decryptedStats = await Promise.all(

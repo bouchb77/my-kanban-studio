@@ -25,6 +25,7 @@ interface Company {
   longitude: number;
   address1?: string;
   city?: string;
+  postal_code?: string;
   general_department?: string;
   client_blocked_date?: string;
   training_date?: string;
@@ -35,6 +36,10 @@ interface Company {
   amount_2023?: number;
   amount_2024?: number;
   amount_2025?: number;
+  order_count_2023?: number;
+  order_count_2024?: number;
+  order_count_2025?: number;
+  avg_amount?: number;
   orderStats?: CompanyOrderStats[];
   averageOrderPerYear?: number;
   averageAmountPerYear?: number;
@@ -198,32 +203,27 @@ const CompaniesTableOnly = ({
 
         // Transform to expected Company format
         const companiesWithStats: Company[] = filteredStats.map((stat: any) => {
-          // Build orderStats from the stats data for backward compatibility
+          // Build orderStats from the stats data with order counts
           const orderStats: CompanyOrderStats[] = [];
           
-          if (stat.amount_2023 > 0) {
-            orderStats.push({
-              year: 2023,
-              totalOrders: 0,
-              totalAmount: parseFloat(stat.amount_2023)
-            });
-          }
+          // Always include all 3 years, even with 0 orders
+          orderStats.push({
+            year: 2023,
+            totalOrders: stat.order_count_2023 || 0,
+            totalAmount: parseFloat(stat.amount_2023) || 0
+          });
           
-          if (stat.amount_2024 > 0) {
-            orderStats.push({
-              year: 2024,
-              totalOrders: 0,
-              totalAmount: parseFloat(stat.amount_2024)
-            });
-          }
+          orderStats.push({
+            year: 2024,
+            totalOrders: stat.order_count_2024 || 0,
+            totalAmount: parseFloat(stat.amount_2024) || 0
+          });
 
-          if (stat.amount_2025 > 0) {
-            orderStats.push({
-              year: 2025,
-              totalOrders: 0,
-              totalAmount: parseFloat(stat.amount_2025)
-            });
-          }
+          orderStats.push({
+            year: 2025,
+            totalOrders: stat.order_count_2025 || 0,
+            totalAmount: parseFloat(stat.amount_2025) || 0
+          });
           
           const totalOrders = orderStats.reduce((sum, s) => sum + s.totalOrders, 0);
           const averageOrderPerYear = orderStats.length > 0 ? totalOrders / orderStats.length : 0;
@@ -232,15 +232,20 @@ const CompaniesTableOnly = ({
             id: stat.company_id,
             sipi_number: stat.sipi_number,
             company_name: stat.company_name,
-            latitude: parseFloat(stat.latitude),
-            longitude: parseFloat(stat.longitude),
+            latitude: parseFloat(stat.latitude) || 0,
+            longitude: parseFloat(stat.longitude) || 0,
             address1: stat.address1,
             city: stat.city,
+            postal_code: stat.postal_code,
             general_department: stat.general_department,
             quality: stat.quality,
             amount_2023: parseFloat(stat.amount_2023) || 0,
             amount_2024: parseFloat(stat.amount_2024) || 0,
             amount_2025: parseFloat(stat.amount_2025) || 0,
+            order_count_2023: stat.order_count_2023 || 0,
+            order_count_2024: stat.order_count_2024 || 0,
+            order_count_2025: stat.order_count_2025 || 0,
+            avg_amount: parseFloat(stat.avg_amount) || 0,
             orderStats,
             averageOrderPerYear,
             last_training_order_date: stat.has_training ? undefined : undefined,
@@ -537,6 +542,22 @@ const CompaniesTableOnly = ({
           aValue = a.amount_2025 || 0;
           bValue = b.amount_2025 || 0;
           break;
+        case 'order_count_2023':
+          aValue = a.order_count_2023 || 0;
+          bValue = b.order_count_2023 || 0;
+          break;
+        case 'order_count_2024':
+          aValue = a.order_count_2024 || 0;
+          bValue = b.order_count_2024 || 0;
+          break;
+        case 'order_count_2025':
+          aValue = a.order_count_2025 || 0;
+          bValue = b.order_count_2025 || 0;
+          break;
+        case 'avg_amount':
+          aValue = a.avg_amount || 0;
+          bValue = b.avg_amount || 0;
+          break;
         default:
           return 0;
       }
@@ -572,18 +593,22 @@ const CompaniesTableOnly = ({
       { id: 'last_training_order_date', label: 'Formation (Date cmd SIPI)', type: 'system' as const, order: 6 },
       { id: 'report_creation_date', label: 'Date approx Formation (Rapport SIPI)', type: 'system' as const, order: 7 },
       { id: 'next_renewal_date', label: 'Prochain Renou', type: 'system' as const, order: 8 },
-      { id: 'averageAmountPerYear', label: 'Moyenne/An', type: 'system' as const, order: 9 },
+      { id: 'avg_amount', label: 'Montant Moyen 3 ans', type: 'system' as const, order: 9 },
+      { id: 'averageAmountPerYear', label: 'Moyenne/An', type: 'system' as const, order: 10 },
     ];
     
-    let nextOrder = 10;
+    let nextOrder = 11;
     if (startDate || endDate) {
       columns.push({ id: 'periodAmount', label: 'Période filtrée', type: 'system' as const, order: nextOrder++ });
     }
     
-    // Ajouter les colonnes pour 2023, 2024, 2025
-    columns.push({ id: 'amount_2023', label: '2023', type: 'system' as const, order: nextOrder++ });
-    columns.push({ id: 'amount_2024', label: '2024', type: 'system' as const, order: nextOrder++ });
-    columns.push({ id: 'amount_2025', label: '2025', type: 'system' as const, order: nextOrder++ });
+    // Ajouter les colonnes pour 2023, 2024, 2025 avec nombre de commandes
+    columns.push({ id: 'amount_2023', label: '2023 (€)', type: 'system' as const, order: nextOrder++ });
+    columns.push({ id: 'order_count_2023', label: '2023 (Nb)', type: 'system' as const, order: nextOrder++ });
+    columns.push({ id: 'amount_2024', label: '2024 (€)', type: 'system' as const, order: nextOrder++ });
+    columns.push({ id: 'order_count_2024', label: '2024 (Nb)', type: 'system' as const, order: nextOrder++ });
+    columns.push({ id: 'amount_2025', label: '2025 (€)', type: 'system' as const, order: nextOrder++ });
+    columns.push({ id: 'order_count_2025', label: '2025 (Nb)', type: 'system' as const, order: nextOrder++ });
     
     return columns;
   }, [startDate, endDate]);
@@ -620,7 +645,7 @@ const CompaniesTableOnly = ({
     if (!preferences || preferencesLoading || localVisibleColumns.length === 0) return;
     
     const allNonYearColumnIds = allColumns
-      .filter(col => !col.id.startsWith('amount_'))
+      .filter(col => !col.id.startsWith('amount_') && !col.id.startsWith('order_count_'))
       .map(col => col.id);
     
     // Find columns that are new (not in local state at all, and not in preferences)
@@ -636,16 +661,20 @@ const CompaniesTableOnly = ({
     }
   }, [allColumns.length]);
 
-  // Get visible columns - always include year columns
+  // Get visible columns - always include year columns (both amount and order_count)
   const visibleColumns = useMemo(() => {
-    const yearColumns = allColumns.filter(col => col.id.startsWith('amount_')).map(col => col.id);
+    const yearColumns = allColumns.filter(col => 
+      col.id.startsWith('amount_') || col.id.startsWith('order_count_')
+    ).map(col => col.id);
     
     if (localVisibleColumns.length === 0) {
       return allColumns.map(col => col.id);
     }
     
     // Merge non-year visible columns with all year columns
-    const nonYearVisible = localVisibleColumns.filter(id => !id.startsWith('amount_'));
+    const nonYearVisible = localVisibleColumns.filter(id => 
+      !id.startsWith('amount_') && !id.startsWith('order_count_')
+    );
     return [...nonYearVisible, ...yearColumns];
   }, [localVisibleColumns, allColumns]);
 
@@ -657,20 +686,25 @@ const CompaniesTableOnly = ({
     
     const ordered: typeof allColumns = [];
     localColumnOrder.forEach(id => {
-      if (visibleColumns.includes(id) && !id.startsWith('amount_')) {
+      if (visibleColumns.includes(id) && !id.startsWith('amount_') && !id.startsWith('order_count_')) {
         const col = allColumns.find(col => col.id === id);
         if (col) ordered.push(col);
       }
     });
     
-    // Add year columns at the end
-    const yearCols = allColumns.filter(col => col.id.startsWith('amount_') && visibleColumns.includes(col.id));
+    // Add year columns at the end (amounts and counts)
+    const yearCols = allColumns.filter(col => 
+      (col.id.startsWith('amount_') || col.id.startsWith('order_count_')) && 
+      visibleColumns.includes(col.id)
+    );
     return [...ordered, ...yearCols];
   }, [localColumnOrder, allColumns, visibleColumns]);
 
   // Get visible column objects for DragDropList - use local order and local visible
   const visibleColumnObjects = useMemo(() => {
-    const nonYearColumns = allColumns.filter(col => !col.id.startsWith('amount_'));
+    const nonYearColumns = allColumns.filter(col => 
+      !col.id.startsWith('amount_') && !col.id.startsWith('order_count_')
+    );
     const visibleNonYear = nonYearColumns.filter(col => localVisibleColumns.includes(col.id));
     
     if (localColumnOrder.length > 0) {
@@ -1324,7 +1358,7 @@ const CompaniesTableOnly = ({
                 });
 
                 const renderCell = (columnId: string) => {
-                  // Colonnes pour les années 2023, 2024, 2025
+                  // Colonnes pour les années 2023, 2024, 2025 (montants)
                   if (columnId === 'amount_2023' || columnId === 'amount_2024' || columnId === 'amount_2025') {
                     const year = columnId.replace('amount_', '');
                     const amount = columnId === 'amount_2023' ? company.amount_2023 :
@@ -1336,6 +1370,25 @@ const CompaniesTableOnly = ({
                         {amount && amount > 0 ? (
                           <div className="font-medium text-primary">
                             {Math.round(amount).toLocaleString()} €
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                    );
+                  }
+
+                  // Colonnes pour le nombre de commandes 2023, 2024, 2025
+                  if (columnId === 'order_count_2023' || columnId === 'order_count_2024' || columnId === 'order_count_2025') {
+                    const count = columnId === 'order_count_2023' ? company.order_count_2023 :
+                                  columnId === 'order_count_2024' ? company.order_count_2024 :
+                                  company.order_count_2025;
+                    
+                    return (
+                      <TableCell key={columnId} className="text-center">
+                        {count && count > 0 ? (
+                          <div className="font-medium">
+                            {count}
                           </div>
                         ) : (
                           <span className="text-muted-foreground">-</span>
@@ -1399,6 +1452,18 @@ const CompaniesTableOnly = ({
                               <div className="text-sm text-muted-foreground">
                                 {Math.round(company.averageAmountPerYear).toLocaleString()} €
                               </div>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                      );
+                    case 'avg_amount':
+                      return (
+                        <TableCell key={columnId} className="text-center">
+                          {company.avg_amount && company.avg_amount > 0 ? (
+                            <div className="font-medium text-primary">
+                              {Math.round(company.avg_amount).toLocaleString()} €
                             </div>
                           ) : (
                             <span className="text-muted-foreground">-</span>
@@ -1510,6 +1575,43 @@ const CompaniesTableOnly = ({
                           {totalAmount > 0 ? (
                             <div className="font-bold text-primary">
                               {Math.round(totalAmount).toLocaleString()} €
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                      );
+                    }
+                    
+                    if (column.id === 'order_count_2023' || column.id === 'order_count_2024' || column.id === 'order_count_2025') {
+                      const totalCount = sortedCompanies.reduce((sum, c) => {
+                        const count = column.id === 'order_count_2023' ? c.order_count_2023 :
+                                     column.id === 'order_count_2024' ? c.order_count_2024 :
+                                     c.order_count_2025;
+                        return sum + (count || 0);
+                      }, 0);
+                      
+                      return (
+                        <TableCell key={column.id} className="text-center">
+                          {totalCount > 0 ? (
+                            <div className="font-bold">
+                              {totalCount}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                      );
+                    }
+                    
+                    if (column.id === 'avg_amount') {
+                      const totalAvg = sortedCompanies.reduce((sum, c) => sum + (c.avg_amount || 0), 0);
+                      const avgOfAvg = sortedCompanies.length > 0 ? totalAvg / sortedCompanies.length : 0;
+                      return (
+                        <TableCell key={column.id} className="text-center">
+                          {avgOfAvg > 0 ? (
+                            <div className="font-bold text-primary">
+                              {Math.round(avgOfAvg).toLocaleString()} €
                             </div>
                           ) : (
                             <span className="text-muted-foreground">-</span>

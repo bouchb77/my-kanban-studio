@@ -916,6 +916,7 @@ export type Database = {
           amount_2023: number
           amount_2024: number
           amount_2025: number
+          avg_amount: number
           city: string
           company_id: string
           company_name: string
@@ -925,6 +926,10 @@ export type Database = {
           longitude: number
           max_amount: number
           next_renewal: string
+          order_count_2023: number
+          order_count_2024: number
+          order_count_2025: number
+          postal_code: string
           quality: string
           sipi_number: string
         }[]

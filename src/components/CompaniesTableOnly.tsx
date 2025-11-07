@@ -539,20 +539,17 @@ const CompaniesTableOnly = ({
           bValue = b.amount_2024 || 0;
           break;
         case 'amount_2025':
+        case 'year_2025':
           aValue = a.amount_2025 || 0;
           bValue = b.amount_2025 || 0;
           break;
-        case 'order_count_2023':
-          aValue = a.order_count_2023 || 0;
-          bValue = b.order_count_2023 || 0;
+        case 'year_2023':
+          aValue = a.amount_2023 || 0;
+          bValue = b.amount_2023 || 0;
           break;
-        case 'order_count_2024':
-          aValue = a.order_count_2024 || 0;
-          bValue = b.order_count_2024 || 0;
-          break;
-        case 'order_count_2025':
-          aValue = a.order_count_2025 || 0;
-          bValue = b.order_count_2025 || 0;
+        case 'year_2024':
+          aValue = a.amount_2024 || 0;
+          bValue = b.amount_2024 || 0;
           break;
         case 'avg_amount':
           aValue = a.avg_amount || 0;
@@ -602,13 +599,10 @@ const CompaniesTableOnly = ({
       columns.push({ id: 'periodAmount', label: 'Période filtrée', type: 'system' as const, order: nextOrder++ });
     }
     
-    // Ajouter les colonnes pour 2023, 2024, 2025 avec nombre de commandes
-    columns.push({ id: 'amount_2023', label: '2023 (€)', type: 'system' as const, order: nextOrder++ });
-    columns.push({ id: 'order_count_2023', label: '2023 (Nb)', type: 'system' as const, order: nextOrder++ });
-    columns.push({ id: 'amount_2024', label: '2024 (€)', type: 'system' as const, order: nextOrder++ });
-    columns.push({ id: 'order_count_2024', label: '2024 (Nb)', type: 'system' as const, order: nextOrder++ });
-    columns.push({ id: 'amount_2025', label: '2025 (€)', type: 'system' as const, order: nextOrder++ });
-    columns.push({ id: 'order_count_2025', label: '2025 (Nb)', type: 'system' as const, order: nextOrder++ });
+    // Ajouter les colonnes pour 2023, 2024, 2025 (montant + nombre combinés)
+    columns.push({ id: 'year_2023', label: '2023', type: 'system' as const, order: nextOrder++ });
+    columns.push({ id: 'year_2024', label: '2024', type: 'system' as const, order: nextOrder++ });
+    columns.push({ id: 'year_2025', label: '2025', type: 'system' as const, order: nextOrder++ });
     
     return columns;
   }, [startDate, endDate]);
@@ -645,7 +639,7 @@ const CompaniesTableOnly = ({
     if (!preferences || preferencesLoading || localVisibleColumns.length === 0) return;
     
     const allNonYearColumnIds = allColumns
-      .filter(col => !col.id.startsWith('amount_') && !col.id.startsWith('order_count_'))
+      .filter(col => !col.id.startsWith('year_'))
       .map(col => col.id);
     
     // Find columns that are new (not in local state at all, and not in preferences)
@@ -661,10 +655,10 @@ const CompaniesTableOnly = ({
     }
   }, [allColumns.length]);
 
-  // Get visible columns - always include year columns (both amount and order_count)
+  // Get visible columns - always include year columns
   const visibleColumns = useMemo(() => {
     const yearColumns = allColumns.filter(col => 
-      col.id.startsWith('amount_') || col.id.startsWith('order_count_')
+      col.id.startsWith('year_')
     ).map(col => col.id);
     
     if (localVisibleColumns.length === 0) {
@@ -673,7 +667,7 @@ const CompaniesTableOnly = ({
     
     // Merge non-year visible columns with all year columns
     const nonYearVisible = localVisibleColumns.filter(id => 
-      !id.startsWith('amount_') && !id.startsWith('order_count_')
+      !id.startsWith('year_')
     );
     return [...nonYearVisible, ...yearColumns];
   }, [localVisibleColumns, allColumns]);
@@ -686,15 +680,15 @@ const CompaniesTableOnly = ({
     
     const ordered: typeof allColumns = [];
     localColumnOrder.forEach(id => {
-      if (visibleColumns.includes(id) && !id.startsWith('amount_') && !id.startsWith('order_count_')) {
+      if (visibleColumns.includes(id) && !id.startsWith('year_')) {
         const col = allColumns.find(col => col.id === id);
         if (col) ordered.push(col);
       }
     });
     
-    // Add year columns at the end (amounts and counts)
+    // Add year columns at the end
     const yearCols = allColumns.filter(col => 
-      (col.id.startsWith('amount_') || col.id.startsWith('order_count_')) && 
+      col.id.startsWith('year_') && 
       visibleColumns.includes(col.id)
     );
     return [...ordered, ...yearCols];
@@ -703,7 +697,7 @@ const CompaniesTableOnly = ({
   // Get visible column objects for DragDropList - use local order and local visible
   const visibleColumnObjects = useMemo(() => {
     const nonYearColumns = allColumns.filter(col => 
-      !col.id.startsWith('amount_') && !col.id.startsWith('order_count_')
+      !col.id.startsWith('year_')
     );
     const visibleNonYear = nonYearColumns.filter(col => localVisibleColumns.includes(col.id));
     
@@ -1358,37 +1352,26 @@ const CompaniesTableOnly = ({
                 });
 
                 const renderCell = (columnId: string) => {
-                  // Colonnes pour les années 2023, 2024, 2025 (montants)
-                  if (columnId === 'amount_2023' || columnId === 'amount_2024' || columnId === 'amount_2025') {
-                    const year = columnId.replace('amount_', '');
-                    const amount = columnId === 'amount_2023' ? company.amount_2023 :
-                                   columnId === 'amount_2024' ? company.amount_2024 :
+                  // Colonnes combinées pour 2023, 2024, 2025
+                  if (columnId === 'year_2023' || columnId === 'year_2024' || columnId === 'year_2025') {
+                    const year = columnId.replace('year_', '');
+                    const amount = columnId === 'year_2023' ? company.amount_2023 :
+                                   columnId === 'year_2024' ? company.amount_2024 :
                                    company.amount_2025;
-                    
-                    return (
-                      <TableCell key={columnId} className="text-center">
-                        {amount && amount > 0 ? (
-                          <div className="font-medium text-primary">
-                            {Math.round(amount).toLocaleString()} €
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                    );
-                  }
-
-                  // Colonnes pour le nombre de commandes 2023, 2024, 2025
-                  if (columnId === 'order_count_2023' || columnId === 'order_count_2024' || columnId === 'order_count_2025') {
-                    const count = columnId === 'order_count_2023' ? company.order_count_2023 :
-                                  columnId === 'order_count_2024' ? company.order_count_2024 :
+                    const count = columnId === 'year_2023' ? company.order_count_2023 :
+                                  columnId === 'year_2024' ? company.order_count_2024 :
                                   company.order_count_2025;
                     
                     return (
                       <TableCell key={columnId} className="text-center">
-                        {count && count > 0 ? (
-                          <div className="font-medium">
-                            {count}
+                        {amount && amount > 0 ? (
+                          <div className="space-y-1">
+                            <div className="font-medium text-primary">
+                              {Math.round(amount).toLocaleString()} €
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {count || 0} cmd
+                            </div>
                           </div>
                         ) : (
                           <span className="text-muted-foreground">-</span>
@@ -1562,44 +1545,30 @@ const CompaniesTableOnly = ({
                       );
                     }
                     
-                    if (column.id === 'amount_2023' || column.id === 'amount_2024' || column.id === 'amount_2025') {
+                    if (column.id === 'year_2023' || column.id === 'year_2024' || column.id === 'year_2025') {
                       const totalAmount = sortedCompanies.reduce((sum, c) => {
-                        const amount = column.id === 'amount_2023' ? c.amount_2023 :
-                                      column.id === 'amount_2024' ? c.amount_2024 :
+                        const amount = column.id === 'year_2023' ? c.amount_2023 :
+                                      column.id === 'year_2024' ? c.amount_2024 :
                                       c.amount_2025;
                         return sum + (amount || 0);
                       }, 0);
-                      
-                      return (
-                        <TableCell key={column.id} className="text-center">
-                          {totalAmount > 0 ? (
-                            <div className="font-bold text-primary">
-                              {Math.round(totalAmount).toLocaleString()} €
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                      );
-                    }
-                    
-                    if (column.id === 'order_count_2023' || column.id === 'order_count_2024' || column.id === 'order_count_2025') {
                       const totalCount = sortedCompanies.reduce((sum, c) => {
-                        const count = column.id === 'order_count_2023' ? c.order_count_2023 :
-                                     column.id === 'order_count_2024' ? c.order_count_2024 :
+                        const count = column.id === 'year_2023' ? c.order_count_2023 :
+                                     column.id === 'year_2024' ? c.order_count_2024 :
                                      c.order_count_2025;
                         return sum + (count || 0);
                       }, 0);
                       
                       return (
                         <TableCell key={column.id} className="text-center">
-                          {totalCount > 0 ? (
-                            <div className="font-bold">
-                              {totalCount}
+                          <div className="space-y-1">
+                            <div className="font-bold text-primary">
+                              {Math.round(totalAmount).toLocaleString()} €
                             </div>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
+                            <div className="text-xs font-semibold">
+                              {totalCount} cmd
+                            </div>
+                          </div>
                         </TableCell>
                       );
                     }

@@ -86,9 +86,13 @@ serve(async (req) => {
     console.log('Starting company stats calculation with threshold:', maxThreshold);
 
     // Requête SQL optimisée qui fait tout en une fois
-    const { data: companyStats, error } = await supabase.rpc('get_company_stats_optimized', {
-      max_threshold: maxThreshold || 999999999
-    });
+    // IMPORTANT: Utiliser .select() après .rpc() pour contourner la limite de 1000 lignes
+    const { data: companyStats, error } = await supabase
+      .rpc('get_company_stats_optimized', {
+        max_threshold: maxThreshold || 999999999
+      })
+      .select('*')
+      .limit(10000); // Limite explicite haute pour avoir toutes les entreprises
 
     if (error) {
       console.error('Error calling RPC:', error);

@@ -248,7 +248,11 @@ const CompaniesTableOnly = ({
             avg_amount: parseFloat(stat.avg_amount) || 0,
             orderStats,
             averageOrderPerYear,
-            last_training_order_date: stat.has_training ? undefined : undefined,
+            averageAmountPerYear: orderStats.length > 0 
+              ? orderStats.reduce((sum, s) => sum + s.totalAmount, 0) / orderStats.length 
+              : 0,
+            last_training_order_date: stat.last_training_order_date || undefined,
+            report_creation_date: stat.report_creation_date || undefined,
             next_renewal_date: stat.next_renewal || undefined
           };
         });

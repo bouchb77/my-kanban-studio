@@ -922,6 +922,7 @@ export type Database = {
           company_name: string
           general_department: string
           has_training: boolean
+          last_training_order_date: string
           latitude: number
           longitude: number
           max_amount: number
@@ -931,6 +932,7 @@ export type Database = {
           order_count_2025: number
           postal_code: string
           quality: string
+          report_creation_date: string
           sipi_number: string
         }[]
       }

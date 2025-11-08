@@ -85,26 +85,48 @@ serve(async (req) => {
     const { maxThreshold } = await req.json();
     console.log('Starting company stats calculation with threshold:', maxThreshold);
 
-    // Requête SQL optimisée qui fait tout en une fois
-    // IMPORTANT: Utiliser .select() après .rpc() pour contourner la limite de 1000 lignes
-    const { data: companyStats, error } = await supabase
-      .rpc('get_company_stats_optimized', {
-        max_threshold: maxThreshold || 999999999
-      })
-      .select('*')
-      .limit(10000); // Limite explicite haute pour avoir toutes les entreprises
+    // Récupérer toutes les entreprises par pagination (limite Supabase RPC = 1000)
+    let allCompanyStats: any[] = [];
+    let offset = 0;
+    const batchSize = 1000;
+    let hasMore = true;
+    
+    console.log('Starting paginated company stats fetch...');
+    
+    while (hasMore && offset < 10000) { // Limite de sécurité à 10 000
+      const { data: batch, error } = await supabase
+        .rpc('get_company_stats_optimized', {
+          max_threshold: maxThreshold || 999999999
+        })
+        .range(offset, offset + batchSize - 1);
 
-    if (error) {
-      console.error('Error calling RPC:', error);
-      throw error;
+      if (error) {
+        console.error('Error calling RPC at offset', offset, ':', error);
+        throw error;
+      }
+
+      if (!batch || batch.length === 0) {
+        hasMore = false;
+        break;
+      }
+
+      allCompanyStats = [...allCompanyStats, ...batch];
+      console.log(`Fetched batch: ${batch.length} companies (total: ${allCompanyStats.length})`);
+      
+      // Si on a moins que batchSize, c'est le dernier lot
+      if (batch.length < batchSize) {
+        hasMore = false;
+      } else {
+        offset += batchSize;
+      }
     }
 
-    console.log('Company stats calculated (encrypted):', companyStats?.length || 0);
-    console.log('Sample data:', companyStats?.slice(0, 2));
+    console.log('All company stats fetched:', allCompanyStats.length);
+    console.log('Sample data:', allCompanyStats?.slice(0, 2));
 
     // Décrypter les données des entreprises
     const decryptedStats = await Promise.all(
-      (companyStats || []).map(async (company: any) => {
+      (allCompanyStats || []).map(async (company: any) => {
         const decrypted: any = { ...company };
         
         if (encryption.isEncrypted(company.company_name)) {

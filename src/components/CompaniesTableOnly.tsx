@@ -609,19 +609,14 @@ const CompaniesTableOnly = ({
     return columns;
   }, [startDate, endDate]);
 
-  // Initialize local state from preferences - only once when preferences load or columns change
+  // Initialize local state from preferences - sync whenever preferences change
   useEffect(() => {
     if (!preferences || preferencesLoading) return;
+    
+    // Skip if we're currently saving to avoid loops
     if (isUpdatingRef.current) {
-      // Skip if we're in the middle of updating
-      isUpdatingRef.current = false;
       return;
     }
-    
-    // Only update if local state is empty
-    const shouldInitialize = localVisibleColumns.length === 0 || localColumnOrder.length === 0;
-    
-    if (!shouldInitialize) return;
     
     const defaultVisible = allColumns.map(col => col.id);
     const visible = preferences.visible_columns?.length > 0
@@ -632,9 +627,10 @@ const CompaniesTableOnly = ({
       ? preferences.column_order.filter(id => allColumns.some(col => col.id === id))
       : allColumns.map(col => col.id);
     
+    // Update local state to reflect saved preferences
     setLocalVisibleColumns(visible);
     setLocalColumnOrder(order);
-  }, [preferences, preferencesLoading, allColumns]);
+  }, [preferences?.visible_columns, preferences?.column_order, preferencesLoading, allColumns.length]);
   
   // Sync local state when new dynamic columns appear (like periodAmount)
   useEffect(() => {
@@ -722,15 +718,15 @@ const CompaniesTableOnly = ({
   }, [allColumns, localVisibleColumns, localColumnOrder]);
 
   const handleToggleColumn = async (columnId: string) => {
-    // Mark that we're updating
-    isUpdatingRef.current = true;
-    
     // Update local state immediately for responsive UI
     const newVisible = localVisibleColumns.includes(columnId)
       ? localVisibleColumns.filter(id => id !== columnId)
       : [...localVisibleColumns, columnId];
     
     setLocalVisibleColumns(newVisible);
+    
+    // Mark that we're updating
+    isUpdatingRef.current = true;
     
     // Save to preferences in background
     try {
@@ -740,17 +736,12 @@ const CompaniesTableOnly = ({
       // Revert on error
       setLocalVisibleColumns(localVisibleColumns);
     } finally {
-      // Reset flag after a short delay
-      setTimeout(() => {
-        isUpdatingRef.current = false;
-      }, 100);
+      // Reset flag immediately after the async operation completes
+      isUpdatingRef.current = false;
     }
   };
 
   const handleReorderColumns = async (reorderedItems: typeof allColumns) => {
-    // Mark that we're updating
-    isUpdatingRef.current = true;
-    
     const newVisibleOrder = reorderedItems.map(item => item.id);
     
     // Keep non-visible and non-year columns in their original order
@@ -770,6 +761,9 @@ const CompaniesTableOnly = ({
     // Update local state immediately for responsive UI
     setLocalColumnOrder(finalOrder);
     
+    // Mark that we're updating
+    isUpdatingRef.current = true;
+    
     // Save to preferences in background
     try {
       await reorderColumns(finalOrder);
@@ -778,10 +772,8 @@ const CompaniesTableOnly = ({
       // Revert on error
       setLocalColumnOrder(localColumnOrder);
     } finally {
-      // Reset flag after a short delay
-      setTimeout(() => {
-        isUpdatingRef.current = false;
-      }, 100);
+      // Reset flag immediately after the async operation completes
+      isUpdatingRef.current = false;
     }
   };
 

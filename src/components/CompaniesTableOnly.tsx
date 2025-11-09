@@ -672,11 +672,13 @@ const CompaniesTableOnly = ({
 
   // Get column order based on local state
   const orderedColumns = useMemo(() => {
-    if (localColumnOrder.length === 0) {
+    if (localColumnOrder.length === 0 || localVisibleColumns.length === 0) {
       return allColumns.filter(col => visibleColumns.includes(col.id));
     }
     
     const ordered: typeof allColumns = [];
+    
+    // First, add columns in the order specified by localColumnOrder (excluding year columns)
     localColumnOrder.forEach(id => {
       if (visibleColumns.includes(id) && !id.startsWith('year_')) {
         const col = allColumns.find(col => col.id === id);
@@ -684,13 +686,22 @@ const CompaniesTableOnly = ({
       }
     });
     
-    // Add year columns at the end
+    // Then add any visible columns that aren't in localColumnOrder (excluding year columns)
+    const orderedIds = new Set(ordered.map(col => col.id));
+    allColumns.forEach(col => {
+      if (visibleColumns.includes(col.id) && !col.id.startsWith('year_') && !orderedIds.has(col.id)) {
+        ordered.push(col);
+      }
+    });
+    
+    // Finally, add year columns at the end
     const yearCols = allColumns.filter(col => 
       col.id.startsWith('year_') && 
       visibleColumns.includes(col.id)
     );
+    
     return [...ordered, ...yearCols];
-  }, [localColumnOrder, allColumns, visibleColumns]);
+  }, [localColumnOrder, localVisibleColumns, allColumns, visibleColumns]);
 
   // Get visible column objects for DragDropList - use local order and local visible
   const visibleColumnObjects = useMemo(() => {

@@ -379,34 +379,48 @@ const CompaniesTableOnly = ({
         if (filteredOrders.length === 0) return false;
       }
       
-      // Calculate period totals and average based on filtered orders
-      const periodOrders = filteredOrders.length;
-      const periodAmount = filteredOrders.reduce((sum, order) => sum + (parseFloat(order.amount) || 0), 0);
+      // Calculate period totals and average based on filtered orders or all company stats
+      let periodOrders: number;
+      let periodAmount: number;
+      let averageOrderPerYear: number;
+      let averageAmountPerYear: number;
       
-      // Calculate date range in years for averaging
-      let periodYears = 1;
-      if (startDate && endDate) {
-        const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        periodYears = Math.max(diffDays / 365.25, 0.1); // Minimum 0.1 year to avoid division issues
-      } else if (startDate || endDate) {
-        // If only one date is set, calculate from/to first/last order
-        const orderDates = filteredOrders.map(o => new Date(o.order_date)).sort((a, b) => a.getTime() - b.getTime());
-        if (orderDates.length > 0) {
-          const firstDate = startDate || orderDates[0];
-          const lastDate = endDate || orderDates[orderDates.length - 1];
-          const diffTime = Math.abs(lastDate.getTime() - firstDate.getTime());
+      if (startDate || endDate) {
+        // When dates are filtered, use the filtered orders
+        periodOrders = filteredOrders.length;
+        periodAmount = filteredOrders.reduce((sum, order) => sum + (parseFloat(order.amount) || 0), 0);
+        
+        // Calculate date range in years for averaging
+        let periodYears = 1;
+        if (startDate && endDate) {
+          const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
           periodYears = Math.max(diffDays / 365.25, 0.1);
+        } else if (startDate || endDate) {
+          const orderDates = filteredOrders.map(o => new Date(o.order_date)).sort((a, b) => a.getTime() - b.getTime());
+          if (orderDates.length > 0) {
+            const firstDate = startDate || orderDates[0];
+            const lastDate = endDate || orderDates[orderDates.length - 1];
+            const diffTime = Math.abs(lastDate.getTime() - firstDate.getTime());
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            periodYears = Math.max(diffDays / 365.25, 0.1);
+          }
         }
+        
+        averageOrderPerYear = periodOrders / periodYears;
+        averageAmountPerYear = periodAmount / periodYears;
       } else {
-        // No date filter - use all years span
-        const years = company.orderStats?.map(s => s.year) || [];
-        periodYears = years.length > 0 ? Math.max(...years) - Math.min(...years) + 1 : 1;
+        // When no date filter, use the avg_amount from the database (3 years average)
+        periodOrders = filteredOrders.length;
+        periodAmount = filteredOrders.reduce((sum, order) => sum + (parseFloat(order.amount) || 0), 0);
+        
+        // Use the total orders over 3 years
+        const totalOrders = (company.order_count_2023 || 0) + (company.order_count_2024 || 0) + (company.order_count_2025 || 0);
+        averageOrderPerYear = totalOrders / 3;
+        
+        // Use avg_amount which is already the 3-year average from the database
+        averageAmountPerYear = company.avg_amount || 0;
       }
-      
-      const averageOrderPerYear = periodOrders / periodYears;
-      const averageAmountPerYear = periodAmount / periodYears;
       
       // Store these for display
       company.periodOrders = periodOrders;
@@ -592,11 +606,10 @@ const CompaniesTableOnly = ({
       { id: 'last_training_order_date', label: 'Formation (Date cmd SIPI)', type: 'system' as const, order: 6 },
       { id: 'report_creation_date', label: 'Date approx Formation (Rapport SIPI)', type: 'system' as const, order: 7 },
       { id: 'next_renewal_date', label: 'Prochain Renou', type: 'system' as const, order: 8 },
-      { id: 'avg_amount', label: 'Montant Moyen 3 ans', type: 'system' as const, order: 9 },
-      { id: 'averageAmountPerYear', label: 'Moyenne/An', type: 'system' as const, order: 10 },
+      { id: 'averageAmountPerYear', label: 'Moyenne/An', type: 'system' as const, order: 9 },
     ];
     
-    let nextOrder = 11;
+    let nextOrder = 10;
     if (startDate || endDate) {
       columns.push({ id: 'periodAmount', label: 'Période filtrée', type: 'system' as const, order: nextOrder++ });
     }
@@ -1429,35 +1442,23 @@ const CompaniesTableOnly = ({
                           {company.next_renewal_date ? format(new Date(company.next_renewal_date), 'dd/MM/yyyy') : '-'}
                         </TableCell>
                       );
-                    case 'averageAmountPerYear':
-                      return (
-                        <TableCell key={columnId} className="text-center">
-                          {company.averageAmountPerYear ? (
-                            <div className="space-y-1">
-                              <div className="font-medium text-primary">
-                                {Math.round(company.averageOrderPerYear || 0)} cmd
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {Math.round(company.averageAmountPerYear).toLocaleString()} €
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                      );
-                    case 'avg_amount':
-                      return (
-                        <TableCell key={columnId} className="text-center">
-                          {company.avg_amount && company.avg_amount > 0 ? (
-                            <div className="font-medium text-primary">
-                              {Math.round(company.avg_amount).toLocaleString()} €
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                      );
+                     case 'averageAmountPerYear':
+                       return (
+                         <TableCell key={columnId} className="text-center">
+                           {company.averageAmountPerYear && company.averageAmountPerYear > 0 ? (
+                             <div className="space-y-1">
+                               <div className="font-medium text-primary">
+                                 {Math.round(company.averageOrderPerYear || 0)} cmd
+                               </div>
+                               <div className="text-sm text-muted-foreground">
+                                 {Math.round(company.averageAmountPerYear).toLocaleString()} €
+                               </div>
+                             </div>
+                           ) : (
+                             <span className="text-muted-foreground">-</span>
+                           )}
+                         </TableCell>
+                       );
                     case 'periodAmount':
                       return (
                         <TableCell key={columnId} className="text-center bg-primary/5">
@@ -1574,22 +1575,6 @@ const CompaniesTableOnly = ({
                               {totalCount} cmd
                             </div>
                           </div>
-                        </TableCell>
-                      );
-                    }
-                    
-                    if (column.id === 'avg_amount') {
-                      const totalAvg = sortedCompanies.reduce((sum, c) => sum + (c.avg_amount || 0), 0);
-                      const avgOfAvg = sortedCompanies.length > 0 ? totalAvg / sortedCompanies.length : 0;
-                      return (
-                        <TableCell key={column.id} className="text-center">
-                          {avgOfAvg > 0 ? (
-                            <div className="font-bold text-primary">
-                              {Math.round(avgOfAvg).toLocaleString()} €
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
                         </TableCell>
                       );
                     }

@@ -118,34 +118,6 @@ const ReportingPage = () => {
             </div>
           </div>
 
-          {/* Totaux du tableau (entreprises géolocalisées uniquement) */}
-          <div className="mt-6 p-4 bg-primary/5 rounded-lg border border-primary/20">
-            <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
-              📍 Entreprises Géolocalisées (affichées dans le tableau ci-dessous)
-            </h4>
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Entreprises</p>
-                <p className="text-lg font-bold">{tableStats.companies}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">2023</p>
-                <p className="text-lg font-bold">{tableStats.amount_2023.toLocaleString()} €</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">2024</p>
-                <p className="text-lg font-bold">{tableStats.amount_2024.toLocaleString()} €</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">2025</p>
-                <p className="text-lg font-bold">{tableStats.amount_2025.toLocaleString()} €</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Total 2023-2025</p>
-                <p className="text-lg font-bold text-primary">{tableStats.total.toLocaleString()} €</p>
-              </div>
-            </div>
-          </div>
 
           {/* Détail par année - version compacte */}
           <div className="mt-6 space-y-3">

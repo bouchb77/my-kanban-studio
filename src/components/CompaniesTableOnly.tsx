@@ -388,18 +388,27 @@ const CompaniesTableOnly = ({
       let filteredOrders = allOrders.filter(order => order.sipi_number === company.sipi_number);
       
       if (startDate || endDate) {
-        filteredOrders = filteredOrders.filter(order => {
-          if (!order.order_date) return false;
-          const orderDate = new Date(order.order_date);
+        // Only apply date filtering if orders are loaded
+        if (allOrders.length === 0) {
+          console.warn('⚠️ Orders not loaded yet, skipping date filter');
+          // Don't filter companies if orders aren't loaded yet
+        } else {
+          filteredOrders = filteredOrders.filter(order => {
+            if (!order.order_date) return false;
+            const orderDate = new Date(order.order_date);
+            
+            if (startDate && orderDate < startDate) return false;
+            if (endDate && orderDate > endDate) return false;
+            
+            return true;
+          });
           
-          if (startDate && orderDate < startDate) return false;
-          if (endDate && orderDate > endDate) return false;
-          
-          return true;
-        });
-        
-        // If no orders in range, filter out this company
-        if (filteredOrders.length === 0) return false;
+          // If no orders in range, filter out this company
+          if (filteredOrders.length === 0) {
+            console.log(`Company ${company.sipi_number} filtered out: no orders in date range`);
+            return false;
+          }
+        }
       }
       
       // Calculate period totals and average based on filtered orders or all company stats

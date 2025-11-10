@@ -248,7 +248,7 @@ const CompaniesTableOnly = ({
             avg_amount: parseFloat(stat.avg_amount) || 0,
             orderStats,
             averageOrderPerYear,
-            averageAmountPerYear: parseFloat(stat.avg_amount) || 0,
+            averageAmountPerYear: ((parseFloat(stat.amount_2023) || 0) + (parseFloat(stat.amount_2024) || 0) + (parseFloat(stat.amount_2025) || 0)) / 3,
             last_training_order_date: stat.last_training_order_date || undefined,
             report_creation_date: stat.report_creation_date || undefined,
             next_renewal_date: stat.next_renewal || undefined
@@ -418,8 +418,9 @@ const CompaniesTableOnly = ({
         const totalOrders = (company.order_count_2023 || 0) + (company.order_count_2024 || 0) + (company.order_count_2025 || 0);
         averageOrderPerYear = totalOrders / 3;
         
-        // Use avg_amount which is already the 3-year average from the database
-        averageAmountPerYear = company.avg_amount || 0;
+        // Calculate average amount per year from the last 3 years (2023, 2024, 2025)
+        const totalAmount3Years = (company.amount_2023 || 0) + (company.amount_2024 || 0) + (company.amount_2025 || 0);
+        averageAmountPerYear = totalAmount3Years / 3;
       }
       
       // Store these for display

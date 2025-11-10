@@ -161,6 +161,29 @@ const CompaniesTableOnly = ({
     applyFilters();
   }, [lisOnlyFilter, selectedArticles]);
 
+  // Load all orders for date filtering
+  useEffect(() => {
+    const loadOrders = async () => {
+      try {
+        console.log('📦 Loading orders for date filtering...');
+        const { data: ordersData, error: ordersError } = await supabase
+          .from('orders')
+          .select('sipi_number, order_date, amount');
+        
+        if (ordersError) {
+          console.error('Error loading orders:', ordersError);
+        } else {
+          setAllOrders(ordersData || []);
+          console.log(`✅ Loaded ${ordersData?.length || 0} orders`);
+        }
+      } catch (error) {
+        console.error('Error loading orders:', error);
+      }
+    };
+    
+    loadOrders();
+  }, []);
+
   // Process companies data - Load from optimized edge function first, then filter by encrypted companies
   useEffect(() => {
     const loadData = async () => {

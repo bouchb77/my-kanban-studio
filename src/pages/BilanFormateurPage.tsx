@@ -532,6 +532,7 @@ export default function BilanFormateurPage() {
           address1: decryptedCompany?.address1 || companyData.address1,
           address2: decryptedCompany?.address2 || companyData.address2,
           city: decryptedCompany?.city || companyData.city,
+          postal_code: decryptedCompany?.postalCode || companyData.postal_code,
         });
         setCompanyDetailOpen(true);
       }

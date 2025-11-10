@@ -81,14 +81,14 @@ serve(async (req) => {
       });
     } else if (type === 'development') {
       filename = `developpement_${formateur}_${year}.csv`;
-      csvContent = 'SIPI;Entreprise;Année Formation;-2 ans;Croissance;Taux Renouvellement\n';
+      csvContent = 'SIPI;Entreprise;Année Formation;-2 ans;Croissance;Taux Renouvellement;Actifs;Expirés;Proche Expiration;Prochaine Expiration\n';
       
-      // Calculate development metrics
+      // Calculate development metrics with expiration data
       for (const row of trainingData) {
         const trainingYear = year;
         const yearMinus2 = year - 2;
 
-        // Get quantities for training year
+        // Get quantities for training year with expiration info
         const { data: trainingYearOrders } = await supabase
           .from('orders')
           .select('order_number')
@@ -100,10 +100,42 @@ serve(async (req) => {
         
         const { data: trainingYearDetails } = await supabase
           .from('order_details')
-          .select('article_code, quantity')
+          .select('article_code, quantity, expiration_date')
           .in('order_number', trainingOrderNumbers);
 
         const trainingYearQuantity = trainingYearDetails?.reduce((sum, d) => sum + d.quantity, 0) || 0;
+
+        // Calculate expiration metrics
+        const today = new Date();
+        const threeMonthsFromNow = new Date();
+        threeMonthsFromNow.setMonth(today.getMonth() + 3);
+        
+        let activeQty = 0;
+        let expiredQty = 0;
+        let expiringSoonQty = 0;
+        let nextExpiration: string | null = null;
+        
+        trainingYearDetails?.forEach(d => {
+          if (d.expiration_date) {
+            const expDate = new Date(d.expiration_date);
+            
+            if (expDate < today) {
+              expiredQty += d.quantity;
+            } else {
+              activeQty += d.quantity;
+              
+              if (expDate <= threeMonthsFromNow) {
+                expiringSoonQty += d.quantity;
+              }
+              
+              if (!nextExpiration || expDate < new Date(nextExpiration)) {
+                nextExpiration = d.expiration_date;
+              }
+            }
+          } else {
+            activeQty += d.quantity;
+          }
+        });
 
         // Get quantities for year -2
         const { data: yearMinus2Orders } = await supabase
@@ -136,7 +168,7 @@ serve(async (req) => {
           ? ((renewedArticles.length / yearMinus2Articles.size) * 100).toFixed(1)
           : '0.0';
 
-        csvContent += `${row.sipi_number};${row.company_name};${trainingYearQuantity};${yearMinus2Quantity};${growth}%;${renewalRate}%\n`;
+        csvContent += `${row.sipi_number};${row.company_name};${trainingYearQuantity};${yearMinus2Quantity};${growth}%;${renewalRate}%;${activeQty};${expiredQty};${expiringSoonQty};${nextExpiration || '-'}\n`;
       }
     }
 

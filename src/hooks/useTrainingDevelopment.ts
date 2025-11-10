@@ -23,8 +23,14 @@ export interface TrainingDevelopmentMetrics {
   new_references_vs_minus_2: number;
   new_references_vs_minus_3: number;
   new_references_vs_minus_4: number;
-  renewal_rate_vs_minus_2: number;  // Taux de renouvellement (24 mois)
+  renewal_rate_vs_minus_2: number;
   development_generated: boolean;
+  // Nouvelles métriques d'expiration
+  expired_quantity: number;
+  active_quantity: number;
+  expiring_soon_quantity: number; // < 3 mois
+  next_expiration_date: string | null;
+  expired_percentage: number;
 }
 
 export const useTrainingDevelopment = (formateur: string, trainingYear: number) => {
@@ -145,8 +151,14 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
 
       for (const company of companies) {
         // Fonction helper pour récupérer les données d'une année
-        // IMPORTANT: On récupère TOUTES les références (pas seulement FSITE/FSITEJ)
-        const getYearData = async (year: number): Promise<{ quantity: number; references: Set<string> }> => {
+        const getYearData = async (year: number): Promise<{ 
+          quantity: number; 
+          references: Set<string>;
+          expired: number;
+          active: number;
+          expiringSoon: number;
+          nextExpiration: Date | null;
+        }> => {
           const { data: orders } = await supabase
             .from('orders')
             .select('order_number')
@@ -156,19 +168,67 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
 
           const orderNumbers = orders?.map(o => o.order_number) || [];
           
-          if (orderNumbers.length === 0) return { quantity: 0, references: new Set() };
+          if (orderNumbers.length === 0) {
+            return { 
+              quantity: 0, 
+              references: new Set(),
+              expired: 0,
+              active: 0,
+              expiringSoon: 0,
+              nextExpiration: null
+            };
+          }
 
-          // Récupération de TOUTES les références commandées (tous les article_code)
+          // Récupération avec dates d'expiration
           const { data: details } = await supabase
             .from('order_details')
-            .select('quantity, article_code')
+            .select('quantity, article_code, expiration_date')
             .in('order_number', orderNumbers);
-            // Pas de filtre sur article_code : on prend TOUT
 
           const quantity = details?.reduce((sum, d) => sum + d.quantity, 0) || 0;
           const references = new Set(details?.map(d => d.article_code) || []);
           
-          return { quantity, references };
+          // Calcul des métriques d'expiration
+          const today = new Date();
+          const threeMonthsFromNow = new Date();
+          threeMonthsFromNow.setMonth(today.getMonth() + 3);
+          
+          let expired = 0;
+          let active = 0;
+          let expiringSoon = 0;
+          let nextExpiration: Date | null = null;
+          
+          details?.forEach(d => {
+            if (d.expiration_date) {
+              const expDate = new Date(d.expiration_date);
+              
+              if (expDate < today) {
+                expired += d.quantity;
+              } else {
+                active += d.quantity;
+                
+                if (expDate <= threeMonthsFromNow) {
+                  expiringSoon += d.quantity;
+                }
+                
+                if (!nextExpiration || expDate < nextExpiration) {
+                  nextExpiration = expDate;
+                }
+              }
+            } else {
+              // Pas de date d'expiration = considéré comme actif
+              active += d.quantity;
+            }
+          });
+          
+          return { 
+            quantity, 
+            references,
+            expired,
+            active,
+            expiringSoon,
+            nextExpiration
+          };
         };
 
         // Récupérer les données pour chaque année
@@ -201,6 +261,12 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
         const avgPrevious = (minus2Data.quantity + minus3Data.quantity + minus4Data.quantity) / 3;
         const avgIncrease = trainingYearData.quantity - avgPrevious;
 
+        // Calcul du pourcentage d'expiration
+        const totalWithExpiration = trainingYearData.expired + trainingYearData.active;
+        const expiredPercentage = totalWithExpiration > 0 
+          ? (trainingYearData.expired / totalWithExpiration) * 100 
+          : 0;
+
         developmentMetrics.push({
           sipi_number: company.sipi_number,
           company_name: companyNameMap.get(company.sipi_number) || company.company_name,
@@ -223,7 +289,13 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
           new_references_vs_minus_3: newRefsMinus3,
           new_references_vs_minus_4: newRefsMinus4,
           renewal_rate_vs_minus_2: Math.round(renewalRate * 100) / 100,
-          development_generated: avgIncrease > 0
+          development_generated: avgIncrease > 0,
+          // Métriques d'expiration
+          expired_quantity: trainingYearData.expired,
+          active_quantity: trainingYearData.active,
+          expiring_soon_quantity: trainingYearData.expiringSoon,
+          next_expiration_date: trainingYearData.nextExpiration?.toISOString().split('T')[0] || null,
+          expired_percentage: Math.round(expiredPercentage * 100) / 100
         });
       }
 

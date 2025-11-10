@@ -959,6 +959,62 @@ export default function BilanFormateurPage() {
                     </Card>
                   </div>
 
+                  {/* Métriques d'expiration */}
+                  <div className="grid gap-4 md:grid-cols-4 mb-6">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium">Produits Actifs</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold text-green-600">
+                          {developmentMetrics.reduce((sum, m) => sum + m.active_quantity, 0).toLocaleString()}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          En stock valide
+                        </p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium">Produits Expirés</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold text-red-600">
+                          {developmentMetrics.reduce((sum, m) => sum + m.expired_quantity, 0).toLocaleString()}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          À renouveler
+                        </p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium">Expiration Proche</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold text-orange-600">
+                          {developmentMetrics.reduce((sum, m) => sum + m.expiring_soon_quantity, 0).toLocaleString()}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Dans les 3 mois
+                        </p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium">Taux d'Expiration Moyen</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold">
+                          {(developmentMetrics.reduce((sum, m) => sum + m.expired_percentage, 0) / developmentMetrics.length).toFixed(1)}%
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Par entreprise
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
                   <div className="flex gap-2 justify-end mb-4">
                     <Button
                       variant="outline"
@@ -979,6 +1035,10 @@ export default function BilanFormateurPage() {
                         <TableHead className="text-right">-2 ans</TableHead>
                         <TableHead className="text-right">Croissance</TableHead>
                         <TableHead className="text-right">Taux Renouv.</TableHead>
+                        <TableHead className="text-right">Actifs</TableHead>
+                        <TableHead className="text-right">Expirés</TableHead>
+                        <TableHead className="text-right">Proche Exp.</TableHead>
+                        <TableHead>Prochaine Exp.</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -998,6 +1058,28 @@ export default function BilanFormateurPage() {
                           </TableCell>
                           <TableCell className="text-right font-medium">
                             {metric.renewal_rate_vs_minus_2}%
+                          </TableCell>
+                          <TableCell className="text-right text-green-600 font-medium">
+                            {metric.active_quantity}
+                          </TableCell>
+                          <TableCell className="text-right text-red-600 font-medium">
+                            {metric.expired_quantity}
+                          </TableCell>
+                          <TableCell className="text-right text-orange-600 font-medium">
+                            {metric.expiring_soon_quantity}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {metric.next_expiration_date ? (
+                              <span className={
+                                new Date(metric.next_expiration_date) < new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
+                                  ? 'text-orange-600 font-medium'
+                                  : 'text-muted-foreground'
+                              }>
+                                {new Date(metric.next_expiration_date).toLocaleDateString('fr-FR')}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}

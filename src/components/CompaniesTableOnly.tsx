@@ -6,7 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
-import { Filter, ChevronDown, Search, CalendarIcon, ChevronUp, ArrowUpDown, Settings2 } from "lucide-react";
+import { Filter, ChevronDown, Search, CalendarIcon, ChevronUp, ArrowUpDown, Settings2, ChevronsUpDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -1304,16 +1304,24 @@ const CompaniesTableOnly = ({
                     if (sortColumn === colId) {
                       return sortDirection === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />;
                     }
-                    return <ArrowUpDown className="ml-2 h-4 w-4" />;
+                    return <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />;
                   };
 
-                   // Year columns - not sortable
+                   // Year columns - sortable by amount
                    if (column.id.startsWith('year_')) {
                      return (
                        <TableHead key={column.id} className="text-center min-w-[100px] bg-background sticky top-0">
-                         <div className="max-w-[100px] break-words">
-                           {column.label}
-                         </div>
+                         <Button
+                           variant="ghost"
+                           size="sm"
+                           className="h-auto min-h-8 p-1 font-semibold whitespace-normal w-full"
+                           onClick={() => handleSort(column.id)}
+                         >
+                           <div className="flex items-center justify-center flex-wrap gap-1">
+                             <span className="break-words max-w-[100px]">{column.label}</span>
+                             {getSortIcon(column.id)}
+                           </div>
+                         </Button>
                        </TableHead>
                      );
                    }

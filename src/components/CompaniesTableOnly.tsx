@@ -161,21 +161,41 @@ const CompaniesTableOnly = ({
     applyFilters();
   }, [lisOnlyFilter, selectedArticles]);
 
-  // Load all orders for date filtering
+  // Load all orders for date filtering with pagination
   useEffect(() => {
     const loadOrders = async () => {
       try {
         console.log('📦 Loading orders for date filtering...');
-        const { data: ordersData, error: ordersError } = await supabase
-          .from('orders')
-          .select('sipi_number, order_date, amount');
-        
-        if (ordersError) {
-          console.error('Error loading orders:', ordersError);
-        } else {
-          setAllOrders(ordersData || []);
-          console.log(`✅ Loaded ${ordersData?.length || 0} orders`);
+        const allOrdersData: any[] = [];
+        const batchSize = 1000;
+        let page = 0;
+        let hasMore = true;
+
+        while (hasMore) {
+          const { data: ordersData, error: ordersError } = await supabase
+            .from('orders')
+            .select('sipi_number, order_date, amount')
+            .range(page * batchSize, (page + 1) * batchSize - 1);
+          
+          if (ordersError) {
+            console.error('Error loading orders:', ordersError);
+            break;
+          }
+          
+          if (ordersData && ordersData.length > 0) {
+            allOrdersData.push(...ordersData);
+            console.log(`📦 Loaded batch ${page + 1}: ${ordersData.length} orders (total: ${allOrdersData.length})`);
+            
+            // Check if we got less than batchSize, meaning we're done
+            hasMore = ordersData.length === batchSize;
+            page++;
+          } else {
+            hasMore = false;
+          }
         }
+        
+        setAllOrders(allOrdersData);
+        console.log(`✅ Finished loading all orders: ${allOrdersData.length} total`);
       } catch (error) {
         console.error('Error loading orders:', error);
       }

@@ -165,17 +165,20 @@ const CompaniesTableOnly = ({
   useEffect(() => {
     const loadOrders = async () => {
       try {
-        console.log('📦 Loading orders for date filtering...');
+        console.log('📦 Starting to load all orders...');
         const allOrdersData: any[] = [];
         const batchSize = 1000;
-        let page = 0;
+        let from = 0;
         let hasMore = true;
 
         while (hasMore) {
-          const { data: ordersData, error: ordersError } = await supabase
+          const to = from + batchSize - 1;
+          console.log(`📦 Fetching orders from ${from} to ${to}...`);
+          
+          const { data: ordersData, error: ordersError, count } = await supabase
             .from('orders')
-            .select('sipi_number, order_date, amount')
-            .range(page * batchSize, (page + 1) * batchSize - 1);
+            .select('sipi_number, order_date, amount', { count: 'exact' })
+            .range(from, to);
           
           if (ordersError) {
             console.error('Error loading orders:', ordersError);
@@ -184,18 +187,24 @@ const CompaniesTableOnly = ({
           
           if (ordersData && ordersData.length > 0) {
             allOrdersData.push(...ordersData);
-            console.log(`📦 Loaded batch ${page + 1}: ${ordersData.length} orders (total: ${allOrdersData.length})`);
+            console.log(`✅ Loaded ${ordersData.length} orders in this batch (total so far: ${allOrdersData.length}/${count || '?'})`);
             
-            // Check if we got less than batchSize, meaning we're done
-            hasMore = ordersData.length === batchSize;
-            page++;
+            // Continue if we got a full batch
+            if (ordersData.length === batchSize) {
+              from += batchSize;
+              hasMore = true;
+            } else {
+              // We got fewer than batchSize, so we're done
+              hasMore = false;
+            }
           } else {
+            console.log('No more orders to load');
             hasMore = false;
           }
         }
         
         setAllOrders(allOrdersData);
-        console.log(`✅ Finished loading all orders: ${allOrdersData.length} total`);
+        console.log(`✅ Finished loading ALL orders: ${allOrdersData.length} total`);
       } catch (error) {
         console.error('Error loading orders:', error);
       }

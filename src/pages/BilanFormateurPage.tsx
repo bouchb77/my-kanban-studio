@@ -513,18 +513,35 @@ export default function BilanFormateurPage() {
   }, [user, selectedYear, selectedSector]);
 
   const handleCompanyClick = async (sipiNumber: string, companyName: string) => {
-    const { data: companyData } = await supabase
-      .from('companies')
-      .select('*')
-      .eq('sipi_number', sipiNumber)
-      .maybeSingle();
+    try {
+      // Récupérer les données de base depuis la table companies
+      const { data: companyData } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('sipi_number', sipiNumber)
+        .maybeSingle();
 
-    if (companyData) {
-      setSelectedCompany({
-        ...companyData,
-        company_name: companyName
+      if (companyData) {
+        // Récupérer l'entreprise décryptée via le service
+        const decryptedCompany = await encryptedCompaniesService.getCompanyBySipi(sipiNumber);
+
+        setSelectedCompany({
+          ...companyData,
+          company_name: companyName,
+          // Remplacer par les données décryptées si disponibles
+          address1: decryptedCompany?.address1 || companyData.address1,
+          address2: decryptedCompany?.address2 || companyData.address2,
+          city: decryptedCompany?.city || companyData.city,
+        });
+        setCompanyDetailOpen(true);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement de l\'entreprise:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les détails de l'entreprise",
+        variant: "destructive"
       });
-      setCompanyDetailOpen(true);
     }
   };
 

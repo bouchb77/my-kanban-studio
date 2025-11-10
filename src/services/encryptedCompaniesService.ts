@@ -51,6 +51,12 @@ class EncryptedCompaniesService {
     return data;
   }
 
+  async getCompanyBySipi(sipiNumber: string): Promise<Company | null> {
+    const response = await this.callEncryptedFunction('SELECT_BY_SIPI', { sipi_number: sipiNumber });
+    if (!response.data) return null;
+    return this.mapDbCompany(response.data);
+  }
+
   async getAllCompanies(): Promise<Company[]> {
     const response = await this.callEncryptedFunction('SELECT');
     const companies = response.data || [];

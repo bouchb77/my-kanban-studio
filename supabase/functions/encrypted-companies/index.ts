@@ -125,6 +125,8 @@ serve(async (req) => {
     switch (method) {
       case 'SELECT':
         return await handleSelect(supabase);
+      case 'SELECT_BY_SIPI':
+        return await handleSelectBySipi(supabase, body);
       case 'SELECT_BY_ARTICLES':
         return await handleSelectByArticles(supabase, body);
       case 'INSERT':
@@ -232,6 +234,34 @@ async function handleSelect(supabase: any) {
   }
 
   return new Response(JSON.stringify({ data: decryptedCompanies, error: null }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+
+async function handleSelectBySipi(supabase: any, body: any) {
+  const { sipi_number } = body;
+  
+  console.log(`Récupération de l'entreprise avec SIPI: ${sipi_number}`);
+  
+  const { data, error } = await supabase
+    .from('companies')
+    .select('*')
+    .eq('sipi_number', sipi_number)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Database error: ${error.message}`);
+  }
+
+  if (!data) {
+    return new Response(JSON.stringify({ data: null, error: null }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const decryptedCompany = await decryptCompany(data);
+
+  return new Response(JSON.stringify({ data: decryptedCompany, error: null }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 }

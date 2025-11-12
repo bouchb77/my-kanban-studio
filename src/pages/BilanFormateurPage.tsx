@@ -38,7 +38,7 @@ interface TrainingCompany {
   total_amount_all?: number;
 }
 
-const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-5))', 'hsl(var(--chart-4))'];
+const COLORS = ['hsl(var(--primary))', 'hsl(var(--success))', 'hsl(var(--warning))', 'hsl(var(--accent))'];
 
 export default function BilanFormateurPage() {
   const { user } = useAuth();
@@ -794,9 +794,9 @@ export default function BilanFormateurPage() {
                     <YAxis />
                     <RechartsTooltip />
                     <Legend />
-                    <Line type="monotone" dataKey="payantes" stroke="hsl(var(--chart-1))" strokeWidth={2} name="Payantes" />
-                    <Line type="monotone" dataKey="gratuites" stroke="hsl(var(--chart-2))" strokeWidth={2} name="Gratuites" />
-                    <Line type="monotone" dataKey="total" stroke="hsl(var(--chart-5))" strokeWidth={2} strokeDasharray="5 5" name="Total" />
+                    <Line type="monotone" dataKey="payantes" stroke="hsl(var(--primary))" strokeWidth={2} name="Payantes" />
+                    <Line type="monotone" dataKey="gratuites" stroke="hsl(var(--success))" strokeWidth={2} name="Gratuites" />
+                    <Line type="monotone" dataKey="total" stroke="hsl(var(--warning))" strokeWidth={2} strokeDasharray="5 5" name="Total" />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>

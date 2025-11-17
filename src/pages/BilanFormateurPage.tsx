@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, GraduationCap, DollarSign, BarChart3, TrendingUp, Download, Search, Calendar as CalendarIcon, Filter, HelpCircle } from 'lucide-react';
+import { Loader2, GraduationCap, DollarSign, BarChart3, TrendingUp, Download, Search, Calendar as CalendarIcon, Filter, HelpCircle, Activity } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Navigate } from 'react-router-dom';
 import CompanyDetailDialog from '@/components/CompanyDetailDialog';
@@ -38,7 +38,12 @@ interface TrainingCompany {
   total_amount_all?: number;
 }
 
-const COLORS = ['hsl(var(--primary))', 'hsl(var(--success))', 'hsl(var(--warning))', 'hsl(var(--accent))'];
+const COLORS = {
+  payantes: 'hsl(221, 83%, 53%)', // Bleu vif
+  gratuites: 'hsl(142, 76%, 36%)', // Vert
+  total: 'hsl(280, 65%, 60%)', // Violet
+  revenue: 'hsl(24, 95%, 53%)', // Orange
+};
 
 export default function BilanFormateurPage() {
   const { user } = useAuth();
@@ -615,7 +620,7 @@ export default function BilanFormateurPage() {
           {/* KPI Cards */}
           <TooltipProvider>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-              <Card>
+              <Card className="border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium flex items-center gap-2">
                     Formations Payantes
@@ -629,17 +634,25 @@ export default function BilanFormateurPage() {
                       </TooltipContent>
                     </Tooltip>
                   </CardTitle>
-                  <GraduationCap className="h-4 w-4 text-primary" />
+                  <div className="rounded-full bg-blue-100 p-2">
+                    <GraduationCap className="h-5 w-5 text-blue-600" />
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{paidCompanies.length}</div>
-                  <p className="text-xs text-muted-foreground">
+                  <div className="text-3xl font-bold text-blue-600">{paidCompanies.length}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
                     Basé sur date commande SIPI
                   </p>
+                  <div className="mt-3 h-2 bg-secondary rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-blue-500 transition-all duration-500" 
+                      style={{ width: `${(paidCompanies.length / (paidCompanies.length + freeCompanies.length)) * 100}%` }}
+                    />
+                  </div>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="border-l-4 border-l-green-500 shadow-md hover:shadow-lg transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium flex items-center gap-2">
                     Formations Gratuites
@@ -653,17 +666,25 @@ export default function BilanFormateurPage() {
                       </TooltipContent>
                     </Tooltip>
                   </CardTitle>
-                  <BarChart3 className="h-4 w-4 text-primary" />
+                  <div className="rounded-full bg-green-100 p-2">
+                    <BarChart3 className="h-5 w-5 text-green-600" />
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{freeCompanies.length}</div>
-                  <p className="text-xs text-muted-foreground">
+                  <div className="text-3xl font-bold text-green-600">{freeCompanies.length}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
                     Basé sur date formation (rapport SIPI)
                   </p>
+                  <div className="mt-3 h-2 bg-secondary rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-green-500 transition-all duration-500" 
+                      style={{ width: `${(freeCompanies.length / (paidCompanies.length + freeCompanies.length)) * 100}%` }}
+                    />
+                  </div>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="border-l-4 border-l-orange-500 shadow-md hover:shadow-lg transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium flex items-center gap-2">
                     CA Sécurisé
@@ -677,102 +698,54 @@ export default function BilanFormateurPage() {
                       </TooltipContent>
                     </Tooltip>
                   </CardTitle>
-                  <DollarSign className="h-4 w-4 text-primary" />
+                  <div className="rounded-full bg-orange-100 p-2">
+                    <DollarSign className="h-5 w-5 text-orange-600" />
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
+                  <div className="text-3xl font-bold text-orange-600">
                     {new Intl.NumberFormat('fr-FR', {
                       style: 'currency',
-                      currency: 'EUR'
+                      currency: 'EUR',
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0,
                     }).format(stats?.secured_revenue || 0)}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Total des commandes des entreprises formées
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Toutes commandes de l'année
                   </p>
                 </CardContent>
               </Card>
 
-            </div>
-          </TooltipProvider>
-
-          {/* Additional KPIs */}
-          <TooltipProvider>
-            <div className="grid gap-6 md:grid-cols-3">
-              <Card>
+              <Card className="border-l-4 border-l-purple-500 shadow-md hover:shadow-lg transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    Taux de Fidélisation (2 ans)
+                    CA Moyen Historique
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
                       </TooltipTrigger>
                       <TooltipContent className="max-w-xs">
                         <p className="font-semibold mb-1">Méthode de calcul :</p>
-                        <p>Pourcentage moyen de renouvellement des articles commandés sur un cycle de 2 ans. Compare les articles commandés il y a 2 ans avec ceux de l'année de formation pour mesurer la fidélité client.</p>
+                        <p>Moyenne historique du chiffre d'affaires par commande pour les entreprises formées, calculée sur l'ensemble des commandes passées (toutes années confondues).</p>
                       </TooltipContent>
                     </Tooltip>
                   </CardTitle>
-                  <TrendingUp className="h-4 w-4 text-primary" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {kpis.fidélisationRate.toFixed(1)}%
+                  <div className="rounded-full bg-purple-100 p-2">
+                    <Activity className="h-5 w-5 text-purple-600" />
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Taux de renouvellement moyen sur cycle 2 ans
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    ROI Moyen
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        <p className="font-semibold mb-1">Méthode de calcul :</p>
-                        <p>Retour sur investissement moyen des formations. Calculé en divisant le CA sécurisé total par le coût estimé des formations (1000€ par formation payante).</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </CardTitle>
-                  <DollarSign className="h-4 w-4 text-primary" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
-                    {kpis.avgROI.toFixed(1)}x
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    CA sécurisé / coût formations
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    Total FSITE + FSITEJ
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        <p className="font-semibold mb-1">Méthode de calcul :</p>
-                        <p>Nombre total et montant cumulé des commandes contenant les articles FSITE ou FSITEJ pour le secteur sélectionné durant l'année. Toutes les commandes formation confondues.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </CardTitle>
-                  <GraduationCap className="h-4 w-4 text-primary" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{totalFsiteOrders}</div>
-                  <p className="text-xs text-muted-foreground">
+                  <div className="text-3xl font-bold text-purple-600">
                     {new Intl.NumberFormat('fr-FR', {
                       style: 'currency',
-                      currency: 'EUR'
-                    }).format(totalFsiteAmount)}
+                      currency: 'EUR',
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0,
+                    }).format(stats?.secured_revenue_avg || 0)}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Moyenne des commandes
                   </p>
                 </CardContent>
               </Card>
@@ -782,49 +755,109 @@ export default function BilanFormateurPage() {
           {/* Charts */}
           <div className="grid gap-6 md:grid-cols-2">
             {/* Monthly Evolution Chart */}
-            <Card>
+            <Card className="shadow-md">
               <CardHeader>
-                <CardTitle>Évolution Mensuelle des Formations</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-primary" />
+                  Évolution Mensuelle des Formations
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={350}>
                   <LineChart data={monthlyData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <RechartsTooltip />
-                    <Legend />
-                    <Line type="monotone" dataKey="payantes" stroke="hsl(var(--primary))" strokeWidth={2} name="Payantes" />
-                    <Line type="monotone" dataKey="gratuites" stroke="hsl(var(--success))" strokeWidth={2} name="Gratuites" />
-                    <Line type="monotone" dataKey="total" stroke="hsl(var(--warning))" strokeWidth={2} strokeDasharray="5 5" name="Total" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+                    <XAxis 
+                      dataKey="month" 
+                      stroke="hsl(var(--muted-foreground))"
+                      style={{ fontSize: '12px' }}
+                    />
+                    <YAxis 
+                      stroke="hsl(var(--muted-foreground))"
+                      style={{ fontSize: '12px' }}
+                    />
+                    <RechartsTooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                        padding: '8px'
+                      }}
+                    />
+                    <Legend 
+                      wrapperStyle={{ paddingTop: '20px' }}
+                      iconType="line"
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="payantes" 
+                      stroke={COLORS.payantes}
+                      strokeWidth={3} 
+                      name="Payantes"
+                      dot={{ fill: COLORS.payantes, r: 5 }}
+                      activeDot={{ r: 7 }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="gratuites" 
+                      stroke={COLORS.gratuites}
+                      strokeWidth={3} 
+                      name="Gratuites"
+                      dot={{ fill: COLORS.gratuites, r: 5 }}
+                      activeDot={{ r: 7 }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="total" 
+                      stroke={COLORS.total}
+                      strokeWidth={3} 
+                      strokeDasharray="5 5" 
+                      name="Total"
+                      dot={{ fill: COLORS.total, r: 5 }}
+                      activeDot={{ r: 7 }}
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
 
             {/* Pie Chart */}
-            <Card>
+            <Card className="shadow-md">
               <CardHeader>
-                <CardTitle>Répartition des Formations</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-primary" />
+                  Répartition des Formations
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={350}>
                   <PieChart>
                     <Pie
                       data={pieData}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={(entry) => `${entry.name}: ${entry.value}`}
-                      outerRadius={80}
+                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={120}
                       fill="#8884d8"
                       dataKey="value"
+                      stroke="hsl(var(--background))"
+                      strokeWidth={2}
                     >
                       {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={index === 0 ? COLORS.payantes : COLORS.gratuites}
+                        />
                       ))}
                     </Pie>
-                    <RechartsTooltip />
+                    <RechartsTooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                        padding: '8px'
+                      }}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>

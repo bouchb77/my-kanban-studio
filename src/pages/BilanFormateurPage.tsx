@@ -61,6 +61,7 @@ export default function BilanFormateurPage() {
   const [freeCompanies, setFreeCompanies] = useState<TrainingCompany[]>([]);
   const [totalFsiteOrders, setTotalFsiteOrders] = useState<number>(0);
   const [totalFsiteAmount, setTotalFsiteAmount] = useState<number>(0);
+  const [securedRevenueN1, setSecuredRevenueN1] = useState<number>(0);
   const [selectedCompany, setSelectedCompany] = useState<any>(null);
   const [companyDetailOpen, setCompanyDetailOpen] = useState(false);
   const [departmentManagement, setDepartmentManagement] = useState<Record<string, any>>({});
@@ -313,6 +314,17 @@ export default function BilanFormateurPage() {
 
           const securedRevenue = trainedCompaniesOrders?.reduce((sum, o) => sum + (o.amount || 0), 0) || 0;
 
+          // Récupérer le CA N-1 pour les entreprises formées
+          const { data: trainedCompaniesOrdersN1 } = await supabase
+            .from('orders')
+            .select('sipi_number, amount')
+            .in('sipi_number', Array.from(allTrainedSipiNumbers))
+            .gte('order_date', `${selectedYear - 1}-01-01`)
+            .lte('order_date', `${selectedYear - 1}-12-31`);
+
+          const securedRevenueN1Value = trainedCompaniesOrdersN1?.reduce((sum, o) => sum + (o.amount || 0), 0) || 0;
+          setSecuredRevenueN1(securedRevenueN1Value);
+
           const { data: historicalOrders } = await supabase
             .from('orders')
             .select('sipi_number, amount')
@@ -423,6 +435,34 @@ export default function BilanFormateurPage() {
               secured_revenue: 0,
               secured_revenue_avg: 0
             });
+          }
+
+          // Récupérer le CA N-1 pour les entreprises formées du secteur
+          const { data: summaryDataN1 } = await supabase.rpc('get_fo_training_summary', {
+            _formateur: selectedSector,
+            _year: selectedYear - 1
+          });
+          
+          // Récupérer les sipi des entreprises formées cette année pour calculer leur CA N-1
+          const { data: trainingDataForN1 } = await supabase.rpc('get_fo_training_data', {
+            _formateur: selectedSector,
+            _year: selectedYear
+          });
+          
+          const trainedSipiNumbers = trainingDataForN1?.map(row => row.sipi_number) || [];
+          
+          if (trainedSipiNumbers.length > 0) {
+            const { data: ordersN1 } = await supabase
+              .from('orders')
+              .select('sipi_number, amount')
+              .in('sipi_number', trainedSipiNumbers)
+              .gte('order_date', `${selectedYear - 1}-01-01`)
+              .lte('order_date', `${selectedYear - 1}-12-31`);
+            
+            const securedRevenueN1Value = ordersN1?.reduce((sum, o) => sum + (o.amount || 0), 0) || 0;
+            setSecuredRevenueN1(securedRevenueN1Value);
+          } else {
+            setSecuredRevenueN1(0);
           }
 
           const allCompanies = await encryptedCompaniesService.getAllCompanies();
@@ -619,7 +659,7 @@ export default function BilanFormateurPage() {
         <>
           {/* KPI Cards */}
           <TooltipProvider>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
               <Card className="border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -747,6 +787,40 @@ export default function BilanFormateurPage() {
                   <p className="text-xs text-muted-foreground mt-1">
                     Moyenne des commandes
                   </p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-l-4 border-l-cyan-500 shadow-md hover:shadow-lg transition-shadow col-span-full md:col-span-2 lg:col-span-1">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    CA Sécurisé sur 2 ans
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p className="font-semibold mb-1">Méthode de calcul :</p>
+                        <p>Somme du CA sécurisé de l'année sélectionnée ({selectedYear}) et de l'année précédente ({selectedYear - 1}) pour les entreprises formées cette année.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </CardTitle>
+                  <div className="rounded-full bg-cyan-100 p-2">
+                    <TrendingUp className="h-5 w-5 text-cyan-600" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-cyan-600">
+                    {new Intl.NumberFormat('fr-FR', {
+                      style: 'currency',
+                      currency: 'EUR',
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0,
+                    }).format((stats?.secured_revenue || 0) + securedRevenueN1)}
+                  </div>
+                  <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
+                    <span>{selectedYear}: {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(stats?.secured_revenue || 0)}</span>
+                    <span>{selectedYear - 1}: {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(securedRevenueN1)}</span>
+                  </div>
                 </CardContent>
               </Card>
             </div>

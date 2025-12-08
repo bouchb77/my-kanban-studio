@@ -459,19 +459,37 @@ async function handleDelete(supabase: any, body: any) {
 async function handleBulkUpsert(supabase: any, body: any) {
   const { companies } = body;
 
+  // Dédupliquer par sipi_number (garder la dernière occurrence)
+  const uniqueCompaniesMap = new Map<string, any>();
+  for (const company of companies) {
+    if (company.sipi_number) {
+      uniqueCompaniesMap.set(company.sipi_number, company);
+    }
+  }
+  const uniqueCompanies = Array.from(uniqueCompaniesMap.values());
+  
+  console.log(`Bulk upsert: ${companies.length} entreprises reçues, ${uniqueCompanies.length} uniques après déduplication`);
+
   const encryptedCompanies = await Promise.all(
-    companies.map(async (company: any) => await encryptCompanyData(company))
+    uniqueCompanies.map(async (company: any) => await encryptCompanyData(company))
   );
 
-  const { error } = await supabase
-    .from('companies')
-    .upsert(encryptedCompanies, { onConflict: 'sipi_number' });
+  // Traiter par lots de 500 pour éviter les timeouts
+  const batchSize = 500;
+  for (let i = 0; i < encryptedCompanies.length; i += batchSize) {
+    const batch = encryptedCompanies.slice(i, i + batchSize);
+    console.log(`Upsert batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(encryptedCompanies.length / batchSize)}: ${batch.length} entreprises`);
+    
+    const { error } = await supabase
+      .from('companies')
+      .upsert(batch, { onConflict: 'sipi_number' });
 
-  if (error) {
-    throw new Error(`Database error: ${error.message}`);
+    if (error) {
+      throw new Error(`Database error: ${error.message}`);
+    }
   }
 
-  return new Response(JSON.stringify({ data: null, error: null }), {
+  return new Response(JSON.stringify({ data: { imported: uniqueCompanies.length }, error: null }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 }

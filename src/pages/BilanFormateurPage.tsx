@@ -1038,10 +1038,10 @@ export default function BilanFormateurPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5" />
-                Développement Généré par les Formations (Cycle 2 ans)
+                Développement Généré par les Formations
               </CardTitle>
               <p className="text-sm text-muted-foreground">
-                Analyse du développement pour toutes les formations - Comparaison des quantités commandées 2 ans avant vs année de formation
+                Analyse du développement pour toutes les formations - Comparaison des quantités commandées vs année précédente (N-1)
               </p>
             </CardHeader>
             <CardContent>
@@ -1055,7 +1055,7 @@ export default function BilanFormateurPage() {
                 </p>
               ) : (
                 <div className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2 mb-6">
+                  <div className="grid gap-4 md:grid-cols-3 mb-6">
                     <Card>
                       <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium">Entreprises avec Développement</CardTitle>
@@ -1071,14 +1071,27 @@ export default function BilanFormateurPage() {
                     </Card>
                     <Card>
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium">Croissance Moyenne vs -2 ans</CardTitle>
+                        <CardTitle className="text-sm font-medium">Croissance Moyenne vs N-1</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="text-2xl font-bold">
+                        <div className={`text-2xl font-bold ${(developmentMetrics.reduce((sum, m) => sum + m.growth_vs_minus_1, 0) / developmentMetrics.length) > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {(developmentMetrics.reduce((sum, m) => sum + m.growth_vs_minus_1, 0) / developmentMetrics.length).toFixed(1)}%
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          vs {selectedYear - 1}
+                        </p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium">Croissance Moyenne vs N-2</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className={`text-2xl font-bold ${(developmentMetrics.reduce((sum, m) => sum + m.growth_vs_minus_2, 0) / developmentMetrics.length) > 0 ? 'text-green-600' : 'text-red-600'}`}>
                           {(developmentMetrics.reduce((sum, m) => sum + m.growth_vs_minus_2, 0) / developmentMetrics.length).toFixed(1)}%
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          Moyenne par entreprise
+                          vs {selectedYear - 2} (cycle 2 ans)
                         </p>
                       </CardContent>
                     </Card>
@@ -1157,8 +1170,9 @@ export default function BilanFormateurPage() {
                         <TableHead>SIPI</TableHead>
                         <TableHead>Entreprise</TableHead>
                         <TableHead className="text-right">Année Form.</TableHead>
-                        <TableHead className="text-right">-2 ans</TableHead>
-                        <TableHead className="text-right">Croissance</TableHead>
+                        <TableHead className="text-right">N-1</TableHead>
+                        <TableHead className="text-right">Croissance N-1</TableHead>
+                        <TableHead className="text-right">Croissance N-2</TableHead>
                         <TableHead className="text-right">Taux Renouv.</TableHead>
                         <TableHead className="text-right">Actifs</TableHead>
                         <TableHead className="text-right">Expirés</TableHead>
@@ -1177,8 +1191,11 @@ export default function BilanFormateurPage() {
                             {metric.company_name}
                           </TableCell>
                           <TableCell className="text-right font-semibold">{metric.training_year_quantity}</TableCell>
-                          <TableCell className="text-right">{metric.year_minus_2_quantity}</TableCell>
-                          <TableCell className={`text-right font-medium ${metric.growth_vs_minus_2 > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          <TableCell className="text-right">{metric.year_minus_1_quantity}</TableCell>
+                          <TableCell className={`text-right font-medium ${metric.growth_vs_minus_1 > 0 ? 'text-green-600' : metric.growth_vs_minus_1 < 0 ? 'text-red-600' : ''}`}>
+                            {metric.growth_vs_minus_1 > 0 ? '+' : ''}{metric.growth_vs_minus_1}%
+                          </TableCell>
+                          <TableCell className={`text-right font-medium ${metric.growth_vs_minus_2 > 0 ? 'text-green-600' : metric.growth_vs_minus_2 < 0 ? 'text-red-600' : ''}`}>
                             {metric.growth_vs_minus_2 > 0 ? '+' : ''}{metric.growth_vs_minus_2}%
                           </TableCell>
                           <TableCell className="text-right font-medium">

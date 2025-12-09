@@ -147,7 +147,7 @@ export const OrderDetailImportSection = () => {
 
     setImporting(true);
     try {
-      const BATCH_SIZE = 10000; // Lots plus petits pour éviter le timeout
+      const BATCH_SIZE = 2000; // Lots plus petits pour éviter le timeout
       const batches = [];
       
       // Diviser en lots

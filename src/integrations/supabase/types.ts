@@ -198,7 +198,7 @@ export type Database = {
           expiration_date?: string | null
           id?: string
           order_number: string
-          quantity?: number
+          quantity: number
           updated_at?: string
         }
         Update: {

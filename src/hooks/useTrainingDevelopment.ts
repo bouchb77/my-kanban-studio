@@ -8,12 +8,21 @@ export interface TrainingDevelopmentMetrics {
   training_year: number;
   training_year_quantity: number;
   training_year_references: number;
+  // N-1 (année précédente)
+  year_minus_1_quantity: number;
+  year_minus_1_references: number;
+  // N-2
   year_minus_2_quantity: number;
   year_minus_2_references: number;
   year_minus_3_quantity: number;
   year_minus_3_references: number;
   year_minus_4_quantity: number;
   year_minus_4_references: number;
+  // Croissance vs N-1
+  increase_vs_minus_1: number;
+  growth_vs_minus_1: number;
+  new_references_vs_minus_1: number;
+  // Croissance vs autres années
   increase_vs_minus_2: number;
   increase_vs_minus_3: number;
   increase_vs_minus_4: number;
@@ -231,23 +240,27 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
           };
         };
 
-        // Récupérer les données pour chaque année
+        // Récupérer les données pour chaque année (ajout N-1)
         const trainingYearData = await getYearData(trainingYear);
+        const minus1Data = await getYearData(trainingYear - 1);
         const minus2Data = await getYearData(trainingYear - 2);
         const minus3Data = await getYearData(trainingYear - 3);
         const minus4Data = await getYearData(trainingYear - 4);
 
-        // Calculer les augmentations de quantités
+        // Calculer les augmentations de quantités (avec N-1)
+        const increaseVsMinus1 = trainingYearData.quantity - minus1Data.quantity;
         const increaseVsMinus2 = trainingYearData.quantity - minus2Data.quantity;
         const increaseVsMinus3 = trainingYearData.quantity - minus3Data.quantity;
         const increaseVsMinus4 = trainingYearData.quantity - minus4Data.quantity;
 
-        // Calculer les pourcentages de croissance
+        // Calculer les pourcentages de croissance (avec N-1)
+        const growthVsMinus1 = minus1Data.quantity > 0 ? (increaseVsMinus1 / minus1Data.quantity) * 100 : 0;
         const growthVsMinus2 = minus2Data.quantity > 0 ? (increaseVsMinus2 / minus2Data.quantity) * 100 : 0;
         const growthVsMinus3 = minus3Data.quantity > 0 ? (increaseVsMinus3 / minus3Data.quantity) * 100 : 0;
         const growthVsMinus4 = minus4Data.quantity > 0 ? (increaseVsMinus4 / minus4Data.quantity) * 100 : 0;
 
-        // Calculer les nouvelles références apparues
+        // Calculer les nouvelles références apparues (avec N-1)
+        const newRefsMinus1 = [...trainingYearData.references].filter(ref => !minus1Data.references.has(ref)).length;
         const newRefsMinus2 = [...trainingYearData.references].filter(ref => !minus2Data.references.has(ref)).length;
         const newRefsMinus3 = [...trainingYearData.references].filter(ref => !minus3Data.references.has(ref)).length;
         const newRefsMinus4 = [...trainingYearData.references].filter(ref => !minus4Data.references.has(ref)).length;
@@ -273,12 +286,21 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
           training_year: trainingYear,
           training_year_quantity: trainingYearData.quantity,
           training_year_references: trainingYearData.references.size,
+          // N-1
+          year_minus_1_quantity: minus1Data.quantity,
+          year_minus_1_references: minus1Data.references.size,
+          // N-2 et suivants
           year_minus_2_quantity: minus2Data.quantity,
           year_minus_2_references: minus2Data.references.size,
           year_minus_3_quantity: minus3Data.quantity,
           year_minus_3_references: minus3Data.references.size,
           year_minus_4_quantity: minus4Data.quantity,
           year_minus_4_references: minus4Data.references.size,
+          // Croissance vs N-1
+          increase_vs_minus_1: Math.round(increaseVsMinus1 * 100) / 100,
+          growth_vs_minus_1: Math.round(growthVsMinus1 * 100) / 100,
+          new_references_vs_minus_1: newRefsMinus1,
+          // Croissance vs autres années
           increase_vs_minus_2: Math.round(increaseVsMinus2 * 100) / 100,
           increase_vs_minus_3: Math.round(increaseVsMinus3 * 100) / 100,
           increase_vs_minus_4: Math.round(increaseVsMinus4 * 100) / 100,

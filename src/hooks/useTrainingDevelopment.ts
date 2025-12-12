@@ -16,6 +16,7 @@ export interface TrainingDevelopmentMetrics {
   // N-2
   year_minus_2_quantity: number;
   year_minus_2_references: number;
+  year_minus_2_amount: number;
   year_minus_3_quantity: number;
   year_minus_3_references: number;
   year_minus_4_quantity: number;
@@ -33,6 +34,8 @@ export interface TrainingDevelopmentMetrics {
   growth_vs_minus_2: number;
   growth_vs_minus_3: number;
   growth_vs_minus_4: number;
+  amount_increase_vs_minus_2: number;
+  amount_growth_vs_minus_2: number;
   new_references_vs_minus_2: number;
   new_references_vs_minus_3: number;
   new_references_vs_minus_4: number;
@@ -267,9 +270,11 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
         const growthVsMinus3 = minus3Data.quantity > 0 ? (increaseVsMinus3 / minus3Data.quantity) * 100 : 0;
         const growthVsMinus4 = minus4Data.quantity > 0 ? (increaseVsMinus4 / minus4Data.quantity) * 100 : 0;
 
-        // Calculer les augmentations de montant (avec N-1)
+        // Calculer les augmentations de montant (avec N-1 et N-2)
         const amountIncreaseVsMinus1 = trainingYearData.amount - minus1Data.amount;
         const amountGrowthVsMinus1 = minus1Data.amount > 0 ? (amountIncreaseVsMinus1 / minus1Data.amount) * 100 : 0;
+        const amountIncreaseVsMinus2 = trainingYearData.amount - minus2Data.amount;
+        const amountGrowthVsMinus2 = minus2Data.amount > 0 ? (amountIncreaseVsMinus2 / minus2Data.amount) * 100 : 0;
 
         // Calculer les nouvelles références apparues (avec N-1)
         const newRefsMinus1 = [...trainingYearData.references].filter(ref => !minus1Data.references.has(ref)).length;
@@ -306,6 +311,7 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
           // N-2 et suivants
           year_minus_2_quantity: minus2Data.quantity,
           year_minus_2_references: minus2Data.references.size,
+          year_minus_2_amount: Math.round(minus2Data.amount * 100) / 100,
           year_minus_3_quantity: minus3Data.quantity,
           year_minus_3_references: minus3Data.references.size,
           year_minus_4_quantity: minus4Data.quantity,
@@ -323,6 +329,8 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
           growth_vs_minus_2: Math.round(growthVsMinus2 * 100) / 100,
           growth_vs_minus_3: Math.round(growthVsMinus3 * 100) / 100,
           growth_vs_minus_4: Math.round(growthVsMinus4 * 100) / 100,
+          amount_increase_vs_minus_2: Math.round(amountIncreaseVsMinus2 * 100) / 100,
+          amount_growth_vs_minus_2: Math.round(amountGrowthVsMinus2 * 100) / 100,
           new_references_vs_minus_2: newRefsMinus2,
           new_references_vs_minus_3: newRefsMinus3,
           new_references_vs_minus_4: newRefsMinus4,

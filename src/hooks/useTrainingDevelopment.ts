@@ -40,6 +40,12 @@ export interface TrainingDevelopmentMetrics {
   new_references_vs_minus_3: number;
   new_references_vs_minus_4: number;
   renewal_rate_vs_minus_2: number;
+  // Fenêtre glissante 24-30 mois (cycle renouvellement réel)
+  renewal_window_quantity: number;
+  renewal_window_amount: number;
+  growth_vs_renewal_window: number;
+  amount_growth_vs_renewal_window: number;
+  renewal_rate_window: number;
   development_generated: boolean;
   // Nouvelles métriques d'expiration
   expired_quantity: number;
@@ -166,8 +172,8 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
       const developmentMetrics: TrainingDevelopmentMetrics[] = [];
 
       for (const company of companies) {
-        // Fonction helper pour récupérer les données d'une année
-        const getYearData = async (year: number): Promise<{ 
+        // Fonction helper pour récupérer les données d'une période (dates flexibles)
+        const getPeriodData = async (startDate: string, endDate: string): Promise<{ 
           quantity: number; 
           references: Set<string>;
           amount: number;
@@ -175,16 +181,25 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
           active: number;
           expiringSoon: number;
           nextExpiration: Date | null;
+          lastOrderDate: Date | null;
         }> => {
           const { data: orders } = await supabase
             .from('orders')
-            .select('order_number, amount')
+            .select('order_number, amount, order_date')
             .eq('sipi_number', company.sipi_number)
-            .gte('order_date', `${year}-01-01`)
-            .lte('order_date', `${year}-12-31`);
+            .gte('order_date', startDate)
+            .lte('order_date', endDate);
 
           const orderNumbers = orders?.map(o => o.order_number) || [];
           const totalAmount = orders?.reduce((sum, o) => sum + (o.amount || 0), 0) || 0;
+          
+          // Trouver la dernière date de commande
+          const lastOrderDate = orders && orders.length > 0 
+            ? orders.reduce((max, o) => {
+                const date = new Date(o.order_date);
+                return date > max ? date : max;
+              }, new Date(0))
+            : null;
           
           if (orderNumbers.length === 0) {
             return { 
@@ -194,7 +209,8 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
               expired: 0,
               active: 0,
               expiringSoon: 0,
-              nextExpiration: null
+              nextExpiration: null,
+              lastOrderDate: null
             };
           }
 
@@ -247,13 +263,42 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
             expired,
             active,
             expiringSoon,
-            nextExpiration
+            nextExpiration,
+            lastOrderDate: lastOrderDate && lastOrderDate.getTime() > 0 ? lastOrderDate : null
           };
         };
 
-        // Récupérer les données pour chaque année (ajout N-1)
+        // Fonction legacy pour compatibilité (année calendaire)
+        const getYearData = async (year: number) => {
+          return getPeriodData(`${year}-01-01`, `${year}-12-31`);
+        };
+
+        // Dates de référence pour fenêtre glissante
+        const today = new Date();
+        const endOfCurrentYear = new Date(trainingYear, 11, 31);
+        const referenceDate = today < endOfCurrentYear ? today : endOfCurrentYear;
+        
+        // Fenêtre glissante: 12 derniers mois vs période 24-30 mois avant
+        // Pour l'année de formation: du 1er janvier au 31 décembre de l'année
+        // Pour la comparaison cycle 2 ans: fenêtre 24-30 mois avant la fin de l'année de formation
+        
+        const startOfRenewalWindow = new Date(referenceDate);
+        startOfRenewalWindow.setMonth(startOfRenewalWindow.getMonth() - 30); // 30 mois avant
+        
+        const endOfRenewalWindow = new Date(referenceDate);
+        endOfRenewalWindow.setMonth(endOfRenewalWindow.getMonth() - 24); // 24 mois avant
+        
+        // Récupérer les données pour l'année de formation (année calendaire)
         const trainingYearData = await getYearData(trainingYear);
         const minus1Data = await getYearData(trainingYear - 1);
+        
+        // Pour N-2: utiliser la fenêtre glissante 24-30 mois au lieu de l'année calendaire stricte
+        const renewalWindowData = await getPeriodData(
+          startOfRenewalWindow.toISOString().split('T')[0],
+          endOfRenewalWindow.toISOString().split('T')[0]
+        );
+        
+        // Données des années précédentes (pour stats additionnelles)
         const minus2Data = await getYearData(trainingYear - 2);
         const minus3Data = await getYearData(trainingYear - 3);
         const minus4Data = await getYearData(trainingYear - 4);
@@ -276,14 +321,24 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
         const amountIncreaseVsMinus2 = trainingYearData.amount - minus2Data.amount;
         const amountGrowthVsMinus2 = minus2Data.amount > 0 ? (amountIncreaseVsMinus2 / minus2Data.amount) * 100 : 0;
 
+        // NOUVELLE LOGIQUE: Croissance vs fenêtre glissante 24-30 mois (cycle de renouvellement réel)
+        const increaseVsRenewalWindow = trainingYearData.quantity - renewalWindowData.quantity;
+        const growthVsRenewalWindow = renewalWindowData.quantity > 0 ? (increaseVsRenewalWindow / renewalWindowData.quantity) * 100 : 0;
+        const amountIncreaseVsRenewalWindow = trainingYearData.amount - renewalWindowData.amount;
+        const amountGrowthVsRenewalWindow = renewalWindowData.amount > 0 ? (amountIncreaseVsRenewalWindow / renewalWindowData.amount) * 100 : 0;
+
         // Calculer les nouvelles références apparues (avec N-1)
         const newRefsMinus1 = [...trainingYearData.references].filter(ref => !minus1Data.references.has(ref)).length;
         const newRefsMinus2 = [...trainingYearData.references].filter(ref => !minus2Data.references.has(ref)).length;
         const newRefsMinus3 = [...trainingYearData.references].filter(ref => !minus3Data.references.has(ref)).length;
         const newRefsMinus4 = [...trainingYearData.references].filter(ref => !minus4Data.references.has(ref)).length;
 
-        // Taux de renouvellement vs -2 ans (cycle de 24 mois)
-        // Références qui étaient présentes il y a 2 ans et qui sont toujours commandées
+        // Taux de renouvellement vs fenêtre glissante 24-30 mois (plus réaliste)
+        // Références qui étaient présentes dans la fenêtre 24-30 mois et qui sont toujours commandées
+        const renewedRefsWindow = [...trainingYearData.references].filter(ref => renewalWindowData.references.has(ref)).length;
+        const renewalRateWindow = renewalWindowData.references.size > 0 ? (renewedRefsWindow / renewalWindowData.references.size) * 100 : 0;
+        
+        // Ancien calcul pour compatibilité
         const renewedRefs = [...trainingYearData.references].filter(ref => minus2Data.references.has(ref)).length;
         const renewalRate = minus2Data.references.size > 0 ? (renewedRefs / minus2Data.references.size) * 100 : 0;
 
@@ -335,6 +390,12 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
           new_references_vs_minus_3: newRefsMinus3,
           new_references_vs_minus_4: newRefsMinus4,
           renewal_rate_vs_minus_2: Math.round(renewalRate * 100) / 100,
+          // Fenêtre glissante 24-30 mois
+          renewal_window_quantity: renewalWindowData.quantity,
+          renewal_window_amount: Math.round(renewalWindowData.amount * 100) / 100,
+          growth_vs_renewal_window: Math.round(growthVsRenewalWindow * 100) / 100,
+          amount_growth_vs_renewal_window: Math.round(amountGrowthVsRenewalWindow * 100) / 100,
+          renewal_rate_window: Math.round(renewalRateWindow * 100) / 100,
           development_generated: avgIncrease > 0,
           // Métriques d'expiration
           expired_quantity: trainingYearData.expired,

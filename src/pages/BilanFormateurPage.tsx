@@ -1097,27 +1097,70 @@ export default function BilanFormateurPage() {
                     </Card>
                     <Card>
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium">Croissance Qté Moyenne vs N-2</CardTitle>
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                          Croissance Qté vs Cycle 24-30 mois
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>Comparaison avec la période 24-30 mois avant, plus représentative du cycle réel de renouvellement des produits.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className={`text-2xl font-bold ${(developmentMetrics.reduce((sum, m) => sum + m.growth_vs_minus_2, 0) / developmentMetrics.length) > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {(developmentMetrics.reduce((sum, m) => sum + m.growth_vs_minus_2, 0) / developmentMetrics.length).toFixed(1)}%
+                        <div className={`text-2xl font-bold ${(developmentMetrics.reduce((sum, m) => sum + m.growth_vs_renewal_window, 0) / developmentMetrics.length) > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {(developmentMetrics.reduce((sum, m) => sum + m.growth_vs_renewal_window, 0) / developmentMetrics.length).toFixed(1)}%
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          vs {selectedYear - 2} (cycle 2 ans)
+                          vs période 24-30 mois
                         </p>
                       </CardContent>
                     </Card>
                     <Card>
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium">Croissance CA Moyenne vs N-2</CardTitle>
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                          Croissance CA vs Cycle 24-30 mois
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>Comparaison du chiffre d'affaires avec la période 24-30 mois avant, correspondant au cycle de renouvellement des produits (~2 ans).</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className={`text-2xl font-bold ${(developmentMetrics.reduce((sum, m) => sum + m.amount_growth_vs_minus_2, 0) / developmentMetrics.length) > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {(developmentMetrics.reduce((sum, m) => sum + m.amount_growth_vs_minus_2, 0) / developmentMetrics.length).toFixed(1)}%
+                        <div className={`text-2xl font-bold ${(developmentMetrics.reduce((sum, m) => sum + m.amount_growth_vs_renewal_window, 0) / developmentMetrics.length) > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {(developmentMetrics.reduce((sum, m) => sum + m.amount_growth_vs_renewal_window, 0) / developmentMetrics.length).toFixed(1)}%
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          vs {selectedYear - 2} (cycle 2 ans)
+                          vs période 24-30 mois
+                        </p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                          Taux Renouvellement Cycle
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>Pourcentage de références commandées il y a 24-30 mois qui ont été renouvelées cette année.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className={`text-2xl font-bold ${(developmentMetrics.reduce((sum, m) => sum + m.renewal_rate_window, 0) / developmentMetrics.length) > 50 ? 'text-green-600' : 'text-orange-600'}`}>
+                          {(developmentMetrics.reduce((sum, m) => sum + m.renewal_rate_window, 0) / developmentMetrics.length).toFixed(1)}%
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Références renouvelées
                         </p>
                       </CardContent>
                     </Card>
@@ -1195,18 +1238,15 @@ export default function BilanFormateurPage() {
                       <TableRow>
                         <TableHead>SIPI</TableHead>
                         <TableHead>Entreprise</TableHead>
-                        <TableHead className="text-right">Qté Année Form.</TableHead>
-                        <TableHead className="text-right">CA Année Form.</TableHead>
-                        <TableHead className="text-right">Qté N-1</TableHead>
-                        <TableHead className="text-right">CA N-1</TableHead>
+                        <TableHead className="text-right">Qté Année</TableHead>
+                        <TableHead className="text-right">CA Année</TableHead>
                         <TableHead className="text-right">Croiss. Qté N-1</TableHead>
                         <TableHead className="text-right">Croiss. CA N-1</TableHead>
-                        <TableHead className="text-right">Croiss. Qté N-2</TableHead>
-                        <TableHead className="text-right">Croiss. CA N-2</TableHead>
-                        <TableHead className="text-right">Taux Renouv.</TableHead>
+                        <TableHead className="text-right">Croiss. Qté Cycle</TableHead>
+                        <TableHead className="text-right">Croiss. CA Cycle</TableHead>
+                        <TableHead className="text-right">Taux Renouv. Cycle</TableHead>
                         <TableHead className="text-right">Actifs</TableHead>
                         <TableHead className="text-right">Expirés</TableHead>
-                        <TableHead className="text-right">Proche Exp.</TableHead>
                         <TableHead>Prochaine Exp.</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1224,33 +1264,26 @@ export default function BilanFormateurPage() {
                           <TableCell className="text-right font-semibold">
                             {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 }).format(metric.training_year_amount)}
                           </TableCell>
-                          <TableCell className="text-right">{metric.year_minus_1_quantity}</TableCell>
-                          <TableCell className="text-right">
-                            {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 }).format(metric.year_minus_1_amount)}
-                          </TableCell>
                           <TableCell className={`text-right font-medium ${metric.growth_vs_minus_1 > 0 ? 'text-green-600' : metric.growth_vs_minus_1 < 0 ? 'text-red-600' : ''}`}>
                             {metric.growth_vs_minus_1 > 0 ? '+' : ''}{metric.growth_vs_minus_1}%
                           </TableCell>
                           <TableCell className={`text-right font-medium ${metric.amount_growth_vs_minus_1 > 0 ? 'text-green-600' : metric.amount_growth_vs_minus_1 < 0 ? 'text-red-600' : ''}`}>
                             {metric.amount_growth_vs_minus_1 > 0 ? '+' : ''}{metric.amount_growth_vs_minus_1}%
                           </TableCell>
-                          <TableCell className={`text-right font-medium ${metric.growth_vs_minus_2 > 0 ? 'text-green-600' : metric.growth_vs_minus_2 < 0 ? 'text-red-600' : ''}`}>
-                            {metric.growth_vs_minus_2 > 0 ? '+' : ''}{metric.growth_vs_minus_2}%
+                          <TableCell className={`text-right font-medium ${metric.growth_vs_renewal_window > 0 ? 'text-green-600' : metric.growth_vs_renewal_window < 0 ? 'text-red-600' : ''}`}>
+                            {metric.growth_vs_renewal_window > 0 ? '+' : ''}{metric.growth_vs_renewal_window}%
                           </TableCell>
-                          <TableCell className={`text-right font-medium ${metric.amount_growth_vs_minus_2 > 0 ? 'text-green-600' : metric.amount_growth_vs_minus_2 < 0 ? 'text-red-600' : ''}`}>
-                            {metric.amount_growth_vs_minus_2 > 0 ? '+' : ''}{metric.amount_growth_vs_minus_2}%
+                          <TableCell className={`text-right font-medium ${metric.amount_growth_vs_renewal_window > 0 ? 'text-green-600' : metric.amount_growth_vs_renewal_window < 0 ? 'text-red-600' : ''}`}>
+                            {metric.amount_growth_vs_renewal_window > 0 ? '+' : ''}{metric.amount_growth_vs_renewal_window}%
                           </TableCell>
-                          <TableCell className="text-right font-medium">
-                            {metric.renewal_rate_vs_minus_2}%
+                          <TableCell className={`text-right font-medium ${metric.renewal_rate_window > 50 ? 'text-green-600' : 'text-orange-600'}`}>
+                            {metric.renewal_rate_window}%
                           </TableCell>
                           <TableCell className="text-right text-green-600 font-medium">
                             {metric.active_quantity}
                           </TableCell>
                           <TableCell className="text-right text-red-600 font-medium">
                             {metric.expired_quantity}
-                          </TableCell>
-                          <TableCell className="text-right text-orange-600 font-medium">
-                            {metric.expiring_soon_quantity}
                           </TableCell>
                           <TableCell className="text-sm">
                             {metric.next_expiration_date ? (

@@ -8,9 +8,11 @@ export interface TrainingDevelopmentMetrics {
   training_year: number;
   training_year_quantity: number;
   training_year_references: number;
+  training_year_amount: number;
   // N-1 (année précédente)
   year_minus_1_quantity: number;
   year_minus_1_references: number;
+  year_minus_1_amount: number;
   // N-2
   year_minus_2_quantity: number;
   year_minus_2_references: number;
@@ -22,6 +24,8 @@ export interface TrainingDevelopmentMetrics {
   increase_vs_minus_1: number;
   growth_vs_minus_1: number;
   new_references_vs_minus_1: number;
+  amount_increase_vs_minus_1: number;
+  amount_growth_vs_minus_1: number;
   // Croissance vs autres années
   increase_vs_minus_2: number;
   increase_vs_minus_3: number;
@@ -163,6 +167,7 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
         const getYearData = async (year: number): Promise<{ 
           quantity: number; 
           references: Set<string>;
+          amount: number;
           expired: number;
           active: number;
           expiringSoon: number;
@@ -170,17 +175,19 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
         }> => {
           const { data: orders } = await supabase
             .from('orders')
-            .select('order_number')
+            .select('order_number, amount')
             .eq('sipi_number', company.sipi_number)
             .gte('order_date', `${year}-01-01`)
             .lte('order_date', `${year}-12-31`);
 
           const orderNumbers = orders?.map(o => o.order_number) || [];
+          const totalAmount = orders?.reduce((sum, o) => sum + (o.amount || 0), 0) || 0;
           
           if (orderNumbers.length === 0) {
             return { 
               quantity: 0, 
               references: new Set(),
+              amount: 0,
               expired: 0,
               active: 0,
               expiringSoon: 0,
@@ -233,6 +240,7 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
           return { 
             quantity, 
             references,
+            amount: totalAmount,
             expired,
             active,
             expiringSoon,
@@ -258,6 +266,10 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
         const growthVsMinus2 = minus2Data.quantity > 0 ? (increaseVsMinus2 / minus2Data.quantity) * 100 : 0;
         const growthVsMinus3 = minus3Data.quantity > 0 ? (increaseVsMinus3 / minus3Data.quantity) * 100 : 0;
         const growthVsMinus4 = minus4Data.quantity > 0 ? (increaseVsMinus4 / minus4Data.quantity) * 100 : 0;
+
+        // Calculer les augmentations de montant (avec N-1)
+        const amountIncreaseVsMinus1 = trainingYearData.amount - minus1Data.amount;
+        const amountGrowthVsMinus1 = minus1Data.amount > 0 ? (amountIncreaseVsMinus1 / minus1Data.amount) * 100 : 0;
 
         // Calculer les nouvelles références apparues (avec N-1)
         const newRefsMinus1 = [...trainingYearData.references].filter(ref => !minus1Data.references.has(ref)).length;
@@ -286,9 +298,11 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
           training_year: trainingYear,
           training_year_quantity: trainingYearData.quantity,
           training_year_references: trainingYearData.references.size,
+          training_year_amount: Math.round(trainingYearData.amount * 100) / 100,
           // N-1
           year_minus_1_quantity: minus1Data.quantity,
           year_minus_1_references: minus1Data.references.size,
+          year_minus_1_amount: Math.round(minus1Data.amount * 100) / 100,
           // N-2 et suivants
           year_minus_2_quantity: minus2Data.quantity,
           year_minus_2_references: minus2Data.references.size,
@@ -300,6 +314,8 @@ export const useTrainingDevelopment = (formateur: string, trainingYear: number) 
           increase_vs_minus_1: Math.round(increaseVsMinus1 * 100) / 100,
           growth_vs_minus_1: Math.round(growthVsMinus1 * 100) / 100,
           new_references_vs_minus_1: newRefsMinus1,
+          amount_increase_vs_minus_1: Math.round(amountIncreaseVsMinus1 * 100) / 100,
+          amount_growth_vs_minus_1: Math.round(amountGrowthVsMinus1 * 100) / 100,
           // Croissance vs autres années
           increase_vs_minus_2: Math.round(increaseVsMinus2 * 100) / 100,
           increase_vs_minus_3: Math.round(increaseVsMinus3 * 100) / 100,

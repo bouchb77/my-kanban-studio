@@ -76,11 +76,31 @@ export default function BilanFormateurPage() {
   // Multi-year comparison
   const [comparisonYears, setComparisonYears] = useState<number[]>([]);
   const [yearlyStats, setYearlyStats] = useState<any[]>([]);
+  
+  // Sort for development metrics
+  const [devSortBy, setDevSortBy] = useState<'name' | 'ca_2_years' | 'ca_year'>('ca_2_years');
 
   const { metrics: developmentMetrics, loading: devLoading } = useTrainingDevelopment(
     selectedSector || '',
     selectedYear
   );
+
+  // Sorted development metrics
+  const sortedDevelopmentMetrics = useMemo(() => {
+    const sorted = [...developmentMetrics];
+    switch (devSortBy) {
+      case 'ca_2_years':
+        return sorted.sort((a, b) => 
+          (b.training_year_amount + b.year_minus_1_amount) - (a.training_year_amount + a.year_minus_1_amount)
+        );
+      case 'ca_year':
+        return sorted.sort((a, b) => b.training_year_amount - a.training_year_amount);
+      case 'name':
+        return sorted.sort((a, b) => a.company_name.localeCompare(b.company_name));
+      default:
+        return sorted;
+    }
+  }, [developmentMetrics, devSortBy]);
 
   const years = Array.from(
     { length: new Date().getFullYear() - 2020 + 1 },
@@ -1222,7 +1242,20 @@ export default function BilanFormateurPage() {
                     </Card>
                   </div>
 
-                  <div className="flex gap-2 justify-end mb-4">
+                  <div className="flex gap-2 justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">Trier par:</span>
+                      <Select value={devSortBy} onValueChange={(v: 'name' | 'ca_2_years' | 'ca_year') => setDevSortBy(v)}>
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ca_2_years">CA 2 dernières années</SelectItem>
+                          <SelectItem value="ca_year">CA Année</SelectItem>
+                          <SelectItem value="name">Nom entreprise</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <Button
                       variant="outline"
                       size="sm"
@@ -1238,6 +1271,7 @@ export default function BilanFormateurPage() {
                       <TableRow>
                         <TableHead>SIPI</TableHead>
                         <TableHead>Entreprise</TableHead>
+                        <TableHead className="text-right">CA 2 ans</TableHead>
                         <TableHead className="text-right">Qté Année</TableHead>
                         <TableHead className="text-right">CA Année</TableHead>
                         <TableHead className="text-right">Croiss. Qté N-1</TableHead>
@@ -1251,7 +1285,7 @@ export default function BilanFormateurPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {developmentMetrics.map((metric) => (
+                      {sortedDevelopmentMetrics.map((metric) => (
                         <TableRow key={metric.sipi_number}>
                           <TableCell className="font-mono">{metric.sipi_number}</TableCell>
                           <TableCell 
@@ -1259,6 +1293,9 @@ export default function BilanFormateurPage() {
                             onClick={() => handleCompanyClick(metric.sipi_number, metric.company_name)}
                           >
                             {metric.company_name}
+                          </TableCell>
+                          <TableCell className="text-right font-bold text-primary">
+                            {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 }).format(metric.training_year_amount + metric.year_minus_1_amount)}
                           </TableCell>
                           <TableCell className="text-right font-semibold">{metric.training_year_quantity}</TableCell>
                           <TableCell className="text-right font-semibold">

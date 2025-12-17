@@ -76,31 +76,11 @@ export default function BilanFormateurPage() {
   // Multi-year comparison
   const [comparisonYears, setComparisonYears] = useState<number[]>([]);
   const [yearlyStats, setYearlyStats] = useState<any[]>([]);
-  
-  // Sort for development metrics
-  const [devSortBy, setDevSortBy] = useState<'name' | 'ca_2_years' | 'ca_year'>('ca_2_years');
 
   const { metrics: developmentMetrics, loading: devLoading } = useTrainingDevelopment(
     selectedSector || '',
     selectedYear
   );
-
-  // Sorted development metrics
-  const sortedDevelopmentMetrics = useMemo(() => {
-    const sorted = [...developmentMetrics];
-    switch (devSortBy) {
-      case 'ca_2_years':
-        return sorted.sort((a, b) => 
-          (b.training_year_amount + b.year_minus_1_amount) - (a.training_year_amount + a.year_minus_1_amount)
-        );
-      case 'ca_year':
-        return sorted.sort((a, b) => b.training_year_amount - a.training_year_amount);
-      case 'name':
-        return sorted.sort((a, b) => a.company_name.localeCompare(b.company_name));
-      default:
-        return sorted;
-    }
-  }, [developmentMetrics, devSortBy]);
 
   const years = Array.from(
     { length: new Date().getFullYear() - 2020 + 1 },
@@ -1242,6 +1222,86 @@ export default function BilanFormateurPage() {
                     </Card>
                   </div>
 
+                  <div className="flex gap-2 justify-end mb-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleExport('development')}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Exporter Développement
+                    </Button>
+                  </div>
+
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>SIPI</TableHead>
+                        <TableHead>Entreprise</TableHead>
+                        <TableHead className="text-right">Qté Année</TableHead>
+                        <TableHead className="text-right">CA Année</TableHead>
+                        <TableHead className="text-right">Croiss. Qté N-1</TableHead>
+                        <TableHead className="text-right">Croiss. CA N-1</TableHead>
+                        <TableHead className="text-right">Croiss. Qté Cycle</TableHead>
+                        <TableHead className="text-right">Croiss. CA Cycle</TableHead>
+                        <TableHead className="text-right">Taux Renouv. Cycle</TableHead>
+                        <TableHead className="text-right">Actifs</TableHead>
+                        <TableHead className="text-right">Expirés</TableHead>
+                        <TableHead>Prochaine Exp.</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {developmentMetrics.map((metric) => (
+                        <TableRow key={metric.sipi_number}>
+                          <TableCell className="font-mono">{metric.sipi_number}</TableCell>
+                          <TableCell 
+                            className="cursor-pointer hover:text-primary hover:underline"
+                            onClick={() => handleCompanyClick(metric.sipi_number, metric.company_name)}
+                          >
+                            {metric.company_name}
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">{metric.training_year_quantity}</TableCell>
+                          <TableCell className="text-right font-semibold">
+                            {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 }).format(metric.training_year_amount)}
+                          </TableCell>
+                          <TableCell className={`text-right font-medium ${metric.growth_vs_minus_1 > 0 ? 'text-green-600' : metric.growth_vs_minus_1 < 0 ? 'text-red-600' : ''}`}>
+                            {metric.growth_vs_minus_1 > 0 ? '+' : ''}{metric.growth_vs_minus_1}%
+                          </TableCell>
+                          <TableCell className={`text-right font-medium ${metric.amount_growth_vs_minus_1 > 0 ? 'text-green-600' : metric.amount_growth_vs_minus_1 < 0 ? 'text-red-600' : ''}`}>
+                            {metric.amount_growth_vs_minus_1 > 0 ? '+' : ''}{metric.amount_growth_vs_minus_1}%
+                          </TableCell>
+                          <TableCell className={`text-right font-medium ${metric.growth_vs_renewal_window > 0 ? 'text-green-600' : metric.growth_vs_renewal_window < 0 ? 'text-red-600' : ''}`}>
+                            {metric.growth_vs_renewal_window > 0 ? '+' : ''}{metric.growth_vs_renewal_window}%
+                          </TableCell>
+                          <TableCell className={`text-right font-medium ${metric.amount_growth_vs_renewal_window > 0 ? 'text-green-600' : metric.amount_growth_vs_renewal_window < 0 ? 'text-red-600' : ''}`}>
+                            {metric.amount_growth_vs_renewal_window > 0 ? '+' : ''}{metric.amount_growth_vs_renewal_window}%
+                          </TableCell>
+                          <TableCell className={`text-right font-medium ${metric.renewal_rate_window > 50 ? 'text-green-600' : 'text-orange-600'}`}>
+                            {metric.renewal_rate_window}%
+                          </TableCell>
+                          <TableCell className="text-right text-green-600 font-medium">
+                            {metric.active_quantity}
+                          </TableCell>
+                          <TableCell className="text-right text-red-600 font-medium">
+                            {metric.expired_quantity}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {metric.next_expiration_date ? (
+                              <span className={
+                                new Date(metric.next_expiration_date) < new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
+                                  ? 'text-orange-600 font-medium'
+                                  : 'text-muted-foreground'
+                              }>
+                                {new Date(metric.next_expiration_date).toLocaleDateString('fr-FR')}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
               )}
             </CardContent>
@@ -1250,7 +1310,7 @@ export default function BilanFormateurPage() {
           {/* Tabs with Data Tables */}
           <Tabs defaultValue="paid" className="space-y-4">
             <TabsList>
-              <TabsTrigger value="paid">Formations Payantes ({sortedDevelopmentMetrics.length})</TabsTrigger>
+              <TabsTrigger value="paid">Formations Payantes ({filteredPaidCompanies.length})</TabsTrigger>
               <TabsTrigger value="free">Formations Gratuites ({filteredFreeCompanies.length})</TabsTrigger>
               <TabsTrigger value="all">Toutes ({allCompanies.length})</TabsTrigger>
             </TabsList>
@@ -1259,32 +1319,19 @@ export default function BilanFormateurPage() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>Entreprises Formées avec Commandes</CardTitle>
-                  <div className="flex gap-2 items-center">
-                    <span className="text-sm text-muted-foreground">Trier par:</span>
-                    <Select value={devSortBy} onValueChange={(v: 'name' | 'ca_2_years' | 'ca_year') => setDevSortBy(v)}>
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ca_2_years">CA 2 dernières années</SelectItem>
-                        <SelectItem value="ca_year">CA Année</SelectItem>
-                        <SelectItem value="name">Nom entreprise</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleExport('development')}
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Exporter
-                    </Button>
-                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleExport('paid')}
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Exporter
+                  </Button>
                 </CardHeader>
                 <CardContent>
-                  {sortedDevelopmentMetrics.length === 0 ? (
+                  {filteredPaidCompanies.length === 0 ? (
                     <p className="text-muted-foreground text-center py-8">
-                      Aucune entreprise formée trouvée
+                      Aucune entreprise formée avec commande trouvée
                     </p>
                   ) : (
                     <Table>
@@ -1292,69 +1339,30 @@ export default function BilanFormateurPage() {
                         <TableRow>
                           <TableHead>SIPI</TableHead>
                           <TableHead>Entreprise</TableHead>
-                          <TableHead className="text-right">CA 2 ans</TableHead>
-                          <TableHead className="text-right">Qté Année</TableHead>
-                          <TableHead className="text-right">CA Année</TableHead>
-                          <TableHead className="text-right">Croiss. Qté N-1</TableHead>
-                          <TableHead className="text-right">Croiss. CA N-1</TableHead>
-                          <TableHead className="text-right">Croiss. Qté Cycle</TableHead>
-                          <TableHead className="text-right">Croiss. CA Cycle</TableHead>
-                          <TableHead className="text-right">Taux Renouv.</TableHead>
-                          <TableHead className="text-right">Actifs</TableHead>
-                          <TableHead className="text-right">Expirés</TableHead>
-                          <TableHead>Prochaine Exp.</TableHead>
+                          <TableHead>Date Formation</TableHead>
+                          <TableHead className="text-right">Nb Commandes</TableHead>
+                          <TableHead className="text-right">CA Total</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {sortedDevelopmentMetrics.map((metric) => (
-                          <TableRow key={metric.sipi_number}>
-                            <TableCell className="font-mono">{metric.sipi_number}</TableCell>
+                        {filteredPaidCompanies.map((company) => (
+                          <TableRow key={company.sipi_number}>
+                            <TableCell className="font-mono">{company.sipi_number}</TableCell>
                             <TableCell 
                               className="cursor-pointer hover:text-primary hover:underline"
-                              onClick={() => handleCompanyClick(metric.sipi_number, metric.company_name)}
+                              onClick={() => handleCompanyClick(company.sipi_number, company.company_name)}
                             >
-                              {metric.company_name}
+                              {company.company_name}
                             </TableCell>
-                            <TableCell className="text-right font-bold text-primary">
-                              {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 }).format(metric.training_year_amount + metric.year_minus_1_amount)}
+                            <TableCell>
+                              {new Date(company.training_date).toLocaleDateString('fr-FR')}
                             </TableCell>
-                            <TableCell className="text-right font-semibold">{metric.training_year_quantity}</TableCell>
-                            <TableCell className="text-right font-semibold">
-                              {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 }).format(metric.training_year_amount)}
-                            </TableCell>
-                            <TableCell className={`text-right font-medium ${metric.growth_vs_minus_1 > 0 ? 'text-green-600' : metric.growth_vs_minus_1 < 0 ? 'text-red-600' : ''}`}>
-                              {metric.growth_vs_minus_1 > 0 ? '+' : ''}{metric.growth_vs_minus_1}%
-                            </TableCell>
-                            <TableCell className={`text-right font-medium ${metric.amount_growth_vs_minus_1 > 0 ? 'text-green-600' : metric.amount_growth_vs_minus_1 < 0 ? 'text-red-600' : ''}`}>
-                              {metric.amount_growth_vs_minus_1 > 0 ? '+' : ''}{metric.amount_growth_vs_minus_1}%
-                            </TableCell>
-                            <TableCell className={`text-right font-medium ${metric.growth_vs_renewal_window > 0 ? 'text-green-600' : metric.growth_vs_renewal_window < 0 ? 'text-red-600' : ''}`}>
-                              {metric.growth_vs_renewal_window > 0 ? '+' : ''}{metric.growth_vs_renewal_window}%
-                            </TableCell>
-                            <TableCell className={`text-right font-medium ${metric.amount_growth_vs_renewal_window > 0 ? 'text-green-600' : metric.amount_growth_vs_renewal_window < 0 ? 'text-red-600' : ''}`}>
-                              {metric.amount_growth_vs_renewal_window > 0 ? '+' : ''}{metric.amount_growth_vs_renewal_window}%
-                            </TableCell>
-                            <TableCell className={`text-right font-medium ${metric.renewal_rate_window > 50 ? 'text-green-600' : 'text-orange-600'}`}>
-                              {metric.renewal_rate_window}%
-                            </TableCell>
-                            <TableCell className="text-right text-green-600 font-medium">
-                              {metric.active_quantity}
-                            </TableCell>
-                            <TableCell className="text-right text-red-600 font-medium">
-                              {metric.expired_quantity}
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {metric.next_expiration_date ? (
-                                <span className={
-                                  new Date(metric.next_expiration_date) < new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
-                                    ? 'text-orange-600 font-medium'
-                                    : 'text-muted-foreground'
-                                }>
-                                  {new Date(metric.next_expiration_date).toLocaleDateString('fr-FR')}
-                                </span>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
+                            <TableCell className="text-right">{company.total_orders}</TableCell>
+                            <TableCell className="text-right">
+                              {new Intl.NumberFormat('fr-FR', {
+                                style: 'currency',
+                                currency: 'EUR'
+                              }).format(company.total_amount || 0)}
                             </TableCell>
                           </TableRow>
                         ))}

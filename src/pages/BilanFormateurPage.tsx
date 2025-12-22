@@ -175,7 +175,7 @@ export default function BilanFormateurPage() {
   }, [paidCompanies, searchTerm, minAmount, dateRange, sortField, sortDirection]);
 
   const filteredFreeCompanies = useMemo(() => {
-    return freeCompanies.filter(company => {
+    const filtered = freeCompanies.filter(company => {
       const matchesSearch = searchTerm === '' || 
         company.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         company.sipi_number.includes(searchTerm);
@@ -186,7 +186,50 @@ export default function BilanFormateurPage() {
       
       return matchesSearch && matchesDateRange;
     });
-  }, [freeCompanies, searchTerm, dateRange]);
+
+    // Apply sorting
+    return filtered.sort((a, b) => {
+      let aValue: any, bValue: any;
+      switch (sortField) {
+        case 'training_date':
+          aValue = new Date(a.training_date).getTime();
+          bValue = new Date(b.training_date).getTime();
+          break;
+        case 'total_amount_2years':
+          aValue = a.total_amount_2years || 0;
+          bValue = b.total_amount_2years || 0;
+          break;
+        default:
+          return 0;
+      }
+      
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [freeCompanies, searchTerm, dateRange, sortField, sortDirection]);
+
+  const sortedAllCompanies = useMemo(() => {
+    return [...allCompanies].sort((a, b) => {
+      let aValue: any, bValue: any;
+      switch (sortField) {
+        case 'training_date':
+          aValue = new Date(a.training_date).getTime();
+          bValue = new Date(b.training_date).getTime();
+          break;
+        case 'total_amount_2years':
+          aValue = a.total_amount_2years || 0;
+          bValue = b.total_amount_2years || 0;
+          break;
+        default:
+          return 0;
+      }
+      
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [allCompanies, sortField, sortDirection]);
 
   // Monthly evolution data
   const monthlyData = useMemo(() => {
@@ -1546,9 +1589,47 @@ export default function BilanFormateurPage() {
                         <TableRow>
                           <TableHead>SIPI</TableHead>
                           <TableHead>Entreprise</TableHead>
-                          <TableHead>Date Formation</TableHead>
+                          <TableHead 
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => {
+                              if (sortField === 'training_date') {
+                                setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                              } else {
+                                setSortField('training_date');
+                                setSortDirection('desc');
+                              }
+                            }}
+                          >
+                            <div className="flex items-center gap-1">
+                              Date Formation
+                              {sortField === 'training_date' ? (
+                                sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                              ) : (
+                                <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </div>
+                          </TableHead>
                           <TableHead className="text-right">Commandes Année</TableHead>
-                          <TableHead className="text-right">CA 2 ans</TableHead>
+                          <TableHead 
+                            className="text-right cursor-pointer hover:bg-muted/50"
+                            onClick={() => {
+                              if (sortField === 'total_amount_2years') {
+                                setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                              } else {
+                                setSortField('total_amount_2years');
+                                setSortDirection('desc');
+                              }
+                            }}
+                          >
+                            <div className="flex items-center justify-end gap-1">
+                              CA 2 ans
+                              {sortField === 'total_amount_2years' ? (
+                                sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                              ) : (
+                                <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </div>
+                          </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1599,13 +1680,51 @@ export default function BilanFormateurPage() {
                       <TableRow>
                         <TableHead>SIPI</TableHead>
                         <TableHead>Entreprise</TableHead>
-                        <TableHead>Date</TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => {
+                            if (sortField === 'training_date') {
+                              setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                            } else {
+                              setSortField('training_date');
+                              setSortDirection('desc');
+                            }
+                          }}
+                        >
+                          <div className="flex items-center gap-1">
+                            Date
+                            {sortField === 'training_date' ? (
+                              sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                            ) : (
+                              <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </div>
+                        </TableHead>
                         <TableHead className="text-right">Type</TableHead>
-                        <TableHead className="text-right">CA 2 ans</TableHead>
+                        <TableHead 
+                          className="text-right cursor-pointer hover:bg-muted/50"
+                          onClick={() => {
+                            if (sortField === 'total_amount_2years') {
+                              setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                            } else {
+                              setSortField('total_amount_2years');
+                              setSortDirection('desc');
+                            }
+                          }}
+                        >
+                          <div className="flex items-center justify-end gap-1">
+                            CA 2 ans
+                            {sortField === 'total_amount_2years' ? (
+                              sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                            ) : (
+                              <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </div>
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {allCompanies.map((company) => (
+                      {sortedAllCompanies.map((company) => (
                         <TableRow key={company.sipi_number}>
                           <TableCell className="font-mono">{company.sipi_number}</TableCell>
                           <TableCell 

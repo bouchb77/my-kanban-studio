@@ -1474,26 +1474,6 @@ export default function BilanFormateurPage() {
                           <TableHead 
                             className="text-right cursor-pointer hover:bg-muted/50"
                             onClick={() => {
-                              if (sortField === 'total_amount') {
-                                setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-                              } else {
-                                setSortField('total_amount');
-                                setSortDirection('desc');
-                              }
-                            }}
-                          >
-                            <div className="flex items-center justify-end gap-1">
-                              CA Année
-                              {sortField === 'total_amount' ? (
-                                sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
-                              ) : (
-                                <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-                              )}
-                            </div>
-                          </TableHead>
-                          <TableHead 
-                            className="text-right cursor-pointer hover:bg-muted/50"
-                            onClick={() => {
                               if (sortField === 'total_amount_2years') {
                                 setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
                               } else {
@@ -1527,12 +1507,6 @@ export default function BilanFormateurPage() {
                               {new Date(company.training_date).toLocaleDateString('fr-FR')}
                             </TableCell>
                             <TableCell className="text-right">{company.total_orders}</TableCell>
-                            <TableCell className="text-right">
-                              {new Intl.NumberFormat('fr-FR', {
-                                style: 'currency',
-                                currency: 'EUR'
-                              }).format(company.total_amount || 0)}
-                            </TableCell>
                             <TableCell className="text-right font-semibold">
                               {new Intl.NumberFormat('fr-FR', {
                                 style: 'currency',
@@ -1574,7 +1548,7 @@ export default function BilanFormateurPage() {
                           <TableHead>Entreprise</TableHead>
                           <TableHead>Date Formation</TableHead>
                           <TableHead className="text-right">Commandes Année</TableHead>
-                          <TableHead className="text-right">CA Année</TableHead>
+                          <TableHead className="text-right">CA 2 ans</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1591,11 +1565,11 @@ export default function BilanFormateurPage() {
                               {new Date(company.training_date).toLocaleDateString('fr-FR')}
                             </TableCell>
                             <TableCell className="text-right">{company.total_orders_all}</TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-right font-semibold">
                               {new Intl.NumberFormat('fr-FR', {
                                 style: 'currency',
                                 currency: 'EUR'
-                              }).format(company.total_amount_all || 0)}
+                              }).format(company.total_amount_2years || 0)}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -1627,7 +1601,7 @@ export default function BilanFormateurPage() {
                         <TableHead>Entreprise</TableHead>
                         <TableHead>Date</TableHead>
                         <TableHead className="text-right">Type</TableHead>
-                        <TableHead className="text-right">CA</TableHead>
+                        <TableHead className="text-right">CA 2 ans</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1646,11 +1620,11 @@ export default function BilanFormateurPage() {
                           <TableCell className="text-right">
                             {company.total_orders && company.total_orders > 0 ? 'Payante' : 'Gratuite'}
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-right font-semibold">
                             {new Intl.NumberFormat('fr-FR', {
                               style: 'currency',
                               currency: 'EUR'
-                            }).format(company.total_amount || company.total_amount_all || 0)}
+                            }).format(company.total_amount_2years || 0)}
                           </TableCell>
                         </TableRow>
                       ))}

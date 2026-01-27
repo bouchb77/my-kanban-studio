@@ -38,15 +38,15 @@ const ReportingPage = () => {
 
   // Calculs des totaux du TABLEAU (uniquement entreprises géolocalisées affichées)
   const tableStats = useMemo(() => {
-    const stats2023 = filteredCompanies.reduce((sum, c) => sum + (c.amount_2023 || 0), 0);
     const stats2024 = filteredCompanies.reduce((sum, c) => sum + (c.amount_2024 || 0), 0);
     const stats2025 = filteredCompanies.reduce((sum, c) => sum + (c.amount_2025 || 0), 0);
-    const totalTable = stats2023 + stats2024 + stats2025;
+    const stats2026 = filteredCompanies.reduce((sum, c) => sum + (c.amount_2026 || 0), 0);
+    const totalTable = stats2024 + stats2025 + stats2026;
     
     return {
-      amount_2023: stats2023,
       amount_2024: stats2024,
       amount_2025: stats2025,
+      amount_2026: stats2026,
       total: totalTable,
       companies: filteredCompanies.length
     };

@@ -33,12 +33,12 @@ interface Company {
   last_order_date?: string;
   last_training_order_date?: string; // Dernière commande FSITE/FSITEJ
   quality?: string;
-  amount_2023?: number;
   amount_2024?: number;
   amount_2025?: number;
-  order_count_2023?: number;
+  amount_2026?: number;
   order_count_2024?: number;
   order_count_2025?: number;
+  order_count_2026?: number;
   avg_amount?: number;
   orderStats?: CompanyOrderStats[];
   averageOrderPerYear?: number;
@@ -260,21 +260,21 @@ const CompaniesTableOnly = ({
           
           // Always include all 3 years, even with 0 orders
           orderStats.push({
-            year: 2023,
-            totalOrders: stat.order_count_2023 || 0,
-            totalAmount: parseFloat(stat.amount_2023) || 0
-          });
-          
-          orderStats.push({
             year: 2024,
             totalOrders: stat.order_count_2024 || 0,
             totalAmount: parseFloat(stat.amount_2024) || 0
           });
-
+          
           orderStats.push({
             year: 2025,
             totalOrders: stat.order_count_2025 || 0,
             totalAmount: parseFloat(stat.amount_2025) || 0
+          });
+
+          orderStats.push({
+            year: 2026,
+            totalOrders: stat.order_count_2026 || 0,
+            totalAmount: parseFloat(stat.amount_2026) || 0
           });
           
           const totalOrders = orderStats.reduce((sum, s) => sum + s.totalOrders, 0);
@@ -291,16 +291,16 @@ const CompaniesTableOnly = ({
             postal_code: stat.postal_code,
             general_department: stat.general_department,
             quality: stat.quality,
-            amount_2023: parseFloat(stat.amount_2023) || 0,
             amount_2024: parseFloat(stat.amount_2024) || 0,
             amount_2025: parseFloat(stat.amount_2025) || 0,
-            order_count_2023: stat.order_count_2023 || 0,
+            amount_2026: parseFloat(stat.amount_2026) || 0,
             order_count_2024: stat.order_count_2024 || 0,
             order_count_2025: stat.order_count_2025 || 0,
+            order_count_2026: stat.order_count_2026 || 0,
             avg_amount: parseFloat(stat.avg_amount) || 0,
             orderStats,
             averageOrderPerYear,
-            averageAmountPerYear: ((parseFloat(stat.amount_2023) || 0) + (parseFloat(stat.amount_2024) || 0) + (parseFloat(stat.amount_2025) || 0)) / 3,
+            averageAmountPerYear: ((parseFloat(stat.amount_2024) || 0) + (parseFloat(stat.amount_2025) || 0) + (parseFloat(stat.amount_2026) || 0)) / 3,
             last_training_order_date: stat.last_training_order_date || undefined,
             report_creation_date: stat.report_creation_date || undefined,
             next_renewal_date: stat.next_renewal || undefined
@@ -476,11 +476,11 @@ const CompaniesTableOnly = ({
         periodAmount = filteredOrders.reduce((sum, order) => sum + (parseFloat(order.amount) || 0), 0);
         
         // Use the total orders over 3 years
-        const totalOrders = (company.order_count_2023 || 0) + (company.order_count_2024 || 0) + (company.order_count_2025 || 0);
+        const totalOrders = (company.order_count_2024 || 0) + (company.order_count_2025 || 0) + (company.order_count_2026 || 0);
         averageOrderPerYear = totalOrders / 3;
         
-        // Calculate average amount per year from the last 3 years (2023, 2024, 2025)
-        const totalAmount3Years = (company.amount_2023 || 0) + (company.amount_2024 || 0) + (company.amount_2025 || 0);
+        // Calculate average amount per year from the last 3 years (2024, 2025, 2026)
+        const totalAmount3Years = (company.amount_2024 || 0) + (company.amount_2025 || 0) + (company.amount_2026 || 0);
         averageAmountPerYear = totalAmount3Years / 3;
       }
       
@@ -608,26 +608,26 @@ const CompaniesTableOnly = ({
           aValue = a.next_renewal_date ? new Date(a.next_renewal_date).getTime() : 0;
           bValue = b.next_renewal_date ? new Date(b.next_renewal_date).getTime() : 0;
           break;
-        case 'amount_2023':
-          aValue = a.amount_2023 || 0;
-          bValue = b.amount_2023 || 0;
-          break;
         case 'amount_2024':
           aValue = a.amount_2024 || 0;
           bValue = b.amount_2024 || 0;
           break;
         case 'amount_2025':
-        case 'year_2025':
           aValue = a.amount_2025 || 0;
           bValue = b.amount_2025 || 0;
           break;
-        case 'year_2023':
-          aValue = a.amount_2023 || 0;
-          bValue = b.amount_2023 || 0;
+        case 'amount_2026':
+        case 'year_2026':
+          aValue = a.amount_2026 || 0;
+          bValue = b.amount_2026 || 0;
           break;
         case 'year_2024':
           aValue = a.amount_2024 || 0;
           bValue = b.amount_2024 || 0;
+          break;
+        case 'year_2025':
+          aValue = a.amount_2025 || 0;
+          bValue = b.amount_2025 || 0;
           break;
         case 'avg_amount':
           aValue = a.avg_amount || 0;
@@ -676,10 +676,10 @@ const CompaniesTableOnly = ({
       columns.push({ id: 'periodAmount', label: 'Période filtrée', type: 'system' as const, order: nextOrder++ });
     }
     
-    // Ajouter les colonnes pour 2023, 2024, 2025 (montant + nombre combinés)
-    columns.push({ id: 'year_2023', label: '2023', type: 'system' as const, order: nextOrder++ });
+    // Ajouter les colonnes pour 2024, 2025, 2026 (montant + nombre combinés)
     columns.push({ id: 'year_2024', label: '2024', type: 'system' as const, order: nextOrder++ });
     columns.push({ id: 'year_2025', label: '2025', type: 'system' as const, order: nextOrder++ });
+    columns.push({ id: 'year_2026', label: '2026', type: 'system' as const, order: nextOrder++ });
     
     return columns;
   }, [startDate, endDate]);
@@ -1440,15 +1440,15 @@ const CompaniesTableOnly = ({
                 });
 
                 const renderCell = (columnId: string) => {
-                  // Colonnes combinées pour 2023, 2024, 2025
-                  if (columnId === 'year_2023' || columnId === 'year_2024' || columnId === 'year_2025') {
+                  // Colonnes combinées pour 2024, 2025, 2026
+                  if (columnId === 'year_2024' || columnId === 'year_2025' || columnId === 'year_2026') {
                     const year = columnId.replace('year_', '');
-                    const amount = columnId === 'year_2023' ? company.amount_2023 :
-                                   columnId === 'year_2024' ? company.amount_2024 :
-                                   company.amount_2025;
-                    const count = columnId === 'year_2023' ? company.order_count_2023 :
-                                  columnId === 'year_2024' ? company.order_count_2024 :
-                                  company.order_count_2025;
+                    const amount = columnId === 'year_2024' ? company.amount_2024 :
+                                   columnId === 'year_2025' ? company.amount_2025 :
+                                   company.amount_2026;
+                    const count = columnId === 'year_2024' ? company.order_count_2024 :
+                                  columnId === 'year_2025' ? company.order_count_2025 :
+                                  company.order_count_2026;
                     
                     return (
                       <TableCell key={columnId} className="text-center">
@@ -1621,17 +1621,17 @@ const CompaniesTableOnly = ({
                       );
                     }
                     
-                    if (column.id === 'year_2023' || column.id === 'year_2024' || column.id === 'year_2025') {
+                    if (column.id === 'year_2024' || column.id === 'year_2025' || column.id === 'year_2026') {
                       const totalAmount = sortedCompanies.reduce((sum, c) => {
-                        const amount = column.id === 'year_2023' ? c.amount_2023 :
-                                      column.id === 'year_2024' ? c.amount_2024 :
-                                      c.amount_2025;
+                        const amount = column.id === 'year_2024' ? c.amount_2024 :
+                                      column.id === 'year_2025' ? c.amount_2025 :
+                                      c.amount_2026;
                         return sum + (amount || 0);
                       }, 0);
                       const totalCount = sortedCompanies.reduce((sum, c) => {
-                        const count = column.id === 'year_2023' ? c.order_count_2023 :
-                                     column.id === 'year_2024' ? c.order_count_2024 :
-                                     c.order_count_2025;
+                        const count = column.id === 'year_2024' ? c.order_count_2024 :
+                                     column.id === 'year_2025' ? c.order_count_2025 :
+                                     c.order_count_2026;
                         return sum + (count || 0);
                       }, 0);
                       

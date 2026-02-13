@@ -22,6 +22,8 @@ import CompaniesPage from "./pages/CompaniesPage";
 import ImportReportingPage from "./pages/ImportReportingPage";
 import PublicReportingPage from "./pages/PublicReportingPage";
 import IsochronePage from "./pages/IsochronePage";
+import IsochroneDEPage from "./pages/IsochroneDEPage";
+import CompaniesDEPage from "./pages/CompaniesDEPage";
 import UserApprovalPage from "./pages/UserApprovalPage";
 import BilanFormateurPage from "./pages/BilanFormateurPage";
 import SalonPage from "./pages/SalonPage";
@@ -155,6 +157,22 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <MainLayout><SalonPage /></MainLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/isochrone-de" 
+              element={
+                <ProtectedRoute>
+                  <MainLayout><IsochroneDEPage /></MainLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/companies-de" 
+              element={
+                <ProtectedRoute>
+                  <MainLayout><CompaniesDEPage /></MainLayout>
                 </ProtectedRoute>
               } 
             />

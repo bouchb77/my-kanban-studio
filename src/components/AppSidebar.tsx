@@ -37,6 +37,7 @@ const navigationItems = [
   { title: "Agenda Outlook", url: "/calendar", icon: Calendar },
   { title: "Reporting", url: "/reporting", icon: BarChart3 },
   { title: "Isochrone Client", url: "/isochrone", icon: MapPin },
+  { title: "Isochrone DE", url: "/isochrone-de", icon: MapPin },
   { title: "Recherche Salon", url: "/salon", icon: Store },
   { title: "Notifications", url: "/notifications", icon: Bell },
 ];
@@ -122,6 +123,14 @@ export function AppSidebar() {
                     <NavLink to="/companies">
                       <Building2 className="w-4 h-4 flex-shrink-0" />
                       {!collapsed && <span>Entreprises</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive("/companies-de")}>
+                    <NavLink to="/companies-de">
+                      <Building2 className="w-4 h-4 flex-shrink-0" />
+                      {!collapsed && <span>Entreprises DE</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

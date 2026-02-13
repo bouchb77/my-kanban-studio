@@ -80,6 +80,69 @@ export type Database = {
         }
         Relationships: []
       }
+      companies_de: {
+        Row: {
+          address1: string | null
+          address2: string | null
+          city: string | null
+          company_name: string
+          contact_name: string | null
+          country: string | null
+          created_at: string
+          email: string | null
+          geocoded_address: string | null
+          geocoding_date: string | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          phone: string | null
+          postal_code: string | null
+          quality: string | null
+          region: string | null
+          updated_at: string
+        }
+        Insert: {
+          address1?: string | null
+          address2?: string | null
+          city?: string | null
+          company_name: string
+          contact_name?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          geocoded_address?: string | null
+          geocoding_date?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          phone?: string | null
+          postal_code?: string | null
+          quality?: string | null
+          region?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address1?: string | null
+          address2?: string | null
+          city?: string | null
+          company_name?: string
+          contact_name?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          geocoded_address?: string | null
+          geocoding_date?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          phone?: string | null
+          postal_code?: string | null
+          quality?: string | null
+          region?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       company_comments: {
         Row: {
           comment: string

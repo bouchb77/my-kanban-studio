@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Building2, Search, Loader2 } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/hooks/use-toast";
+import { CompanyDEImportSection } from "@/components/CompanyDEImportSection";
 
 interface CompanyDE {
   id: string;
@@ -69,6 +70,10 @@ const CompaniesDEPage = () => {
         <p className="text-muted-foreground mt-1">
           Liste des entreprises allemandes
         </p>
+      </div>
+
+      <div className="mb-6">
+        <CompanyDEImportSection onImportComplete={fetchCompanies} />
       </div>
 
       <Card>

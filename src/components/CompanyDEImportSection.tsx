@@ -10,15 +10,13 @@ import { supabase } from "@/integrations/supabase/client";
 import * as XLSX from 'xlsx';
 
 interface CompanyDEImport {
+  sipi_number?: string;
   company_name: string;
   address1?: string;
   address2?: string;
   city?: string;
   postal_code?: string;
   region?: string;
-  contact_name?: string;
-  email?: string;
-  phone?: string;
 }
 
 interface CompanyDEImportSectionProps {
@@ -45,15 +43,13 @@ export function CompanyDEImportSection({ onImportComplete }: CompanyDEImportSect
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
       const parsed: CompanyDEImport[] = jsonData.map((row: any) => ({
+        sipi_number: String(row['SIPI'] || row['sipi_number'] || row['Sipi'] || '').trim() || undefined,
         company_name: String(row['Entreprise'] || row['Company'] || row['Firma'] || row['company_name'] || ''),
-        address1: String(row['Adresse'] || row['Address'] || row['Adresse1'] || row['address1'] || '').trim() || undefined,
-        address2: String(row['Adresse2'] || row['Address2'] || row['address2'] || '').trim() || undefined,
+        address1: String(row['Adresse'] || row['Address'] || row['Adresse1'] || row['Adresse 1'] || row['address1'] || '').trim() || undefined,
+        address2: String(row['Adresse2'] || row['Address2'] || row['Adresse 2'] || row['address2'] || '').trim() || undefined,
         city: String(row['Ville'] || row['City'] || row['Stadt'] || row['city'] || '').trim() || undefined,
         postal_code: String(row['CP'] || row['PLZ'] || row['Postal Code'] || row['postal_code'] || '').trim() || undefined,
         region: String(row['Région'] || row['Region'] || row['Bundesland'] || row['region'] || '').trim() || undefined,
-        contact_name: String(row['Contact'] || row['Kontakt'] || row['contact_name'] || '').trim() || undefined,
-        email: String(row['Email'] || row['E-mail'] || row['email'] || '').trim() || undefined,
-        phone: String(row['Téléphone'] || row['Phone'] || row['Telefon'] || row['phone'] || '').trim() || undefined,
       })).filter(c => c.company_name);
 
       if (parsed.length === 0) {
@@ -99,15 +95,13 @@ export function CompanyDEImportSection({ onImportComplete }: CompanyDEImportSect
 
       for (let i = 0; i < companies.length; i += batchSize) {
         const batch = companies.slice(i, i + batchSize).map(c => ({
+          sipi_number: c.sipi_number || null,
           company_name: c.company_name,
           address1: c.address1 || null,
           address2: c.address2 || null,
           city: c.city || null,
           postal_code: c.postal_code || null,
           region: c.region || null,
-          contact_name: c.contact_name || null,
-          email: c.email || null,
-          phone: c.phone || null,
         }));
 
         const { error } = await supabase.from('companies_de').insert(batch);
@@ -128,14 +122,13 @@ export function CompanyDEImportSection({ onImportComplete }: CompanyDEImportSect
 
   const downloadTemplate = () => {
     const templateData = [{
+      "SIPI": "12345",
       "Entreprise": "Beispiel GmbH",
-      "Adresse": "Musterstraße 1",
-      "Ville": "Berlin",
+      "Adresse 1": "Musterstraße 1",
+      "Adresse 2": "",
       "CP": "10115",
+      "Ville": "Berlin",
       "Région": "Berlin",
-      "Contact": "Max Mustermann",
-      "Email": "max@beispiel.de",
-      "Téléphone": "+49 30 12345678",
     }];
     const ws = XLSX.utils.json_to_sheet(templateData);
     const wb = XLSX.utils.book_new();

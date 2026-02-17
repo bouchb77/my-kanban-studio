@@ -30,16 +30,16 @@ import {
 import { useUserRole } from "@/hooks/useUserRole";
 
 const navigationItems = [
-  { title: "Tableau de bord", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Kanban", url: "/kanban", icon: CheckSquare },
-  { title: "Liste des tâches", url: "/tasks", icon: List },
-  { title: "Projets", url: "/projects", icon: Folder },
-  { title: "Agenda Outlook", url: "/calendar", icon: Calendar },
-  { title: "Reporting", url: "/reporting", icon: BarChart3 },
-  { title: "Isochrone Client", url: "/isochrone", icon: MapPin },
+  { title: "Tableau de bord", url: "/dashboard", icon: LayoutDashboard, deHidden: true },
+  { title: "Kanban", url: "/kanban", icon: CheckSquare, deHidden: true },
+  { title: "Liste des tâches", url: "/tasks", icon: List, deHidden: true },
+  { title: "Projets", url: "/projects", icon: Folder, deHidden: true },
+  { title: "Agenda Outlook", url: "/calendar", icon: Calendar, deHidden: true },
+  { title: "Reporting", url: "/reporting", icon: BarChart3, deHidden: true },
+  { title: "Isochrone Client", url: "/isochrone", icon: MapPin, deHidden: true },
   { title: "Isochrone DE", url: "/isochrone-de", icon: MapPin },
-  { title: "Recherche Salon", url: "/salon", icon: Store },
-  { title: "Notifications", url: "/notifications", icon: Bell },
+  { title: "Recherche Salon", url: "/salon", icon: Store, deHidden: true },
+  { title: "Notifications", url: "/notifications", icon: Bell, deHidden: true },
 ];
 
 const settingsItems = [
@@ -53,6 +53,11 @@ export function AppSidebar() {
   const { isAdmin, roles } = useUserRole();
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
+  const isDE = roles.includes('de') && !isAdmin;
+
+  const filteredNavItems = isDE 
+    ? navigationItems.filter(item => !item.deHidden)
+    : navigationItems;
 
   const isActive = (path: string) => currentPath === path;
 
@@ -79,7 +84,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navigationItems.map((item) => (
+              {filteredNavItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={isActive(item.url)}>
                     <NavLink to={item.url}>
@@ -93,24 +98,45 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Paramètres */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Compte</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {settingsItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                    <NavLink to={item.url}>
-                      <item.icon className="w-4 h-4 flex-shrink-0" />
-                      {!collapsed && <span>{item.title}</span>}
+        {/* Paramètres - hidden for DE-only users */}
+        {!isDE && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Compte</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {settingsItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                      <NavLink to={item.url}>
+                        <item.icon className="w-4 h-4 flex-shrink-0" />
+                        {!collapsed && <span>{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* Entreprises DE - Visible pour les utilisateurs DE */}
+        {isDE && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Gestion DE</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive("/companies-de")}>
+                    <NavLink to="/companies-de">
+                      <Building2 className="w-4 h-4 flex-shrink-0" />
+                      {!collapsed && <span>Entreprises DE</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {/* Section Admin - Visible uniquement pour les administrateurs */}
         {isAdmin && (

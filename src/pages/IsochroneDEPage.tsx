@@ -2,26 +2,41 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download, Search, Loader2, Building2 } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MapPin, Download, Calculator, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from '@/integrations/supabase/client';
+import LeafletMapDE from '@/components/LeafletMapDE';
 
 interface CompanyDE {
   id: string;
-  sipi_number?: string;
   company_name: string;
   address1?: string;
-  address2?: string;
   city?: string;
   postal_code?: string;
+  latitude?: number;
+  longitude?: number;
+  contact_name?: string;
+  email?: string;
+  phone?: string;
   region?: string;
+}
+
+interface IsochronePoint {
+  lat: number;
+  lng: number;
 }
 
 const IsochroneDEPage = () => {
   const [companies, setCompanies] = useState<CompanyDE[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [centerLocation, setCenterLocation] = useState('');
+  const [travelTime, setTravelTime] = useState(60);
+  const [transportMode, setTransportMode] = useState('driving');
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [isochronePolygon, setIsochronePolygon] = useState<IsochronePoint[]>([]);
+  const [centerCoords, setCenterCoords] = useState<{ lat: number; lng: number } | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -34,17 +49,21 @@ const IsochroneDEPage = () => {
       const { data, error } = await supabase
         .from('companies_de')
         .select('*')
-        .order('company_name');
+        .not('latitude', 'is', null)
+        .not('longitude', 'is', null);
 
       if (error) throw error;
       setCompanies((data || []).map(c => ({
         id: c.id,
-        sipi_number: c.sipi_number ?? undefined,
         company_name: c.company_name,
         address1: c.address1 ?? undefined,
-        address2: c.address2 ?? undefined,
         city: c.city ?? undefined,
         postal_code: c.postal_code ?? undefined,
+        latitude: c.latitude ?? undefined,
+        longitude: c.longitude ?? undefined,
+        contact_name: c.contact_name ?? undefined,
+        email: c.email ?? undefined,
+        phone: c.phone ?? undefined,
         region: c.region ?? undefined,
       })));
     } catch (err) {
@@ -55,117 +74,177 @@ const IsochroneDEPage = () => {
     }
   };
 
-  const filtered = companies.filter(c =>
-    c.company_name.toLowerCase().includes(search.toLowerCase()) ||
-    (c.city && c.city.toLowerCase().includes(search.toLowerCase())) ||
-    (c.postal_code && c.postal_code.includes(search)) ||
-    (c.sipi_number && c.sipi_number.includes(search)) ||
-    (c.region && c.region.toLowerCase().includes(search.toLowerCase()))
-  );
-
-  const handleExport = () => {
-    if (filtered.length === 0) {
-      toast({ title: "Info", description: "Aucune entreprise à exporter" });
+  const handleCalculateIsochrone = async () => {
+    if (!centerLocation.trim()) {
+      toast({ title: "Erreur", description: "Veuillez saisir une adresse de départ", variant: "destructive" });
       return;
     }
 
-    const headers = ['SIPI', 'Entreprise', 'Adresse 1', 'Adresse 2', 'CP', 'Ville', 'Région'];
-    const rows = filtered.map(c => [
-      c.sipi_number || '', c.company_name, c.address1 || '', c.address2 || '',
-      c.postal_code || '', c.city || '', c.region || '',
+    setIsCalculating(true);
+    try {
+      const geocodeResponse = await supabase.functions.invoke('geocode-address', {
+        body: { address: centerLocation },
+      });
+      if (geocodeResponse.error) throw new Error('Erreur géocodage: ' + geocodeResponse.error.message);
+
+      const { lat, lng } = geocodeResponse.data;
+      setCenterCoords({ lat, lng });
+
+      const isochroneResponse = await supabase.functions.invoke('calculate-isochrone', {
+        body: {
+          lat, lng,
+          time: travelTime,
+          profile: transportMode === 'driving' ? 'driving-car' : 'foot-walking',
+        },
+      });
+      if (isochroneResponse.error) throw new Error('Erreur isochrone: ' + isochroneResponse.error.message);
+
+      setIsochronePolygon(isochroneResponse.data.polygon);
+    } catch (err) {
+      console.error('Erreur calcul isochrone DE:', err);
+      toast({ title: "Erreur", description: err instanceof Error ? err.message : "Erreur lors du calcul", variant: "destructive" });
+    } finally {
+      setIsCalculating(false);
+    }
+  };
+
+  const isPointInPolygon = (point: { lat: number; lng: number }, polygon: IsochronePoint[]): boolean => {
+    if (polygon.length < 3) return false;
+    let inside = false;
+    let j = polygon.length - 1;
+    for (let i = 0; i < polygon.length; i++) {
+      const xi = polygon[i].lat, yi = polygon[i].lng;
+      const xj = polygon[j].lat, yj = polygon[j].lng;
+      if (((yi > point.lng) !== (yj > point.lng)) &&
+        (point.lat < (xj - xi) * (point.lng - yi) / (yj - yi) + xi)) {
+        inside = !inside;
+      }
+      j = i;
+    }
+    return inside;
+  };
+
+  const handleExport = () => {
+    const companiesInZone = companies.filter(c => {
+      if (!c.latitude || !c.longitude || isochronePolygon.length === 0) return false;
+      return isPointInPolygon({ lat: c.latitude, lng: c.longitude }, isochronePolygon);
+    });
+
+    if (companiesInZone.length === 0) {
+      toast({ title: "Info", description: "Aucune entreprise dans la zone à exporter" });
+      return;
+    }
+
+    // Simple CSV export
+    const headers = ['Entreprise', 'Adresse', 'Ville', 'CP', 'Région', 'Contact', 'Email', 'Téléphone'];
+    const rows = companiesInZone.map(c => [
+      c.company_name, c.address1 || '', c.city || '', c.postal_code || '',
+      c.region || '', c.contact_name || '', c.email || '', c.phone || '',
     ]);
     const csv = [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `entreprises_de_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `entreprises_de_zone_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-muted rounded w-1/3" />
+          <div className="h-64 bg-muted rounded" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Building2 className="w-8 h-8" />
-          Entreprises Allemagne (DE)
-        </h1>
+        <h1 className="text-3xl font-bold">Isochrone Allemagne (DE)</h1>
         <p className="text-muted-foreground mt-1">
-          Liste et export des clients allemands
+          Visualisez les clients allemands par zone géographique
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>{filtered.length} entreprise(s)</span>
-            <div className="flex items-center gap-2">
-              <div className="relative w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calculator className="w-5 h-5" />
+              Paramètres de Calcul
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="location-de">Adresse de départ</Label>
                 <Input
-                  placeholder="Rechercher..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9"
+                  id="location-de"
+                  value={centerLocation}
+                  onChange={(e) => setCenterLocation(e.target.value)}
+                  placeholder="Musterstraße 1, Berlin"
                 />
               </div>
+              <div>
+                <Label htmlFor="time-de">Temps de trajet (min)</Label>
+                <Input
+                  id="time-de"
+                  type="number"
+                  value={travelTime}
+                  onChange={(e) => setTravelTime(Number(e.target.value))}
+                  placeholder="60"
+                />
+              </div>
+              <div>
+                <Label htmlFor="transport-de">Mode de transport</Label>
+                <Select value={transportMode} onValueChange={setTransportMode}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="driving">Voiture</SelectItem>
+                    <SelectItem value="walking">À pied</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button onClick={handleCalculateIsochrone} disabled={isCalculating} className="flex items-center gap-2">
+                {isCalculating ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
+                Calculer l'Isochrone
+              </Button>
               <Button
                 onClick={handleExport}
-                disabled={filtered.length === 0}
+                disabled={companies.length === 0 || isochronePolygon.length === 0}
                 variant="outline"
                 className="flex items-center gap-2"
               >
                 <Download className="w-4 h-4" />
-                Exporter CSV
+                Exporter Clients Zone
               </Button>
             </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin" />
-            </div>
-          ) : (
-            <div className="overflow-auto max-h-[600px]">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>SIPI</TableHead>
-                    <TableHead>Entreprise</TableHead>
-                    <TableHead>Adresse 1</TableHead>
-                    <TableHead>Adresse 2</TableHead>
-                    <TableHead>CP</TableHead>
-                    <TableHead>Ville</TableHead>
-                    <TableHead>Région</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map((company) => (
-                    <TableRow key={company.id}>
-                      <TableCell>{company.sipi_number || '-'}</TableCell>
-                      <TableCell className="font-medium">{company.company_name}</TableCell>
-                      <TableCell>{company.address1 || '-'}</TableCell>
-                      <TableCell>{company.address2 || '-'}</TableCell>
-                      <TableCell>{company.postal_code || '-'}</TableCell>
-                      <TableCell>{company.city || '-'}</TableCell>
-                      <TableCell>{company.region || '-'}</TableCell>
-                    </TableRow>
-                  ))}
-                  {filtered.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                        Aucune entreprise trouvée
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Carte des Entreprises DE</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <LeafletMapDE
+              companies={companies}
+              centerLocation={centerCoords}
+              isochronePolygon={isochronePolygon}
+            />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

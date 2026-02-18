@@ -86,11 +86,19 @@ export type Database = {
           address2: string | null
           city: string | null
           company_name: string
+          contact_name: string | null
+          country: string | null
           created_at: string
+          email: string | null
+          geocoded_address: string | null
+          geocoding_date: string | null
           id: string
+          latitude: number | null
+          longitude: number | null
+          phone: string | null
           postal_code: string | null
+          quality: string | null
           region: string | null
-          sipi_number: string | null
           updated_at: string
         }
         Insert: {
@@ -98,11 +106,19 @@ export type Database = {
           address2?: string | null
           city?: string | null
           company_name: string
+          contact_name?: string | null
+          country?: string | null
           created_at?: string
+          email?: string | null
+          geocoded_address?: string | null
+          geocoding_date?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
+          phone?: string | null
           postal_code?: string | null
+          quality?: string | null
           region?: string | null
-          sipi_number?: string | null
           updated_at?: string
         }
         Update: {
@@ -110,11 +126,19 @@ export type Database = {
           address2?: string | null
           city?: string | null
           company_name?: string
+          contact_name?: string | null
+          country?: string | null
           created_at?: string
+          email?: string | null
+          geocoded_address?: string | null
+          geocoding_date?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
+          phone?: string | null
           postal_code?: string | null
+          quality?: string | null
           region?: string | null
-          sipi_number?: string | null
           updated_at?: string
         }
         Relationships: []

@@ -10,13 +10,16 @@ import { CompanyDEImportSection } from "@/components/CompanyDEImportSection";
 
 interface CompanyDE {
   id: string;
-  sipi_number: string | null;
   company_name: string;
   address1: string | null;
-  address2: string | null;
   city: string | null;
   postal_code: string | null;
   region: string | null;
+  contact_name: string | null;
+  email: string | null;
+  phone: string | null;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 const CompaniesDEPage = () => {
@@ -54,8 +57,7 @@ const CompaniesDEPage = () => {
   const filtered = companies.filter(c =>
     c.company_name.toLowerCase().includes(search.toLowerCase()) ||
     (c.city && c.city.toLowerCase().includes(search.toLowerCase())) ||
-    (c.postal_code && c.postal_code.includes(search)) ||
-    (c.sipi_number && c.sipi_number.includes(search))
+    (c.postal_code && c.postal_code.includes(search))
   );
 
   return (
@@ -97,32 +99,34 @@ const CompaniesDEPage = () => {
           ) : (
             <div className="overflow-auto max-h-[600px]">
               <Table>
-                 <TableHeader>
+                <TableHeader>
                   <TableRow>
-                    <TableHead>SIPI</TableHead>
                     <TableHead>Entreprise</TableHead>
-                    <TableHead>Adresse 1</TableHead>
-                    <TableHead>Adresse 2</TableHead>
-                    <TableHead>CP</TableHead>
+                    <TableHead>Adresse</TableHead>
                     <TableHead>Ville</TableHead>
+                    <TableHead>CP</TableHead>
                     <TableHead>Région</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Téléphone</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.map((company) => (
                     <TableRow key={company.id}>
-                      <TableCell>{company.sipi_number || '-'}</TableCell>
                       <TableCell className="font-medium">{company.company_name}</TableCell>
                       <TableCell>{company.address1 || '-'}</TableCell>
-                      <TableCell>{company.address2 || '-'}</TableCell>
-                      <TableCell>{company.postal_code || '-'}</TableCell>
                       <TableCell>{company.city || '-'}</TableCell>
+                      <TableCell>{company.postal_code || '-'}</TableCell>
                       <TableCell>{company.region || '-'}</TableCell>
+                      <TableCell>{company.contact_name || '-'}</TableCell>
+                      <TableCell>{company.email || '-'}</TableCell>
+                      <TableCell>{company.phone || '-'}</TableCell>
                     </TableRow>
                   ))}
                   {filtered.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         Aucune entreprise trouvée
                       </TableCell>
                     </TableRow>

@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Building2, Search, Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Building2, Search, Loader2, MapPin } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/hooks/use-toast";
 import { CompanyDEImportSection } from "@/components/CompanyDEImportSection";
@@ -24,6 +25,7 @@ interface CompanyDE {
 const CompaniesDEPage = () => {
   const [companies, setCompanies] = useState<CompanyDE[]>([]);
   const [loading, setLoading] = useState(true);
+  const [geocoding, setGeocoding] = useState(false);
   const [search, setSearch] = useState('');
   const { toast } = useToast();
 
@@ -53,6 +55,43 @@ const CompaniesDEPage = () => {
     }
   };
 
+  const handleGeocode = async () => {
+    const withoutCoords = companies.filter(c => !c.latitude || !c.longitude);
+    if (withoutCoords.length === 0) {
+      toast({ title: "Info", description: "Toutes les entreprises sont déjà géolocalisées" });
+      return;
+    }
+
+    setGeocoding(true);
+    toast({
+      title: "Géolocalisation démarrée",
+      description: `${withoutCoords.length} entreprise(s) à géolocaliser en arrière-plan...`,
+    });
+
+    try {
+      const { data, error } = await supabase.functions.invoke('geocode-companies-de', {});
+      if (error) throw error;
+
+      toast({
+        title: "Géolocalisation terminée",
+        description: `${data.succeeded} réussie(s), ${data.failed} échouée(s) sur ${data.processed} traitée(s)`,
+      });
+      fetchCompanies();
+    } catch (err) {
+      console.error('Erreur géocodage:', err);
+      toast({
+        title: "Erreur de géolocalisation",
+        description: "Impossible de lancer la géolocalisation",
+        variant: "destructive",
+      });
+    } finally {
+      setGeocoding(false);
+    }
+  };
+
+  const withoutCoords = companies.filter(c => !c.latitude || !c.longitude).length;
+  const withCoords = companies.filter(c => c.latitude && c.longitude).length;
+
   const filtered = companies.filter(c =>
     c.company_name.toLowerCase().includes(search.toLowerCase()) ||
     (c.city && c.city.toLowerCase().includes(search.toLowerCase())) ||
@@ -74,6 +113,37 @@ const CompaniesDEPage = () => {
       <div className="mb-6">
         <CompanyDEImportSection onImportComplete={fetchCompanies} />
       </div>
+
+      {companies.length > 0 && (
+        <Card className="mb-6">
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-primary" />
+                  <span className="text-sm"><span className="font-semibold">{withCoords}</span> géolocalisée(s)</span>
+                </div>
+                {withoutCoords > 0 && (
+                  <Badge variant="outline">
+                    {withoutCoords} sans coordonnées
+                  </Badge>
+                )}
+              </div>
+              <Button
+                onClick={handleGeocode}
+                disabled={geocoding || withoutCoords === 0}
+                className="flex items-center gap-2"
+              >
+                {geocoding ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" />Géolocalisation...</>
+                ) : (
+                  <><MapPin className="w-4 h-4" />Géolocaliser les adresses ({withoutCoords})</>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -107,6 +177,7 @@ const CompaniesDEPage = () => {
                     <TableHead>Ville</TableHead>
                     <TableHead>CP</TableHead>
                     <TableHead>Région</TableHead>
+                    <TableHead>Géo</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -119,11 +190,18 @@ const CompaniesDEPage = () => {
                       <TableCell>{company.city || '-'}</TableCell>
                       <TableCell>{company.postal_code || '-'}</TableCell>
                       <TableCell>{company.region || '-'}</TableCell>
+                      <TableCell>
+                        {company.latitude && company.longitude ? (
+                          <MapPin className="w-4 h-4 text-primary" />
+                        ) : (
+                          <MapPin className="w-4 h-4 text-muted-foreground opacity-30" />
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                   {filtered.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         Aucune entreprise trouvée
                       </TableCell>
                     </TableRow>

@@ -13,14 +13,11 @@ interface CompanyDE {
   id: string;
   company_name: string;
   address1?: string;
+  address2?: string;
   city?: string;
   postal_code?: string;
-  latitude?: number;
-  longitude?: number;
-  contact_name?: string;
-  email?: string;
-  phone?: string;
   region?: string;
+  sipi_number?: string;
 }
 
 interface IsochronePoint {
@@ -48,23 +45,18 @@ const IsochroneDEPage = () => {
     try {
       const { data, error } = await supabase
         .from('companies_de')
-        .select('*')
-        .not('latitude', 'is', null)
-        .not('longitude', 'is', null);
+        .select('*');
 
       if (error) throw error;
       setCompanies((data || []).map(c => ({
         id: c.id,
         company_name: c.company_name,
         address1: c.address1 ?? undefined,
+        address2: c.address2 ?? undefined,
         city: c.city ?? undefined,
         postal_code: c.postal_code ?? undefined,
-        latitude: c.latitude ?? undefined,
-        longitude: c.longitude ?? undefined,
-        contact_name: c.contact_name ?? undefined,
-        email: c.email ?? undefined,
-        phone: c.phone ?? undefined,
         region: c.region ?? undefined,
+        sipi_number: c.sipi_number ?? undefined,
       })));
     } catch (err) {
       console.error('Erreur chargement companies DE:', err);
@@ -124,22 +116,20 @@ const IsochroneDEPage = () => {
     return inside;
   };
 
+
   const handleExport = () => {
-    const companiesInZone = companies.filter(c => {
-      if (!c.latitude || !c.longitude || isochronePolygon.length === 0) return false;
-      return isPointInPolygon({ lat: c.latitude, lng: c.longitude }, isochronePolygon);
-    });
+    const companiesInZone = companies;
 
     if (companiesInZone.length === 0) {
-      toast({ title: "Info", description: "Aucune entreprise dans la zone à exporter" });
+      toast({ title: "Info", description: "Aucune entreprise à exporter" });
       return;
     }
 
     // Simple CSV export
-    const headers = ['Entreprise', 'Adresse', 'Ville', 'CP', 'Région', 'Contact', 'Email', 'Téléphone'];
+    const headers = ['N° SIPI', 'Entreprise', 'Adresse', 'Adresse 2', 'Ville', 'CP', 'Région'];
     const rows = companiesInZone.map(c => [
-      c.company_name, c.address1 || '', c.city || '', c.postal_code || '',
-      c.region || '', c.contact_name || '', c.email || '', c.phone || '',
+      c.sipi_number || '', c.company_name, c.address1 || '', c.address2 || '',
+      c.city || '', c.postal_code || '', c.region || '',
     ]);
     const csv = [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });

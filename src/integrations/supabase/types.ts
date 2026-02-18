@@ -88,6 +88,8 @@ export type Database = {
           company_name: string
           created_at: string
           id: string
+          latitude: number | null
+          longitude: number | null
           postal_code: string | null
           region: string | null
           sipi_number: string | null
@@ -100,6 +102,8 @@ export type Database = {
           company_name: string
           created_at?: string
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           postal_code?: string | null
           region?: string | null
           sipi_number?: string | null
@@ -112,6 +116,8 @@ export type Database = {
           company_name?: string
           created_at?: string
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           postal_code?: string | null
           region?: string | null
           sipi_number?: string | null

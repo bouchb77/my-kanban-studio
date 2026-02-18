@@ -18,6 +18,8 @@ interface CompanyDE {
   postal_code?: string;
   region?: string;
   sipi_number?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 interface IsochronePoint {
@@ -45,7 +47,9 @@ const IsochroneDEPage = () => {
     try {
       const { data, error } = await supabase
         .from('companies_de')
-        .select('*');
+        .select('*')
+        .not('latitude', 'is', null)
+        .not('longitude', 'is', null);
 
       if (error) throw error;
       setCompanies((data || []).map(c => ({
@@ -57,6 +61,8 @@ const IsochroneDEPage = () => {
         postal_code: c.postal_code ?? undefined,
         region: c.region ?? undefined,
         sipi_number: c.sipi_number ?? undefined,
+        latitude: (c as any).latitude ?? undefined,
+        longitude: (c as any).longitude ?? undefined,
       })));
     } catch (err) {
       console.error('Erreur chargement companies DE:', err);
@@ -118,14 +124,18 @@ const IsochroneDEPage = () => {
 
 
   const handleExport = () => {
-    const companiesInZone = companies;
+    const companiesInZone = isochronePolygon.length > 0
+      ? companies.filter(c => {
+          if (!c.latitude || !c.longitude) return false;
+          return isPointInPolygon({ lat: c.latitude, lng: c.longitude }, isochronePolygon);
+        })
+      : companies;
 
     if (companiesInZone.length === 0) {
-      toast({ title: "Info", description: "Aucune entreprise à exporter" });
+      toast({ title: "Info", description: "Aucune entreprise dans la zone à exporter" });
       return;
     }
 
-    // Simple CSV export
     const headers = ['N° SIPI', 'Entreprise', 'Adresse', 'Adresse 2', 'Ville', 'CP', 'Région'];
     const rows = companiesInZone.map(c => [
       c.sipi_number || '', c.company_name, c.address1 || '', c.address2 || '',

@@ -17,6 +17,8 @@ interface CompanyDE {
   postal_code: string | null;
   region: string | null;
   sipi_number: string | null;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 const CompaniesDEPage = () => {

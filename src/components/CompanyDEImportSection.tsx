@@ -130,12 +130,10 @@ export function CompanyDEImportSection({ onImportComplete }: CompanyDEImportSect
     const templateData = [{
       "Entreprise": "Beispiel GmbH",
       "Adresse": "Musterstraße 1",
+      "Adresse2": "",
       "Ville": "Berlin",
       "CP": "10115",
       "Région": "Berlin",
-      "Contact": "Max Mustermann",
-      "Email": "max@beispiel.de",
-      "Téléphone": "+49 30 12345678",
     }];
     const ws = XLSX.utils.json_to_sheet(templateData);
     const wb = XLSX.utils.book_new();

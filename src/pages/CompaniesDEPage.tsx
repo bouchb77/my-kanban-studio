@@ -12,14 +12,11 @@ interface CompanyDE {
   id: string;
   company_name: string;
   address1: string | null;
+  address2: string | null;
   city: string | null;
   postal_code: string | null;
   region: string | null;
-  contact_name: string | null;
-  email: string | null;
-  phone: string | null;
-  latitude: number | null;
-  longitude: number | null;
+  sipi_number: string | null;
 }
 
 const CompaniesDEPage = () => {
@@ -101,32 +98,30 @@ const CompaniesDEPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>N° SIPI</TableHead>
                     <TableHead>Entreprise</TableHead>
                     <TableHead>Adresse</TableHead>
+                    <TableHead>Adresse 2</TableHead>
                     <TableHead>Ville</TableHead>
                     <TableHead>CP</TableHead>
                     <TableHead>Région</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Téléphone</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.map((company) => (
                     <TableRow key={company.id}>
+                      <TableCell className="font-mono text-sm">{company.sipi_number || '-'}</TableCell>
                       <TableCell className="font-medium">{company.company_name}</TableCell>
                       <TableCell>{company.address1 || '-'}</TableCell>
+                      <TableCell>{company.address2 || '-'}</TableCell>
                       <TableCell>{company.city || '-'}</TableCell>
                       <TableCell>{company.postal_code || '-'}</TableCell>
                       <TableCell>{company.region || '-'}</TableCell>
-                      <TableCell>{company.contact_name || '-'}</TableCell>
-                      <TableCell>{company.email || '-'}</TableCell>
-                      <TableCell>{company.phone || '-'}</TableCell>
                     </TableRow>
                   ))}
                   {filtered.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                         Aucune entreprise trouvée
                       </TableCell>
                     </TableRow>

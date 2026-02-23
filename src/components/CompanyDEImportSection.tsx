@@ -105,9 +105,6 @@ export function CompanyDEImportSection({ onImportComplete }: CompanyDEImportSect
           city: c.city || null,
           postal_code: c.postal_code || null,
           region: c.region || null,
-          contact_name: c.contact_name || null,
-          email: c.email || null,
-          phone: c.phone || null,
         }));
 
         const { error } = await supabase.from('companies_de').insert(batch);

@@ -10,7 +10,7 @@ import { useUsers } from '@/hooks/useUsers';
 
 interface UserRoleData {
   user_id: string;
-  role: 'admin' | 'bo' | 'ct' | 'fo';
+  role: 'admin' | 'bo' | 'ct' | 'fo' | 'de';
   formateur?: string;
 }
 
@@ -171,6 +171,7 @@ export const UserRoleManager = () => {
                       <SelectItem value="bo">BO</SelectItem>
                       <SelectItem value="ct">CT</SelectItem>
                       <SelectItem value="fo">FO</SelectItem>
+                      <SelectItem value="de">DE</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -11,14 +11,12 @@ import * as XLSX from 'xlsx';
 
 interface CompanyDEImport {
   company_name: string;
+  sipi_number?: string;
   address1?: string;
   address2?: string;
   city?: string;
   postal_code?: string;
   region?: string;
-  contact_name?: string;
-  email?: string;
-  phone?: string;
 }
 
 interface CompanyDEImportSectionProps {
@@ -46,14 +44,12 @@ export function CompanyDEImportSection({ onImportComplete }: CompanyDEImportSect
 
       const parsed: CompanyDEImport[] = jsonData.map((row: any) => ({
         company_name: String(row['Entreprise'] || row['Company'] || row['Firma'] || row['company_name'] || ''),
+        sipi_number: String(row['SIPI'] || row['sipi_number'] || row['N° SIPI'] || '').trim() || undefined,
         address1: String(row['Adresse'] || row['Address'] || row['Adresse1'] || row['address1'] || '').trim() || undefined,
         address2: String(row['Adresse2'] || row['Address2'] || row['address2'] || '').trim() || undefined,
         city: String(row['Ville'] || row['City'] || row['Stadt'] || row['city'] || '').trim() || undefined,
         postal_code: String(row['CP'] || row['PLZ'] || row['Postal Code'] || row['postal_code'] || '').trim() || undefined,
         region: String(row['Région'] || row['Region'] || row['Bundesland'] || row['region'] || '').trim() || undefined,
-        contact_name: String(row['Contact'] || row['Kontakt'] || row['contact_name'] || '').trim() || undefined,
-        email: String(row['Email'] || row['E-mail'] || row['email'] || '').trim() || undefined,
-        phone: String(row['Téléphone'] || row['Phone'] || row['Telefon'] || row['phone'] || '').trim() || undefined,
       })).filter(c => c.company_name);
 
       if (parsed.length === 0) {
@@ -100,6 +96,7 @@ export function CompanyDEImportSection({ onImportComplete }: CompanyDEImportSect
       for (let i = 0; i < companies.length; i += batchSize) {
         const batch = companies.slice(i, i + batchSize).map(c => ({
           company_name: c.company_name,
+          sipi_number: c.sipi_number || null,
           address1: c.address1 || null,
           address2: c.address2 || null,
           city: c.city || null,
@@ -125,6 +122,7 @@ export function CompanyDEImportSection({ onImportComplete }: CompanyDEImportSect
 
   const downloadTemplate = () => {
     const templateData = [{
+      "SIPI": "12345",
       "Entreprise": "Beispiel GmbH",
       "Adresse": "Musterstraße 1",
       "Adresse2": "",

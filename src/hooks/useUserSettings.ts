@@ -66,7 +66,7 @@ export const useUserColumns = () => {
     if (!user) return;
 
     const channel = supabase
-      .channel('user-columns-changes')
+      .channel(`user-columns-changes-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         {
@@ -126,7 +126,7 @@ export const useUserCustomFields = () => {
     if (!user) return;
 
     const channel = supabase
-      .channel('user-custom-fields-changes')
+      .channel(`user-custom-fields-changes-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         {

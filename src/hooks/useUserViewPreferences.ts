@@ -142,7 +142,7 @@ export const useUserViewPreferences = (viewType: 'table' | 'kanban' = 'table') =
     if (!user) return;
 
     const channel = supabase
-      .channel('user-view-preferences-changes')
+      .channel(`user-view-preferences-changes-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         {
